@@ -28,4 +28,6 @@ typedef struct TL_Rect
     int16_t height;
 } TL_Rect;
 
+extern uint32_t DB32Colors[];
+
 #endif // __ENGINE_MAIN_H__

@@ -3,3 +3,4 @@
 *.gif
 .vscode/*
 _src_gen/*
+_obj/*

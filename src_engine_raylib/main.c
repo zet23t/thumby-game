@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <raylib.h>
 #include <rlgl.h>
+#include <pthread.h>
 
 #include <gen_assets.c>
 #include <engine_main.h>
@@ -17,17 +19,138 @@ typedef void (*UpdateFunc)(void *);
 typedef void (*InitFunc)(void);
 UpdateFunc update;
 
-void buildCoreDLL()
+char* strReplaceDirSeps(char *str)
+{
+    for (int i = 0; str[i] != '\0'; i++)
+    {
+        if (str[i] == '\\' || str[i] == '/')
+        {
+            str[i] = '_';
+        }
+    }
+    return str;
+}
+
+
+typedef struct {
+    char command[256];
+} ThreadArgs;
+
+void *compileFile(void *args) {
+    ThreadArgs *threadArgs = (ThreadArgs *)args;
+    system(threadArgs->command);
+    free(threadArgs);
+    return NULL;
+}
+
+void buildCoreDLL(int forceRebuild)
 {
     if (coreLib)
         unloadLibrary(coreLib);
+    
     // Build core DLL
+    createDirectory("_obj");
     const char *coreDLL = "core.dll";
-    const char *coreSrc = "src_engine/engine_main.c";
+    char *coreSrcFiles[128] = {
+        0
+    };
+    char *coreObjFiles[128] = {
+        0
+    };
+
+    FilePathList list = LoadDirectoryFiles("src_engine");
+    int cFileCount = 0;
+    int buildAll = forceRebuild;
+    for (int i = 0; i < list.count; i++)
+    {
+        if (strcmp(GetFileExtension(list.paths[i]), ".h") == 0)
+        {
+            struct stat srcStat, objStat;
+            int srcExists = stat(list.paths[i], &srcStat);
+            char objFile[256];
+            sprintf(objFile, "_obj/%s.o", GetFileNameWithoutExt(list.paths[i]));
+            strReplaceDirSeps(objFile + 5);
+            int objExists = stat(objFile, &objStat);
+
+            // Compile if the object file doesn't exist or the source file is newer
+            if (objExists != 0 || srcStat.st_mtime > objStat.st_mtime)
+            {
+                printf("Header change detected, rebuilding all: %s\n", list.paths[i]);
+                buildAll = 1;
+                break;
+            }
+        }
+    }
+    for (int i = 0; i < list.count; i++)
+    {
+        if (strcmp(GetFileExtension(list.paths[i]), ".c") == 0)
+        {
+            printf("Found core source file: %s\n", list.paths[i]);
+            coreSrcFiles[cFileCount] = strdup(list.paths[i]);
+            char objFile[256];
+            sprintf(objFile, "_obj/%s.o", GetFileNameWithoutExt(list.paths[i]));
+            coreObjFiles[cFileCount] = strdup(objFile);
+            strReplaceDirSeps(coreObjFiles[cFileCount] + 5);
+            cFileCount++;
+        }
+    }
+    UnloadDirectoryFiles(list);
+
+    list = LoadDirectoryFiles("_src_gen");
+    for (int i = 0; i < list.count; i++)
+    {
+        if (strcmp(GetFileExtension(list.paths[i]), ".c") == 0)
+        {
+            printf("Found core source file: %s\n", list.paths[i]);
+            coreSrcFiles[cFileCount] = strdup(list.paths[i]);
+            char objFile[256];
+            sprintf(objFile, "_obj/%s.o", list.paths[i]);
+            coreObjFiles[cFileCount] = strdup(objFile);
+            strReplaceDirSeps(coreObjFiles[cFileCount] + 5);
+            cFileCount++;
+        }
+    }
+    UnloadDirectoryFiles(list);
+
+    printf("Found %d core source files\n", cFileCount);
+
     const char *coreOutput = "core.dll";
     char coreCommand[256];
+    char objfiles[1024] = {0};
     generateAssets();
-    sprintf(coreCommand, "gcc -shared -g -o %s %s -Isrc_engine -I_src_gen", coreDLL, coreSrc);
+
+    
+    pthread_t *threads = (pthread_t *)malloc(sizeof(pthread_t) * cFileCount);
+    int usedThreads = 0;
+    for (int i = 0; i < cFileCount; i++)
+    {
+        strcat(objfiles, coreObjFiles[i]);
+        strcat(objfiles, " ");
+        struct stat srcStat, objStat;
+        int srcExists = stat(coreSrcFiles[i], &srcStat);
+        int objExists = stat(coreObjFiles[i], &objStat);
+
+        // Compile if the object file doesn't exist or the source file is newer
+        if (buildAll || objExists != 0 || srcStat.st_mtime > objStat.st_mtime) {
+            ThreadArgs *args = (ThreadArgs *)malloc(sizeof(ThreadArgs));
+            sprintf(args->command, "gcc -c -g -o %s %s -Isrc_engine -I_src_gen", coreObjFiles[i], coreSrcFiles[i]);
+            printf("Scheduled building core object: %s\n", args->command);
+            pthread_create(&threads[usedThreads++], NULL, compileFile, args);
+            // printf("Building core object: %s\n", coreCommand);
+            // system(coreCommand);
+        }
+
+        free((void *)coreSrcFiles[i]);
+        free((void *)coreObjFiles[i]);
+    }
+
+    // Wait for all threads to complete
+    for (int i = 0; i < usedThreads; i++) {
+        pthread_join(threads[i], NULL);
+    }
+    free(threads);
+
+    sprintf(coreCommand, "gcc -shared -g -o %s %s", coreDLL, objfiles);
     printf("Building core DLL: %s\n", coreCommand);
     system(coreCommand);
 
@@ -60,7 +183,7 @@ int main(void)
 
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
-    buildCoreDLL();
+    buildCoreDLL(1);
 
     RuntimeContext ctx;
 
@@ -85,7 +208,7 @@ int main(void)
         if (IsKeyPressed(KEY_R))
         {
             float t = GetTime();
-            buildCoreDLL();
+            buildCoreDLL(IsKeyDown(KEY_LEFT_CONTROL));
             printf("Rebuilt core DLL in %f seconds\n", GetTime() - t);
         }
         // Update

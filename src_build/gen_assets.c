@@ -180,7 +180,27 @@ void png2c(const char *filename, const char *output)
         perror("Error opening file");
         return;
     }
-    
+    char headerFile[256];
+    sprintf(headerFile, "_src_gen/%s.h", GetFileNameWithoutExt(output));
+
+    FILE *header = fopen(headerFile, "w");
+    if (header == NULL)
+    {
+        perror("Error opening file");
+        fclose(f);
+        return;
+    }
+
+    fprintf(header, "#ifndef %s_H\n", GetFileNameWithoutExt(output));
+    fprintf(header, "#define %s_H\n", GetFileNameWithoutExt(output));
+    fprintf(header, "#include <inttypes.h>\n");
+    fprintf(header, "extern const uint16_t %s_width;\n", GetFileNameWithoutExt(output));
+    fprintf(header, "extern const uint16_t %s_height;\n", GetFileNameWithoutExt(output));
+    fprintf(header, "extern const uint8_t %s_p2width;\n", GetFileNameWithoutExt(output));
+    fprintf(header, "extern const uint8_t %s_p2height;\n", GetFileNameWithoutExt(output));
+    fprintf(header, "extern const uint32_t %s_data_size;\n", GetFileNameWithoutExt(output));
+    fprintf(header, "extern const uint8_t %s_data[];\n", GetFileNameWithoutExt(output));
+
     Image img = LoadImage(filename);
     fprintf(f, "#include <inttypes.h>\n");
     fprintf(f, "const uint16_t %s_width = %d;\n", GetFileNameWithoutExt(filename), img.width);
@@ -214,6 +234,19 @@ void png2c(const char *filename, const char *output)
                 Font font = LoadFontFromImageHeadless(img, MAGENTA, 32);
                 printf("loaded font: %s\n", filename);
                 printf("Font: %s has %d glyphs\n", filename, font.glyphCount);
+
+                fprintf(header, "extern const uint16_t %s_glyph_count;\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint16_t %s_glyph_padding;\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint16_t %s_base_size;\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint16_t %s_glyphs_values[];\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint8_t %s_glyphs_offsets_x[];\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint8_t %s_glyphs_offsets_y[];\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint8_t %s_glyphs_advances_x[];\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint16_t %s_glyphs_rects_x[];\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint16_t %s_glyphs_rects_y[];\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint8_t %s_glyphs_rects_width[];\n", GetFileNameWithoutExt(filename));
+                fprintf(header, "extern const uint8_t %s_glyphs_rects_height[];\n", GetFileNameWithoutExt(filename));
+                
 
                 fprintf(f, "const uint16_t %s_glyph_count = %d;\n", GetFileNameWithoutExt(filename), font.glyphCount);
                 fprintf(f, "const uint16_t %s_glyph_padding = %d;\n", GetFileNameWithoutExt(filename), font.glyphPadding);
@@ -273,6 +306,8 @@ void png2c(const char *filename, const char *output)
 
     UnloadImage(img);
     fclose(f);
+    fprintf(header, "#endif\n");
+    fclose(header);
 }
 
 void pngs2c(const char *dir, const char *outDir)
