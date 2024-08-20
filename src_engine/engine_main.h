@@ -15,9 +15,9 @@ typedef struct RuntimeContext
     uint32_t inputShoulderLeft:1;
     uint32_t inputShoulderRight:1;
     uint32_t inputMenu:1;
+    uint32_t frameCount;
     float time;
     float deltaTime;
-
 } RuntimeContext;
 
 typedef struct TL_Rect

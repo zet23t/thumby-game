@@ -10,6 +10,7 @@ void *getUpdateFunction(void *lib);
 void *getInitFunction(void *lib);
 void *loadLibrary(const char *libName);
 void unloadLibrary(void *lib);
+int copyBitmapIntoClipboard(void* hwnd, const uint8_t *bitmapData, size_t sizeT);
 
 void *coreLib;
 typedef void (*UpdateFunc)(void *);
@@ -36,6 +37,15 @@ void buildCoreDLL()
     InitFunc init = getInitFunction(coreLib);
     if (init != NULL)
         init();
+}
+
+
+void copyScreenShot()
+{
+    // Capture the screenshot data
+    TakeScreenshot("screenshot.png");
+    system("powershell.exe -windowstyle hidden -Command \"Add-Type -AssemblyName System.Windows.Forms; [Windows.Forms.Clipboard]::SetImage($([System.Drawing.Image]::Fromfile(\\\"screenshot.png\\\")))\"");
+    remove("screenshot.png");
 }
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
@@ -89,6 +99,7 @@ int main(void)
         float scale = min(screenWidth / 128.0f, screenHeight / 128.0f);
         Vector2 offset = (Vector2){(screenWidth - 128 * scale) / 2, (screenHeight - 128 * scale) / 2};
 
+        ctx.frameCount++;
         ctx.inputA = IsKeyDown(KEY_I);
         ctx.inputB = IsKeyDown(KEY_J);
         ctx.inputUp = IsKeyDown(KEY_W);
@@ -106,6 +117,13 @@ int main(void)
         DrawTextureEx(texture, offset, 0.0f, scale, WHITE);
 
         EndDrawing();
+
+        // copy screen data to clipboard
+        if (IsKeyPressed(KEY_C))
+        {
+            // compress screenshot data in memory to PNG format
+            copyScreenShot();
+        }
     }
 
     // De-Initialization

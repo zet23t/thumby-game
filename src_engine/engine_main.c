@@ -140,6 +140,88 @@ int abs(int x)
     return x < 0 ? -x : x;
 }
 
+void TE_Img_fillTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint32_t color, TE_ImgOpState state)
+{
+    if (y0 > y1)
+    {
+        int16_t tmp = y0;
+        y0 = y1;
+        y1 = tmp;
+        tmp = x0;
+        x0 = x1;
+        x1 = tmp;
+    }
+    if (y1 > y2)
+    {
+        int16_t tmp = y1;
+        y1 = y2;
+        y2 = tmp;
+        tmp = x1;
+        x1 = x2;
+        x2 = tmp;
+    }
+    if (y0 > y1)
+    {
+        int16_t tmp = y0;
+        y0 = y1;
+        y1 = tmp;
+        tmp = x0;
+        x0 = x1;
+        x1 = tmp;
+    }
+    
+    int16_t dx01 = x1 - x0;
+    int16_t dy01 = y1 - y0;
+    int16_t dx02 = x2 - x0;
+    int16_t dy02 = y2 - y0;
+    int16_t dx12 = x2 - x1;
+    int16_t dy12 = y2 - y1;
+
+    int16_t x, y;
+    if (dy01 == 0)
+    {
+        dy01 = 1;
+    }
+    if (dy02 == 0)
+    {
+        dy02 = 1;
+    }
+    if (dy12 == 0)
+    {
+        dy12 = 1;
+    }
+    for (y = y0; y <= y1; y++)
+    {
+        int16_t xL = x0 + dx01 * (y - y0) / dy01;
+        int16_t xR = x0 + dx02 * (y - y0) / dy02;
+        if (xL > xR)
+        {
+            int16_t tmp = xL;
+            xL = xR;
+            xR = tmp;
+        }
+        for (x = xL; x <= xR; x++)
+        {
+            TE_Img_setPixel(img, x, y, color, state);
+        }
+    }
+    for (y = y1; y <= y2; y++)
+    {
+        int16_t xL = x1 + dx12 * (y - y1) / dy12;
+        int16_t xR = x0 + dx02 * (y - y0) / dy02;
+        if (xL > xR)
+        {
+            int16_t tmp = xL;
+            xL = xR;
+            xR = tmp;
+        }
+        for (x = xL; x <= xR; x++)
+        {
+            TE_Img_setPixel(img, x, y, color, state);
+        }
+    }
+}
+
 void TE_Img_line(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint32_t color, TE_ImgOpState state)
 {
     int16_t dx = abs(x1 - x0);
@@ -490,8 +572,10 @@ typedef struct Character
     float walkDistance;
     float speed;
     float lifeTime;
+    float shootCooldown;
     int8_t dx, dy;
     int8_t dirX, dirY;
+    int8_t isAiming;
     TL_Rect srcHeadFront;
     TL_Rect srcHeadBack;
     TL_Rect srcBodyFront;
@@ -502,6 +586,76 @@ typedef struct Character
     int8_t itemRightHand;
     int8_t itemLeftHand;
 } Character;
+
+typedef struct Projectile
+{
+    float x, y;
+    float vx, vy;
+    float lifeTime;
+    uint8_t color;
+} Projectile;
+
+typedef struct Enemy
+{
+    float health;
+    Character character;
+} Enemy;
+
+#define MAX_ENEMYTYPES 4
+Character enemyCharacters[MAX_ENEMYTYPES];
+
+#define PROJECTILE_MAX_COUNT 32
+Projectile projectiles[PROJECTILE_MAX_COUNT];
+
+#define MAX_ENEMIES 16
+Enemy enemies[MAX_ENEMIES];
+
+void Projectile_spawn(float x, float y, float vx, float vy, uint32_t color)
+{
+    for (int i=0;i<PROJECTILE_MAX_COUNT;i++)
+    {
+        if (projectiles[i].lifeTime <= 0.0f)
+        {
+            projectiles[i] = (Projectile) {
+                .lifeTime = 2.0f,
+                .x = x,
+                .y = y,
+                .vx = vx,
+                .vy = vy,
+                .color = color,
+            };
+            break;
+        }
+    }
+}
+
+void Projectiles_update(Projectile *projectile, RuntimeContext *ctx, TE_Img *img)
+{
+    for (int i=0;i<PROJECTILE_MAX_COUNT;i++)
+    {
+        if (projectiles[i].lifeTime > 0.0f)
+        {
+            projectiles[i].lifeTime -= ctx->deltaTime;
+            projectiles[i].x += projectiles[i].vx * ctx->deltaTime;
+            projectiles[i].y += projectiles[i].vy * ctx->deltaTime;
+            if (projectiles[i].x < 0 || projectiles[i].x >= 128 || projectiles[i].y < 0 || projectiles[i].y >= 128)
+            {
+                projectiles[i].lifeTime = 0.0f;
+                continue;
+            }
+            
+            int16_t x = (int16_t) floorf(projectiles[i].x);
+            int16_t y = (int16_t) floorf(projectiles[i].y);
+            int16_t x2 = (int16_t) floorf(projectiles[i].x + projectiles[i].vx * ctx->deltaTime);
+            int16_t y2 = (int16_t) floorf(projectiles[i].y + projectiles[i].vy * ctx->deltaTime);
+            TE_Img_line(img, x,y, x2, y2, projectiles[i].color, (TE_ImgOpState) {
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = (uint8_t) projectiles[i].y,
+            });
+        
+        }
+    }
+}
 
 Player player = {
     .x = 64,
@@ -517,6 +671,33 @@ Character playerCharacter;
 
 TE_Img atlasImg;
 
+int Enemies_spawn(int type, int x, int y)
+{
+    int index = -1;
+    for (int i=0;i<MAX_ENEMIES;i++)
+    {
+        if (enemies[i].health <= 0.0f)
+        {
+            index = i;
+            break;
+        }
+    }
+    if (index < 0)
+    {
+        return -1;
+    }
+    enemies[index] = (Enemy) {
+        .health = 3.0f,
+        .character = enemyCharacters[type],
+    };
+    enemies[index].character.x = x;
+    enemies[index].character.y = y;
+    enemies[index].character.dirY = 1;
+    enemies[index].character.targetX = x;
+    enemies[index].character.targetY = y;
+    return index;
+}
+
 DLL_EXPORT void init()
 {
     atlasImg = (TE_Img) {
@@ -528,7 +709,12 @@ DLL_EXPORT void init()
     items[0] = (Item) {
         .pivotX = 2,
         .pivotY = 4,
-        .src = { .x = 0, .y = 96, .width = 8, .height = 13 },
+        .src = { .x = 0, .y = 96, .width = 6, .height = 13 },
+    };
+    items[1] = (Item) {
+        .pivotX = 6,
+        .pivotY = 4,
+        .src = { .x = 7, .y = 96, .width = 9, .height = 13 },
     };
 
     playerCharacter = (Character)
@@ -544,6 +730,22 @@ DLL_EXPORT void init()
         .srcLeftFootBack = { .x = 32, .y = 72, .width = 8, .height = 6 },
         .srcRightHand = { .x = 40, .y = 64, .width = 8, .height = 6 },
     };
+
+    enemyCharacters[0] = (Character)
+    {
+        .srcHeadFront = { .x = 48, .y = 64, .width = 15, .height = 11 },
+        .srcHeadBack = { .x = 48, .y = 64 + 16, .width = 15, .height = 11 },
+        .srcBodyFront = { .x = 16+48, .y = 64, .width = 15, .height = 6 },
+        .srcBodyBack = { .x = 16+48, .y = 64 + 8, .width = 15, .height = 6 },
+        .srcLeftFootFront = { .x = 32+48, .y = 64, .width = 8, .height = 6 },
+        .srcLeftFootBack = { .x = 32+48, .y = 72, .width = 8, .height = 6 },
+        .srcRightHand = { .x = 40+48, .y = 64, .width = 8, .height = 6 },
+    };
+
+    Enemies_spawn(0, 28, 42);
+    Enemies_spawn(0, 44, 28);
+
+    
 }
 
 #define RECTARG(r) r.x, r.y, r.width, r.height
@@ -665,17 +867,23 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     });
 
     // items
-    int itemRight = dirY < 0 ? character->itemLeftHand : character->itemRightHand;
-    int itemLeft = dirY < 0 ? character->itemRightHand : character->itemLeftHand;
+    int itemRight = character->itemRightHand;
+    int itemLeft = character->itemLeftHand;
     if (itemRight != 0)
     {
         uint8_t id = itemRight < 0 ? -itemRight : itemRight;
         Item *item = &items[id - 1];
-        int8_t pivotDir = dirX | 1;
+        int8_t pivotX = item->pivotX;
+        int8_t flipX = itemRight < 0;
+        if (dirX < 0)
+        {
+            flipX = !flipX;
+            pivotX = item->src.width - pivotX;
+        }
         TE_Img_blitEx(img, &atlasImg, 
-            rHandX + dirX - item->pivotX * pivotDir, rHandY - item->pivotY, 
+            rHandX + dirX - pivotX, rHandY - item->pivotY, 
             RECTARG(item->src), (BlitEx) {
-            .flipX = (itemRight < 0) ^ (dirX < 0),
+            .flipX = flipX,
             .flipY = 0,
             .rotate = 0,
             .tint = 0,
@@ -707,6 +915,17 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
                 .zValue = charZ + 7 + dirY * 2,
             }
         });
+    }
+}
+
+void Enemies_update(RuntimeContext *ctx, TE_Img *img)
+{
+    for (int i=0;i<MAX_ENEMIES;i++)
+    {
+        if (enemies[i].health > 0.0f)
+        {
+            Character_update(&enemies[i].character, ctx, img, enemies[i].character.targetX, enemies[i].character.targetY, enemies[i].character.dirX, enemies[i].character.dirY);
+        }
     }
 }
 
@@ -827,6 +1046,96 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     // DrawTree(&img, 30,80);
     // DrawTree(&img, 60,80);
     // DrawTree(&img, 90,80);
+
+    Enemies_update(ctx, &img);
+
+    Projectiles_update(projectiles, ctx, &img);
+    int shootDx = player.dx;
+    int shootDy = player.dy;
+    if (shootDx == 0 && shootDy == 0)
+    {
+        shootDx = player.dirX;
+        shootDy = player.dirY;
+    }
+    #define SHOOT_COOLDOWN (0.8f)
+    if (ctx->inputA)
+    {
+        playerCharacter.isAiming = 1;
+        playerCharacter.itemRightHand = -2;
+        playerCharacter.shootCooldown += ctx->deltaTime;
+        float percent = playerCharacter.shootCooldown / SHOOT_COOLDOWN + 1.0f;
+        uint32_t color = 0x44000088;
+        if (percent > 1.0f) 
+        {
+            percent = 1.0f;
+            color = ctx->frameCount / 4 % 2 == 0 ? 0xff0000ff : 0xffffffff;
+        }
+        float len = percent * 16.0f;
+        float sdx = shootDx;
+        float sdy = shootDy;
+        float sdLen = sqrtf(sdx * sdx + sdy * sdy);
+        sdx /= sdLen;
+        sdy /= sdLen;
+
+        int16_t x1 = (int)player.x, y1 = (int)player.y + 5;
+        int16_t x2 = (int)player.x + sdx * 16.0f - sdy * 8.0f * (1.0f - percent);
+        int16_t y2 = (int)player.y + sdy * 16.0f + sdx * 8.0f * (1.0f - percent) + 5;
+        int16_t x3 = (int)player.x + sdx * 16.0f + sdy * 8.0f * (1.0f - percent);
+        int16_t y3 = (int)player.y + sdy * 16.0f - sdx * 8.0f * (1.0f - percent) + 5;
+
+        if (percent < 1.0f)
+        {
+            TE_Img_fillTriangle(&img, x1, y1, x2, y2, x3, y3, color, (TE_ImgOpState) {
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 200,
+            });
+        }
+        else
+        {
+            TE_Img_line(&img, x1, y1, x2, y2, color, (TE_ImgOpState) {
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 200,
+            });
+        }
+        // TE_Img_line(&img, (int)player.x, (int)player.y + 5, (int)player.x + shootDx * len, (int)player.y + shootDy * len + 5, 
+        //     color, (TE_ImgOpState) {
+        //     .zCompareMode = Z_COMPARE_ALWAYS,
+        //     .zValue = 200,
+        // });
+        // TE_Img_line(&img, (int)player.x, (int)player.y + 5, 
+        //     (int)player.x + shootDx * 16.0f - shootDy * 8.0f * (1.0f - percent), 
+        //     (int)player.y + shootDy * 16.0f + shootDx * 8.0f * (1.0f - percent)+ 5, 
+        //     color, (TE_ImgOpState) {
+        //     .zCompareMode = Z_COMPARE_ALWAYS,
+        //     .zValue = 200,
+        // });
+        // TE_Img_line(&img, (int)player.x, (int)player.y + 5, 
+        //     (int)player.x + shootDx * 16.0f + shootDy * 8.0f * (1.0f - percent), 
+        //     (int)player.y + shootDy * 16.0f - shootDx * 8.0f * (1.0f - percent)+ 5, 
+        //     color, (TE_ImgOpState) {
+        //     .zCompareMode = Z_COMPARE_ALWAYS,
+        //     .zValue = 200,
+        // });
+    }
+    else if (playerCharacter.isAiming && playerCharacter.shootCooldown < 0.0f)
+    {
+        playerCharacter.isAiming = 0;
+        playerCharacter.itemRightHand = -1;
+        playerCharacter.shootCooldown = -SHOOT_COOLDOWN;
+    }
+    else if (playerCharacter.isAiming)
+    {
+        playerCharacter.isAiming = 0;
+        playerCharacter.itemRightHand = -1;
+        
+        playerCharacter.shootCooldown = -SHOOT_COOLDOWN;
+        Projectile_spawn(player.x, player.y + 5, shootDx * 128.0f, shootDy * 128.0f, 0xff0000ff);
+    }
+    else
+    {
+        playerCharacter.shootCooldown = -SHOOT_COOLDOWN;
+    }
+
 
     Character_update(&playerCharacter, ctx, &img, player.x, player.y, player.dirX, player.dirY);
     
