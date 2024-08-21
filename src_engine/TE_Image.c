@@ -223,3 +223,163 @@ void TE_Img_clear(TE_Img *img, uint32_t color, uint8_t z)
         img->data[i] = color;
     }
 }
+
+void TE_Img_HLine(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint32_t color, TE_ImgOpState state)
+{
+    if (x >= (1 << img->p2width) || y >= (1 << img->p2height) || y < 0)
+    {
+        return;
+    }
+    int16_t x2 = x + w;
+    if (x2 < 0)
+    {
+        return;
+    }
+    x = x < 0 ? 0 : x;
+    x2 = x2 >= (1 << img->p2width) ? (1 << img->p2width) - 1 : x2;
+
+    for (uint16_t i = x; i < x2; i++)
+    {
+        TE_Img_setPixel(img, i, y, color, state);
+    }
+}
+
+void TE_Img_VLine(TE_Img *img, int16_t x, int16_t y, uint16_t h, uint32_t color, TE_ImgOpState state)
+{
+    if (x >= (1 << img->p2width) || y >= (1 << img->p2height) || x < 0)
+    {
+        return;
+    }
+    int16_t y2 = y + h;
+    if (y2 < 0)
+    {
+        return;
+    }
+    y = y < 0 ? 0 : y;
+    y2 = y2 >= (1 << img->p2height) ? (1 << img->p2height) - 1 : y2;
+
+    for (uint16_t i = y; i < y2; i++)
+    {
+        TE_Img_setPixel(img, x, i, color, state);
+    }
+}
+
+void TE_Img_lineRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t color, TE_ImgOpState state)
+{
+    TE_Img_HLine(img, x, y, w, color, state);
+    TE_Img_HLine(img, x, y + h - 1, w, color, state);
+    TE_Img_VLine(img, x, y, h, color, state);
+    TE_Img_VLine(img, x + w - 1, y, h, color, state);
+}
+
+void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t color, TE_ImgOpState state)
+{
+    if (x >= (1 << img->p2width) || y >= (1 << img->p2height) || x < 0 || y < 0)
+    {
+        return;
+    }
+
+    uint16_t x1 = x < 0 ? 0 : x;
+    uint16_t y1 = y < 0 ? 0 : y;
+    uint16_t x2 = x + w;
+    uint16_t y2 = y + h;
+
+    x2 = x2 >= (1 << img->p2width) ? (1 << img->p2width) - 1 : x2;
+    y2 = y2 >= (1 << img->p2height) ? (1 << img->p2height) - 1 : y2;
+
+    for (uint16_t i = y1; i <= y2; i++)
+    {
+        for (uint16_t j = x1; j <= x2; j++)
+        {
+            TE_Img_setPixel(img, j, i, color, state);
+        }
+    }
+}
+
+void TE_Img_drawPatch9(TE_Img *img, TE_Img* src, int16_t x, int16_t y, int16_t w, int16_t h,
+    int16_t srcX, int16_t srcY, uint8_t cellWidth, uint8_t cellHeight, BlitEx options)
+{
+    if (w <= 0 || h <= 0 || x > (1 << img->p2width) || y > (1 << img->p2height))
+    {
+        return;
+    }
+    int16_t d3x = w / 2;
+    int16_t d3y = h / 2;
+
+    int16_t cornerW1 = d3x < cellWidth ? d3x : cellWidth;
+    int16_t cornerH1 = d3y < cellHeight ? d3y  : cellHeight;
+    int16_t cornerW2 = cornerW1;
+    int16_t cornerH2 = cornerH1;
+
+    if (cornerW1 < cellWidth) cornerW1 = w - cornerW1;
+    if (cornerH1 < cellHeight) cornerH1 = h - cornerH1;
+
+    int16_t tlx = x;
+    int16_t tly = y;
+
+    int16_t trx = x + w - cornerW2;
+    int16_t try = y;
+
+    int16_t blx = x;
+    int16_t bly = y + h - cornerH2;
+
+    int16_t brx = x + w - cornerW2;
+    int16_t bry = y + h - cornerH2;
+
+    // TE_Img_lineRect(img, x, y, w, h, 0xffffffff, options.state);
+    // TE_Img_lineRect(img, tlx, tly, cornerW1, cornerH1, 0xff00ffff, options.state);
+    // TE_Img_lineRect(img, trx, try, cornerW2, cornerH1, 0xff00ffff, options.state);
+    // TE_Img_lineRect(img, blx, bly, cornerW1, cornerH2, 0xff00ffff, options.state);
+    // TE_Img_lineRect(img, brx, bry, cornerW2, cornerH2, 0xff00ffff, options.state);
+
+    int16_t px, py;
+    TE_Img_blitEx(img, src, tlx, tly, srcX, srcY, cornerW1, cornerH1, options);
+    TE_Img_blitEx(img, src, trx, try, srcX + cellWidth * 3 - cornerW2, srcY, cornerW2, cornerH1, options);
+    for (px = tlx + cornerW1; px <= trx - cellWidth; px+= cellWidth)
+    {
+        TE_Img_blitEx(img, src, px, tly, srcX + cellWidth, srcY, cellWidth, cornerH1, options);
+    }
+    if (px < trx)
+    {
+        TE_Img_blitEx(img, src, px, tly, srcX + cellWidth, srcY, trx - px, cornerH1, options);
+    }
+
+    TE_Img_blitEx(img, src, blx, bly, srcX, srcY + cellHeight * 3 - cornerH2, cornerW1, cornerH2, options);
+    TE_Img_blitEx(img, src, brx, bry, srcX + cellWidth * 3 - cornerW2, srcY + cellHeight * 3 - cornerH2, cornerW2, cornerH2, options);
+    for (px = blx + cornerW1; px <= brx - cellWidth; px+= cellWidth)
+    {
+        TE_Img_blitEx(img, src, px, bly, srcX + cellWidth, srcY + cellHeight * 3 - cornerH2, cellWidth, cornerH2, options);
+    }
+    if (px < brx)
+    {
+        TE_Img_blitEx(img, src, px, bly, srcX + cellWidth, srcY + cellHeight * 3 - cornerH2, brx - px, cornerH2, options);
+    }
+
+    for (py = tly + cornerH1; py <= bly - cellHeight; py+= cellHeight)
+    {
+        TE_Img_blitEx(img, src, tlx, py, srcX, srcY + cellHeight, cornerW1, cellHeight, options);
+        TE_Img_blitEx(img, src, trx, py, srcX + cellWidth * 3 - cornerW2, srcY + cellHeight, cornerW2, cellHeight, options);
+        for (px = tlx + cornerW1; px <= trx - cellWidth; px+= cellWidth)
+        {
+            TE_Img_blitEx(img, src, px, py, srcX + cellWidth, srcY + cellHeight, cellWidth, cellHeight, options);
+        }
+        if (px < trx)
+        {
+            TE_Img_blitEx(img, src, px, py, srcX + cellWidth, srcY + cellHeight, trx - px, cellHeight, options);
+        }
+    }
+
+    if (py < bly)
+    {
+        TE_Img_blitEx(img, src, tlx, py, srcX, srcY + cellHeight, cornerW1, bly - py, options);
+        TE_Img_blitEx(img, src, trx, py, srcX + cellWidth * 3 - cornerW2, srcY + cellHeight, cornerW2, bly - py, options);
+        for (px = tlx + cornerW1; px <= trx - cellWidth; px+= cellWidth)
+        {
+            TE_Img_blitEx(img, src, px, py, srcX + cellWidth, srcY + cellHeight, cellWidth, bly - py, options);
+        }
+        if (px < trx)
+        {
+            TE_Img_blitEx(img, src, px, py, srcX + cellWidth, srcY + cellHeight, trx - px, bly - py, options);
+        }
+    }
+}

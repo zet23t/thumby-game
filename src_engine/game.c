@@ -14,6 +14,8 @@ Player player = {
     .dy = 0,
     .dirX = 0,
     .dirY = 1,
+    .maxHealth = 6,
+    .health = 6
 };
 
 Item items[16];

@@ -11,13 +11,13 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     int8_t signY = dy < 0.0f ? -1 : (dy > 0.0f ? 1 : 0);
     float len = sqrtf(dx * dx + dy * dy);
     character->targetDistance = len;
-    if (len < 0.5f)
+    if (len < 1.25f)
     {
         dx = 0.0f;
         dy = 0.0f;
         len = 0.0f;
     }
-    if (len > 1.0f)
+    if (len > 1.5f)
     {
         dx /= len;
         dy /= len;

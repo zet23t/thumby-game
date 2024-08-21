@@ -19,6 +19,8 @@
 #include "game_projectile.h"
 #include "game_character.h"
 #include "game_enemies.h"
+#include "game_player.h"
+#include "game_menu.h"
 
 uint32_t DB32Colors[] = {
     0xFF000000, 0xFF342022, 0xFF3C2845, 0xFF313966, 0xFF3B568F, 0xFF2671DF, 0xFF66A0D9, 0xFF9AC3EE,
@@ -80,52 +82,6 @@ DLL_EXPORT void init()
 
 DLL_EXPORT void update(RuntimeContext *ctx)
 {
-    if (ctx->inputUp || ctx->inputDown)
-    {
-        player.dirX = player.dirY = 0;
-    }
-
-    if (ctx->inputUp)
-    {
-        player.dy = -1;
-        player.dirY = -1;
-    }
-    else if (ctx->inputDown)
-    {
-        player.dy = 1;
-        player.dirY = 1;
-    }
-    else
-    {
-        player.dy = 0;
-    }
-
-    if (ctx->inputLeft)
-    {
-        player.dx = -1;
-        player.dirX = -1;
-    }
-    else if (ctx->inputRight)
-    {
-        player.dx = 1;
-        player.dirX = 1;
-    }
-    else
-    {
-        player.dx = 0;
-    }
-
-    int sqLen = player.dx * player.dx + player.dy * player.dy;
-    float multiplier = sqLen == 2 ? 0.70710678118f * 16.0f : 16.0f;
-    if (sqLen == 2)
-    {
-        float frac = player.x - (int)player.x;
-        player.y = (int)player.y + frac;
-    }
-
-    player.x += player.dx * ctx->deltaTime * multiplier;
-    player.y += player.dy * ctx->deltaTime * multiplier;
-
     TE_Img img = {
         .p2width = 7,
         .p2height = 7,
@@ -166,6 +122,8 @@ DLL_EXPORT void update(RuntimeContext *ctx)
 
     
     TE_Img_clear(&img, DB32Colors[13], 0);
+
+
     TE_randSetSeed(3294);
 
     for (int i=0;i<24;i++)
@@ -198,101 +156,15 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     Enemies_update(ctx, &img);
 
     Projectiles_update(projectiles, ctx, &img);
-    int shootDx = player.dx;
-    int shootDy = player.dy;
-    if (shootDx == 0 && shootDy == 0)
-    {
-        shootDx = player.dirX;
-        shootDy = player.dirY;
-    }
-    #define SHOOT_COOLDOWN (0.8f)
-    if (ctx->inputA)
-    {
-        playerCharacter.isAiming = 1;
-        playerCharacter.itemRightHand = -2;
-        playerCharacter.shootCooldown += ctx->deltaTime;
-        float percent = playerCharacter.shootCooldown / SHOOT_COOLDOWN + 1.0f;
-        uint32_t color = 0x44000088;
-        if (percent > 1.0f) 
-        {
-            percent = 1.0f;
-            color = ctx->frameCount / 4 % 2 == 0 ? 0xff0000ff : 0xffffffff;
-        }
-        float len = percent * 16.0f;
-        float sdx = shootDx;
-        float sdy = shootDy;
-        float sdLen = sqrtf(sdx * sdx + sdy * sdy);
-        sdx /= sdLen;
-        sdy /= sdLen;
 
-        int16_t x1 = (int)player.x, y1 = (int)player.y + 5;
-        int16_t x2 = (int)player.x + sdx * 16.0f - sdy * 8.0f * (1.0f - percent);
-        int16_t y2 = (int)player.y + sdy * 16.0f + sdx * 8.0f * (1.0f - percent) + 5;
-        int16_t x3 = (int)player.x + sdx * 16.0f + sdy * 8.0f * (1.0f - percent);
-        int16_t y3 = (int)player.y + sdy * 16.0f - sdx * 8.0f * (1.0f - percent) + 5;
-
-        if (percent < 1.0f)
-        {
-            TE_Img_fillTriangle(&img, x1, y1, x2, y2, x3, y3, color, (TE_ImgOpState) {
-                .zCompareMode = Z_COMPARE_ALWAYS,
-                .zValue = 200,
-            });
-        }
-        else
-        {
-            TE_Img_line(&img, x1, y1, x2, y2, color, (TE_ImgOpState) {
-                .zCompareMode = Z_COMPARE_ALWAYS,
-                .zValue = 200,
-            });
-        }
-        // TE_Img_line(&img, (int)player.x, (int)player.y + 5, (int)player.x + shootDx * len, (int)player.y + shootDy * len + 5, 
-        //     color, (TE_ImgOpState) {
-        //     .zCompareMode = Z_COMPARE_ALWAYS,
-        //     .zValue = 200,
-        // });
-        // TE_Img_line(&img, (int)player.x, (int)player.y + 5, 
-        //     (int)player.x + shootDx * 16.0f - shootDy * 8.0f * (1.0f - percent), 
-        //     (int)player.y + shootDy * 16.0f + shootDx * 8.0f * (1.0f - percent)+ 5, 
-        //     color, (TE_ImgOpState) {
-        //     .zCompareMode = Z_COMPARE_ALWAYS,
-        //     .zValue = 200,
-        // });
-        // TE_Img_line(&img, (int)player.x, (int)player.y + 5, 
-        //     (int)player.x + shootDx * 16.0f + shootDy * 8.0f * (1.0f - percent), 
-        //     (int)player.y + shootDy * 16.0f - shootDx * 8.0f * (1.0f - percent)+ 5, 
-        //     color, (TE_ImgOpState) {
-        //     .zCompareMode = Z_COMPARE_ALWAYS,
-        //     .zValue = 200,
-        // });
-    }
-    else if (playerCharacter.isAiming && playerCharacter.shootCooldown < 0.0f)
-    {
-        playerCharacter.isAiming = 0;
-        playerCharacter.itemRightHand = -1;
-        playerCharacter.shootCooldown = -SHOOT_COOLDOWN;
-    }
-    else if (playerCharacter.isAiming)
-    {
-        playerCharacter.isAiming = 0;
-        playerCharacter.itemRightHand = -1;
-        
-        playerCharacter.shootCooldown = -SHOOT_COOLDOWN;
-        Projectile_spawn(player.x, player.y + 5, shootDx * 128.0f, shootDy * 128.0f, 0xff0000ff);
-    }
-    else
-    {
-        playerCharacter.shootCooldown = -SHOOT_COOLDOWN;
-    }
-
-
-    Character_update(&playerCharacter, ctx, &img, player.x, player.y, player.dirX, player.dirY);
+    Player_update(&player, &playerCharacter, ctx, &img);
     
     
 
-    TE_Font_drawText(&img, &myfont, 2, 2, -1, "Sherwood Forest", 0xffffffff, (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 100,
-    });
+    // TE_Font_drawText(&img, &myfont, 2, 2, -1, "Sherwood Forest", 0xffffffff, (TE_ImgOpState) {
+    //     .zCompareMode = Z_COMPARE_LESS_EQUAL,
+    //     .zValue = 100,
+    // });
 
     char text[64];
     sprintf(text, "FPS: %d", (int)(1.0f / ctx->deltaTime));
@@ -300,4 +172,6 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         .zCompareMode = Z_COMPARE_LESS_EQUAL,
         .zValue = 100,
     });
+
+    Menu_update(ctx, &img);
 }

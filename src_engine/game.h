@@ -30,6 +30,8 @@ typedef struct Player
     float x, y;
     int dx, dy;
     int dirX, dirY;
+    int health;
+    int maxHealth;
 } Player;
 
 typedef struct Item

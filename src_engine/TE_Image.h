@@ -48,5 +48,8 @@ void TE_Img_line(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, ui
 uint32_t TE_Color_tint(uint32_t color, uint32_t tint);
 void TE_Img_blitEx(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_t srcX, uint16_t srcY, uint16_t width, uint16_t height, BlitEx options);
 void TE_Img_clear(TE_Img *img, uint32_t color, uint8_t z);
-
+void TE_Img_lineRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t color, TE_ImgOpState state);
+void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t color, TE_ImgOpState state);
+void TE_Img_drawPatch9(TE_Img *img, TE_Img* src, int16_t x, int16_t y, int16_t w, int16_t h,
+    int16_t srcX, int16_t srcY, uint8_t cellWidth, uint8_t cellHeight, BlitEx options);
 #endif
