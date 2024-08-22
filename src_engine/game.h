@@ -5,25 +5,6 @@
 #include "engine_main.h"
 #include "TE_Image.h"
 
-typedef struct TreeDrawInstruction
-{
-    int16_t x, scatterX;
-    int16_t y, scatterY;
-    uint8_t color;
-    uint8_t count;
-    uint8_t probability;
-    uint8_t srcYOffset;
-    uint8_t zValue;
-    uint8_t compareMode;
-    uint8_t shadow;
-} TreeDrawInstruction;
-
-typedef struct TreeNode
-{
-    uint8_t depth;
-    uint8_t isMain;
-    int16_t x1, y1, x2, y2;
-} TreeNode;
 
 typedef struct Player
 {
@@ -68,6 +49,7 @@ typedef struct Projectile
 {
     float x, y;
     float vx, vy;
+    float nx, ny;
     float lifeTime;
     uint8_t color;
 } Projectile;
@@ -93,9 +75,5 @@ extern Player player;
 extern Item items[16];
 extern Character playerCharacter;
 extern TE_Img atlasImg;
-
-void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY);
-void TreeGen(TreeNode *nodes, uint8_t *pos, uint8_t maxCount, uint8_t isMain, uint8_t depth, int8_t x, int8_t y, int8_t dx, int8_t dy);
-
 
 #endif

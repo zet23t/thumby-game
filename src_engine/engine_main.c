@@ -21,6 +21,7 @@
 #include "game_enemies.h"
 #include "game_player.h"
 #include "game_menu.h"
+#include "game_environment.h"
 
 uint32_t DB32Colors[] = {
     0xFF000000, 0xFF342022, 0xFF3C2845, 0xFF313966, 0xFF3B568F, 0xFF2671DF, 0xFF66A0D9, 0xFF9AC3EE,
@@ -77,7 +78,24 @@ DLL_EXPORT void init()
     Enemies_spawn(0, 28, 42);
     Enemies_spawn(0, 44, 28);
 
-    
+    Environment_init();
+    Environment_addTreeGroup(24, 30, 1232, 5, 25);
+    Environment_addTreeGroup(114, 30, 122, 5, 25);
+    Environment_addTreeGroup(114, 125, 1252, 5, 25);
+    Environment_addTreeGroup(24, 124, 99, 5, 20);
+    // Environment_addTree(30,50, 12343050);
+    // // Environment_addTree(35,50, 12343550);
+    // // Environment_addTree(25,30, 12342530);
+    // Environment_addTree(60,50, 12346050);
+    // Environment_addTree(90,50, 12349050);
+    // Environment_addTree(35,90, 12343590);
+    // Environment_addTree(65,110, 12346511);
+    // Environment_addTree(90,80, 12349080);
+    // Environment_addTree(95,80, 12349580);
+    // Environment_addTree(95,90, 12349590);
+    // // Environment_addTree(30,80, 12343080);
+    // // Environment_addTree(60,80, 12346080);
+    // // Environment_addTree(90,80, 12349080);
 }
 
 DLL_EXPORT void update(RuntimeContext *ctx)
@@ -139,19 +157,7 @@ DLL_EXPORT void update(RuntimeContext *ctx)
             .tintColor = 0xff306f8a,
         });
     }
-    DrawTree(&img, 30,50);
-    // DrawTree(&img, 35,50);
-    // DrawTree(&img, 25,30);
-    DrawTree(&img, 60,50);
-    DrawTree(&img, 90,50);
-    DrawTree(&img, 35,90);
-    DrawTree(&img, 65,110);
-    DrawTree(&img, 90,80);
-    DrawTree(&img, 95,80);
-    DrawTree(&img, 95,90);
-    // DrawTree(&img, 30,80);
-    // DrawTree(&img, 60,80);
-    // DrawTree(&img, 90,80);
+    
 
     Enemies_update(ctx, &img);
 
@@ -159,7 +165,7 @@ DLL_EXPORT void update(RuntimeContext *ctx)
 
     Player_update(&player, &playerCharacter, ctx, &img);
     
-    
+    Environment_update(ctx, &img);
 
     // TE_Font_drawText(&img, &myfont, 2, 2, -1, "Sherwood Forest", 0xffffffff, (TE_ImgOpState) {
     //     .zCompareMode = Z_COMPARE_LESS_EQUAL,
@@ -167,10 +173,10 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     // });
 
     char text[64];
-    sprintf(text, "FPS: %d", (int)(1.0f / ctx->deltaTime));
+    sprintf(text, "FPS: %d", (int)roundl(1.0f / ctx->deltaTime));
     TE_Font_drawText(&img, &tinyfont, 2, 112, -1, text, 0xffffffff, (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 100,
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
     });
 
     Menu_update(ctx, &img);

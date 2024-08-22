@@ -176,8 +176,8 @@ void copyScreenShot()
 int main(void)
 {
     // Initialization
-    const int screenWidth = 128 * 6;
-    const int screenHeight = 128 * 6;
+    int screenWidth = 128 * 2;
+    int screenHeight = 128 * 2;
 
     InitWindow(screenWidth, screenHeight, "Thumby color engine simulator");
 
@@ -185,7 +185,9 @@ int main(void)
 
     buildCoreDLL(1);
 
-    RuntimeContext ctx;
+    RuntimeContext ctx = {0};
+    int isPaused = 0;
+    int step = 0;
 
     for (int i = 0; i < 128 * 128; i++)
     {
@@ -205,11 +207,36 @@ int main(void)
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
+        if (IsKeyPressed(KEY_P)) {
+            isPaused = !isPaused;
+        }
+        if (IsKeyPressed(KEY_LEFT_SHIFT) && isPaused)
+        {
+            step = 1;
+        }
+            
+
         if (IsKeyPressed(KEY_R))
         {
             float t = GetTime();
             buildCoreDLL(IsKeyDown(KEY_LEFT_CONTROL));
             printf("Rebuilt core DLL in %f seconds\n", GetTime() - t);
+        }
+        int winW = 0, winH = 0;
+        if (IsKeyPressed(KEY_ONE)) winW = 128, winH = 128;
+        if (IsKeyPressed(KEY_TWO)) winW = 128 * 2, winH = 128 * 2;
+        if (IsKeyPressed(KEY_THREE)) winW = 128 * 3, winH = 128 * 3;
+        if (IsKeyPressed(KEY_FOUR)) winW = 128 * 4, winH = 128 * 4;
+        if (IsKeyPressed(KEY_FIVE)) winW = 128 * 5, winH = 128 * 5;
+        if (IsKeyPressed(KEY_SIX)) winW = 128 * 6, winH = 128 * 6;
+        if (winW > 0)
+        {
+            Vector2 winPos = GetWindowPosition();
+            int x = (int) winPos.x;
+            int y = (int) winPos.y;
+            SetWindowPosition(x + (screenWidth - winW) / 2, y + (screenHeight - winH) / 2);
+            screenWidth = winW, screenHeight = winH;
+            SetWindowSize(winW, winH);
         }
         // Update
         //----------------------------------------------------------------------------------
@@ -222,21 +249,25 @@ int main(void)
         float scale = min(screenWidth / 128.0f, screenHeight / 128.0f);
         Vector2 offset = (Vector2){(screenWidth - 128 * scale) / 2, (screenHeight - 128 * scale) / 2};
 
-        ctx.frameCount++;
-        ctx.inputA = IsKeyDown(KEY_I);
-        ctx.inputB = IsKeyDown(KEY_J);
-        ctx.inputUp = IsKeyDown(KEY_W);
-        ctx.inputDown = IsKeyDown(KEY_S);
-        ctx.inputLeft = IsKeyDown(KEY_A);
-        ctx.inputRight = IsKeyDown(KEY_D);
-        ctx.inputShoulderLeft = IsKeyDown(KEY_Q);
-        ctx.inputShoulderRight = IsKeyDown(KEY_E);
-        ctx.inputMenu = IsKeyDown(KEY_M);
-        ctx.time = GetTime();
-        ctx.deltaTime = GetFrameTime();
+        if (!isPaused || step)
+        {
+            step = 0;
+            ctx.frameCount++;
+            ctx.inputA = IsKeyDown(KEY_I);
+            ctx.inputB = IsKeyDown(KEY_J);
+            ctx.inputUp = IsKeyDown(KEY_W);
+            ctx.inputDown = IsKeyDown(KEY_S);
+            ctx.inputLeft = IsKeyDown(KEY_A);
+            ctx.inputRight = IsKeyDown(KEY_D);
+            ctx.inputShoulderLeft = IsKeyDown(KEY_Q);
+            ctx.inputShoulderRight = IsKeyDown(KEY_E);
+            ctx.inputMenu = IsKeyDown(KEY_M);
+            ctx.time += GetFrameTime();
+            ctx.deltaTime = GetFrameTime();
 
-        update(&ctx);
-        UpdateTexture(texture, ctx.screenData);
+            update(&ctx);
+            UpdateTexture(texture, ctx.screenData);
+        }
         DrawTextureEx(texture, offset, 0.0f, scale, WHITE);
 
         EndDrawing();
