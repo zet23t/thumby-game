@@ -2,6 +2,7 @@
 #include "game.h"
 #include "atlas.h"
 #include "TE_rand.h"
+#include <math.h>
 
 #define TREE_COLLIDE_RADIUS 3
 
@@ -268,6 +269,51 @@ void Environment_addTreeGroup(int16_t x, int16_t y, uint32_t seed, uint8_t count
     };
 }
 
+float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_t *nearestY)
+{
+    float minDist = 9999;
+    for (int i=0;i<environmentScene.environmentObjectCount;i++)
+    {
+        TE_randSetSeed(environmentScene.objects[i].seed);
+        int x = environmentScene.objects[i].x, y = environmentScene.objects[i].y;
+        if (environmentScene.objects[i].type == TYPE_TREE)
+        {
+            int dx = px - x, dy = py - y;
+            float dist = dx * dx + dy * dy;
+            if (dist < minDist)
+            {
+                minDist = dist;
+                *nearestX = x;
+                *nearestY = y;
+            }
+        }
+        else if (environmentScene.objects[i].type == TYPE_TREEGROUP)
+        {
+            int posX[32];
+            int posY[32];
+            int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
+            int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                TE_randRadius(treeGroupScatterRadius, &posX[j], &posY[j]);
+            }
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                int dx = px - x - posX[j], dy = py - y - posY[j];
+                float dist = dx * dx + dy * dy;
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    *nearestX = x + posX[j];
+                    *nearestY = y + posY[j];
+                }
+            }
+        }
+    }
+
+    return sqrtf(minDist) - TREE_COLLIDE_RADIUS;
+}
+
 int Environment_raycastCircle(int16_t px, int16_t py, int16_t radius, int16_t *outX, int16_t *outY, int16_t *outRadius)
 {
     int dmin = radius + TREE_COLLIDE_RADIUS;
@@ -374,10 +420,10 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
             for (int j=0;j<treeGroupCount;j++)
             {
                 DrawTree(img, x + posX[j], y + posY[j]);
-                TE_Img_lineCircle(img, x + posX[j], y + posY[j], TREE_COLLIDE_RADIUS, DB32Colors[7], (TE_ImgOpState) {
-                    .zCompareMode = Z_COMPARE_LESS,
-                    .zValue = 44 + y + posY[j],
-                });
+                // TE_Img_lineCircle(img, x + posX[j], y + posY[j], TREE_COLLIDE_RADIUS, DB32Colors[7], (TE_ImgOpState) {
+                //     .zCompareMode = Z_COMPARE_LESS,
+                //     .zValue = 44 + y + posY[j],
+                // });
             }
         }
     }

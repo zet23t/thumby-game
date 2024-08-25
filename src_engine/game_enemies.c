@@ -1,6 +1,8 @@
 #include "game_enemies.h"
 #include "game_character.h"
+#include "game_environment.h"
 #include "TE_rand.h"
+#include <math.h>
 
 int Enemies_spawn(int type, int x, int y)
 {
@@ -35,17 +37,75 @@ void Enemies_update(RuntimeContext *ctx, TE_Img *img)
     {
         if (enemies[i].health > 0.0f)
         {
-            Character_update(&enemies[i].character, ctx, img, enemies[i].character.targetX, enemies[i].character.targetY, enemies[i].character.dirX, enemies[i].character.dirY);
+            float targetX = enemies[i].character.targetX;
+            float targetY = enemies[i].character.targetY;
+            float x = enemies[i].character.x;
+            float y = enemies[i].character.y;
+            Character_toBaseF(&enemies[i].character, &targetX, &targetY);
+            Character_toBaseF(&enemies[i].character, &x, &y);
+            float dx = targetX - x;
+            float dy = targetY - y;
+            float sqDist = dx*dx+dy*dy;
+            if (sqDist > 10.0f)
+            {
+                int16_t nearestX, nearestY;
+                float dist = sqrtf(sqDist);
+                dx /= dist;
+                dy /= dist;
+                float sdf = Obstacles_calcSDFValue(&enemies[i].character, (int16_t) (x + dx * 3.0f), (int16_t) (y + dy * 3.0f), &nearestX, &nearestY);
+                if (sdf < 12.0f && dotF(nearestX - x, nearestY - y, dx, dy) > 0.0f)
+                {
+                    float deflectX = (x + dx * 3.0f) - nearestX;
+                    float deflectY = (y + dy * 3.0f) - nearestY;
+
+                    // TE_Img_line(img, x + dx * 3.0f, y + dy * 3.0f, nearestX, nearestY, 0xff0000ff, (TE_ImgOpState){.zValue = 255});
+                    // TE_Img_line(img, x, y, x + deflectX, y + deflectY, 0xffff0000, (TE_ImgOpState){.zValue = 255});
+
+                    float deflectLength = sqrtf(deflectX * deflectX + deflectY * deflectY);
+                    if (deflectLength > 0.0f)
+                    {
+                        int side = dx * deflectY - dy * deflectX > 0.0f ? 1 : -1;
+                        dx += deflectY / deflectLength * side;
+                        dy -= deflectX / deflectLength * side;
+                    }
+                }
+                dx *= 5.0f;
+                dy *= 5.0f;
+                
+            }
+            
+            // TE_Img_line(img, x, y, x + dx, y + dy, 0xff00ff00, (TE_ImgOpState){.zValue = 255});
+            // TE_Img_line(img, x, y, targetX, targetY, 0xff00ffff, (TE_ImgOpState){.zValue = 255});
+
+            Character_fromBaseF(&enemies[i].character, &targetX, &targetY);
+            Character_fromBaseF(&enemies[i].character, &x, &y);
+            Character_update(&enemies[i].character, ctx, img, x + dx, y + dy, enemies[i].character.dirX, enemies[i].character.dirY);
+            enemies[i].character.targetX = targetX;
+            enemies[i].character.targetY = targetY;
             // TE_Img_lineRect(img, enemies[i].character.x + ENEMY_RECT_X, enemies[i].character.y + ENEMY_RECT_Y, ENEMY_RECT_WIDTH, ENEMY_RECT_HEIGHT, 0xff00FF00, (TE_ImgOpState){0});
-            if (enemies[i].character.targetDistance < 2.0f)
+            if (sqDistF(x, y, targetX, targetY) < 2.0f)
             {
                 enemies[i].idleTime += ctx->deltaTime;
                 if (enemies[i].idleTime > 2.0f)
                 {
                     uint32_t seed = (uint32_t) (enemies[i].character.x * 100.0f) + (uint32_t) (enemies[i].character.y * 1000.0f);
                     TE_randSetSeed(seed);
-                    enemies[i].character.targetX = TE_randRange(16, 112);
-                    enemies[i].character.targetY = TE_randRange(16, 112);
+                    while(1)
+                    {
+                        enemies[i].character.targetX = TE_randRange(16, 112);
+                        enemies[i].character.targetY = TE_randRange(16, 112);
+                        float tdx = enemies[i].character.targetX - enemies[i].character.x;
+                        float tdy = enemies[i].character.targetY - enemies[i].character.y;
+                        float tsqd = tdx*tdx+tdy*tdy;
+                        if (tsqd < 12.0f) continue;
+                        float tx = enemies[i].character.targetX;
+                        float ty = enemies[i].character.targetY;
+                        Character_toBaseF(&enemies[i].character, &tx, &ty);
+                        int16_t nearestX, nearestY;
+                        float sdf = Environment_calcSDFValue(tx, ty, &nearestX, &nearestY);
+                        if (sdf < 12.0f) continue;
+                        break;
+                    }
                 }
             }
             else

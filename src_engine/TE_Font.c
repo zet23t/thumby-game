@@ -1,5 +1,6 @@
 #include "TE_Font.h"
 #include <stdio.h>
+#include <math.h>
 
 int TE_Font_drawChar(TE_Img *img, TE_Font *font, int16_t x, int16_t y, char c, uint32_t color, TE_ImgOpState state)
 {
@@ -33,37 +34,53 @@ int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t sp
     return width;
 }
 
-int TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_t w, uint8_t h, int8_t spacing, const char *text, float alignX, float alignY, uint32_t color, TE_ImgOpState state)
+int TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_t w, uint8_t h, int8_t wordSpacing, int8_t lineSpacing, const char *text, float alignX, float alignY, uint32_t color, TE_ImgOpState state)
 {
     int textIndex = 0;
     char line[256];
+    int16_t lineY = y;
+    // TE_Img_lineRect(img, x, y, w, h, 0xff0000ff, state);
     while (text[textIndex])
     {
         int lineWidth = TE_Font_getLetterWidth(font, text[textIndex]);
-        printf("?%d ",lineWidth);
+        // printf("?%d ",lineWidth);
         int lineEndIndex = textIndex;
         line[0] = text[textIndex];
         int linePos = 1;
+        int breakPos = lineEndIndex + 1;
+        int breakWidth = lineWidth;
         while (text[lineEndIndex + 1] && lineWidth < w && text[lineEndIndex + 1] != '\n')
         {
             int cw = TE_Font_getLetterWidth(font, text[lineEndIndex + 1]);
             if (lineWidth + cw < w)
             {
                 line[linePos++] = text[lineEndIndex + 1];
-                lineWidth += cw;
+                lineWidth += cw + wordSpacing;
                 lineEndIndex += 1;
             }
             else
             {
+                line[breakPos - textIndex] = 0;
+                lineEndIndex = breakPos;
+                lineWidth = breakWidth;
                 break;
+            }
+
+            if (text[lineEndIndex + 1] <= ' ')
+            {
+                breakWidth = lineWidth;
+                breakPos = lineEndIndex + 1;
             }
         }
 
-        textIndex = lineEndIndex + 1;
+        textIndex = breakPos + 1;
         if (text[textIndex] == '\n') textIndex += 1;
 
         line[linePos] = 0;
-        printf("line: %s %d %d\n",line, lineWidth, w);
+        int16_t lineX = x + (int16_t)ceilf((w - lineWidth) * alignX);
+        // printf("line: %d,%d %s %d %d\n",lineX,lineY,line, lineWidth, w);
+        TE_Font_drawText(img, font, lineX, lineY, wordSpacing, line, color, state);
+        lineY += font->rectHeights[0] + lineSpacing;
     }
 }
 

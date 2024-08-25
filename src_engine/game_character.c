@@ -23,6 +23,18 @@ int Character_raycastCircle(Character *character, int16_t px, int16_t py, int16_
     return 0;
 }
 
+void Character_toBaseF(Character *character, float *x, float *y)
+{
+    *x -= 1.0f;
+    *y += 6.0f;
+}
+
+void Character_fromBaseF(Character *character, float *x, float *y)
+{
+    *x += 1.0f;
+    *y -= 6.0f;
+}
+
 void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, float tx, float ty, int8_t dirX, int8_t dirY)
 {
     float dx = tx - character->x;
@@ -66,10 +78,10 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     {
         int16_t dx = collideCenterX - baseX;
         int16_t dy = collideCenterY - baseY;
-        TE_Img_line(img, baseX, baseY, collideCenterX, collideCenterY, DB32Colors[9], (TE_ImgOpState) {
-                    .zCompareMode = Z_COMPARE_LESS,
-                    .zValue = charZ + 8,
-                });
+        // TE_Img_line(img, baseX, baseY, collideCenterX, collideCenterY, DB32Colors[9], (TE_ImgOpState) {
+        //             .zCompareMode = Z_COMPARE_LESS,
+        //             .zValue = charZ + 8,
+        //         });
         float len = sqrtf(dx * dx + dy * dy);
         if (len > 0.0f && len < baseR + collideRadius)
         {
@@ -78,10 +90,10 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
             character->x -= dx / len * push;
             character->y -= dy / len * push;
         }
-        TE_Img_lineCircle(img, baseX, baseY, 4, DB32Colors[9], (TE_ImgOpState) {
-                    .zCompareMode = Z_COMPARE_LESS,
-                    .zValue = charZ + 8,
-                });
+        // TE_Img_lineCircle(img, baseX, baseY, 4, DB32Colors[9], (TE_ImgOpState) {
+        //             .zCompareMode = Z_COMPARE_LESS,
+        //             .zValue = charZ + 8,
+        //         });
     }
 
     uint8_t walkPhase = 0;

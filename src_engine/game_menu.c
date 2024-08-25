@@ -3,6 +3,7 @@
 #include "TE_Font.h"
 #include "fnt_myfont.h"
 #include "fnt_tiny.h"
+#include <math.h>
 
 typedef struct GameMenu
 {
@@ -77,15 +78,16 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
         }
     });
 
-    #define TITLE "Thief Robin"
+    #define TITLE "Robin\nof\nLootly"
     int titleWidth = TE_Font_getWidth(&myfont, TITLE, -1);
     int titleX = menuX + ((127-menuX * 2) - titleWidth) / 2;
-    TE_Font_drawText(img, &myfont, titleX, menuY + 4, -1, TITLE, 0xffffffff, (TE_ImgOpState) {
+    float alignX = 0.5f; // sinf(ctx->time * 2.5f) * 0.5f + 0.5f;
+    TE_Font_drawTextBox(img, &myfont, menuX + 4, menuY + 4, 127-(menuX + 4)*2 - 2, 64, -1, -4, TITLE, alignX, 0.0f, 0xffffffff, (TE_ImgOpState) {
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,
     });
 
-    TE_Font_drawTextBox(img, &tinyfont, menuX + 4, menuY + 18, 127-menuX*2, 64, -1, "This is some longer text test", 0.0f, 0.0f, 0xffffffff, (TE_ImgOpState)
+    TE_Font_drawTextBox(img, &tinyfont, menuX + 4, menuY + 18, 127-(menuX + 4)*2 - 2, 64, -1, -4, "This is some longer text test with line breaks in between", alignX, 0.0f, 0xffffffff, (TE_ImgOpState)
     {
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,

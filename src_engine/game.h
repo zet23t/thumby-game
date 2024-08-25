@@ -78,5 +78,9 @@ extern Character playerCharacter;
 extern TE_Img atlasImg;
 
 int Characters_raycastCircle(Character* ignore, int x, int y, int radius, int16_t *outCenterX, int16_t *outCenterY, int16_t *outRadius);
+float Obstacles_calcSDFValue(Character *ignore, float x, float y, int16_t *nearestX, int16_t *nearestY);
+
+float sqDistF(float x1, float y1, float x2, float y2);
+float dotF(float x1, float y1, float x2, float y2);
 
 #endif
