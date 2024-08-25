@@ -152,9 +152,86 @@ void TE_Img_fillTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_
     }
 }
 
+int lineRectClip(int16_t rectX, int16_t rectY, int16_t rectW, int16_t rectH, int16_t *x1, int16_t *y1, int16_t *x2, int16_t *y2)
+{
+    if (*x1 < rectX)
+    {
+        if (*x2 == *x1)
+        {
+            return 0;
+        }
+        *y1 += (*y2 - *y1) * (rectX - *x1) / (*x2 - *x1);
+        *x1 = rectX;
+    }
+    if (*x1 >= rectX + rectW)
+    {
+        if (*x2 == *x1)
+        {
+            return 0;
+        }
+        *y1 += (*y2 - *y1) * (rectX + rectW - *x1) / (*x2 - *x1);
+        *x1 = rectX + rectW;
+    }
+
+    if (*x2 < rectX)
+    {
+        *y2 += (*y2 - *y1) * (rectX - *x1) / (*x2 - *x1);
+        *x2 = rectX;
+    }
+    if (*x2 >= rectX + rectW)
+    {
+        *y2 += (*y2 - *y1) * (rectX + rectW - *x1) / (*x2 - *x1);
+        *x2 = rectX + rectW;
+    }
+
+    if (*y1 < rectY)
+    {
+        if (*y2 == *y1)
+        {
+            return 0;
+        }
+        *x1 += (*x2 - *x1) * (rectY - *y1) / (*y2 - *y1);
+        *y1 = rectY;
+    }
+
+    if (*y1 >= rectY + rectH)
+    {
+        if (*y2 == *y1)
+        {
+            return 0;
+        }
+        *x1 += (*x2 - *x1) * (rectY + rectH - *y1) / (*y2 - *y1);
+        *y1 = rectY + rectH;
+    }
+
+    if (*y2 < rectY)
+    {
+        *x2 += (*x2 - *x1) * (rectY - *y1) / (*y2 - *y1);
+        *y2 = rectY;
+    }
+
+    if (*y2 >= rectY + rectH)
+    {
+        *x2 += (*x2 - *x1) * (rectY + rectH - *y1) / (*y2 - *y1);
+        *y2 = rectY + rectH;
+    }
+
+    return 1;
+}
 
 void TE_Img_line(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint32_t color, TE_ImgOpState state)
 {
+    if (x0 == x1 && y0 == y1)
+    {
+        TE_Img_setPixel(img, x0, y0, color, state);
+        return;
+    }
+
+    if (!lineRectClip(0, 0, 1 << img->p2width, 1 << img->p2height, &x0, &y0, &x1, &y1))
+    {
+        return;
+    }
+
     int16_t dx = absi(x1 - x0);
     int16_t sx = x0 < x1 ? 1 : -1;
     int16_t dy = -absi(y1 - y0);
@@ -292,6 +369,36 @@ void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, 
         for (uint16_t j = x1; j <= x2; j++)
         {
             TE_Img_setPixel(img, j, i, color, state);
+        }
+    }
+}
+
+void TE_Img_lineCircle(TE_Img *img, int16_t x, int16_t y, uint16_t radius, uint32_t color, TE_ImgOpState state)
+{
+    int16_t x0 = radius;
+    int16_t y0 = 0;
+    int16_t err = radius < 5 ? 3 - 2 * radius : -1;
+
+    while (x0 >= y0)
+    {
+        TE_Img_setPixel(img, x + x0, y + y0, color, state);
+        TE_Img_setPixel(img, x + y0, y + x0, color, state);
+        TE_Img_setPixel(img, x - y0, y + x0, color, state);
+        TE_Img_setPixel(img, x - x0, y + y0, color, state);
+        TE_Img_setPixel(img, x - x0, y - y0, color, state);
+        TE_Img_setPixel(img, x - y0, y - x0, color, state);
+        TE_Img_setPixel(img, x + y0, y - x0, color, state);
+        TE_Img_setPixel(img, x + x0, y - y0, color, state);
+
+        if (err <= 0)
+        {
+            y0 += 1;
+            err += 2 * y0 + 1;
+        }
+        if (err > 0)
+        {
+            x0 -= 1;
+            err -= 2 * x0 + 1;
         }
     }
 }
