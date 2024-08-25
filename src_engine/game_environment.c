@@ -3,6 +3,8 @@
 #include "atlas.h"
 #include "TE_rand.h"
 
+#define TREE_COLLIDE_RADIUS 3
+
 typedef struct TreeDrawInstruction
 {
     int16_t x, scatterX;
@@ -93,6 +95,8 @@ void TreeGen(TreeNode *nodes, uint8_t *pos, uint8_t maxCount, uint8_t isMain, ui
 
 void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
 {
+    treeX += 2;
+    treeY += 2;
     TreeNode nodes[256];
     uint8_t pos = 0;
     TreeGen(nodes, &pos, 255, 1, 0, treeX, treeY, TE_randRange(-3,4), -4);
@@ -127,11 +131,11 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
     }
 
     TreeDrawInstruction instructions[] = {
-        { .count = 5, .zValue = 2 + treeY, .compareMode = Z_COMPARE_LESS, .color = 1, .x = 0, .y = -2, .scatterX = 4, .scatterY = 3, .probability = 230, .shadow = 1 },
-        { .count = 5, .zValue = 4 + treeY, .compareMode = Z_COMPARE_LESS, .color = 14, .x = -1, .y = -3, .scatterX = 5, .scatterY = 4, .probability = 150, .shadow = 1 },
-        { .count = 4, .zValue = 5 + treeY, .compareMode = Z_COMPARE_LESS, .color = 12, .x = -2, .y = -3, .scatterX = 4, .scatterY = 4, .probability = 180, .shadow = 1 },
-        { .count = 2, .zValue = 6 + treeY, .compareMode = Z_COMPARE_LESS, .color = 30, .x = -2, .y = -4, .scatterX = 3, .scatterY = 3, .probability = 160 },
-        { .count = 2, .zValue = 6 + treeY, .compareMode = Z_COMPARE_EQUAL, .color = 8, .x = -4, .y = -6, .scatterX = 5, .scatterY = 5, .srcYOffset = 16, .probability = 135 },
+        { .count = 5, .zValue = 4 + treeY, .compareMode = Z_COMPARE_LESS, .color = 1, .x = 0, .y = -2, .scatterX = 4, .scatterY = 3, .probability = 230, .shadow = 1 },
+        { .count = 5, .zValue = 8 + treeY, .compareMode = Z_COMPARE_LESS, .color = 14, .x = -1, .y = -3, .scatterX = 5, .scatterY = 4, .probability = 150, .shadow = 1 },
+        { .count = 4, .zValue = 10 + treeY, .compareMode = Z_COMPARE_LESS, .color = 12, .x = -2, .y = -3, .scatterX = 4, .scatterY = 4, .probability = 180, .shadow = 1 },
+        { .count = 2, .zValue = 12 + treeY, .compareMode = Z_COMPARE_LESS, .color = 30, .x = -2, .y = -4, .scatterX = 3, .scatterY = 3, .probability = 160 },
+        { .count = 2, .zValue = 12 + treeY, .compareMode = Z_COMPARE_EQUAL, .color = 8, .x = -4, .y = -6, .scatterX = 5, .scatterY = 5, .srcYOffset = 16, .probability = 135 },
     };
 
     int climbHeight = 0;
@@ -146,7 +150,7 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
             for (int cy = node->y1; cy > node->y2; cy--)
             {
                 int shiftX = (cy - node->y1) * dx / dy;
-                int zOffset = climbHeight < 4 ? climbHeight : 4;
+                int zOffset = climbHeight < 4 ? climbHeight * 2 : 8;
                 int x = node->x1 - 8 + shiftX;
                 int y = cy;
                 TE_Img_blitEx(img, &atlasImg, x, y, 32, 63 - climbHeight, 16, 1,
@@ -264,6 +268,89 @@ void Environment_addTreeGroup(int16_t x, int16_t y, uint32_t seed, uint8_t count
     };
 }
 
+int Environment_raycastCircle(int16_t px, int16_t py, int16_t radius, int16_t *outX, int16_t *outY, int16_t *outRadius)
+{
+    int dmin = radius + TREE_COLLIDE_RADIUS;
+    int dmin2 = dmin * dmin;
+    for (int i=0;i<environmentScene.environmentObjectCount;i++)
+    {
+        TE_randSetSeed(environmentScene.objects[i].seed);
+        int x = environmentScene.objects[i].x, y = environmentScene.objects[i].y;
+        if (environmentScene.objects[i].type == TYPE_TREE)
+        {
+            int dx = px - x, dy = py - y;
+            if (dx * dx + dy * dy < dmin2)
+            {
+                *outX = x;
+                *outY = y;
+                *outRadius = TREE_COLLIDE_RADIUS;
+                return i;
+            }
+        }
+        else if (environmentScene.objects[i].type == TYPE_TREEGROUP)
+        {
+            int posX[32];
+            int posY[32];
+            int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
+            int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                TE_randRadius(treeGroupScatterRadius, &posX[j], &posY[j]);
+            }
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                int dx = px - x - posX[j], dy = py - y - posY[j];
+                if (dx * dx + dy * dy < dmin2)
+                {
+                    *outX = x + posX[j];
+                    *outY = y + posY[j];
+                    *outRadius = TREE_COLLIDE_RADIUS;
+                    return i;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+int Environment_raycastPoint(int16_t px, int16_t py)
+{
+    for (int i=0;i<environmentScene.environmentObjectCount;i++)
+    {
+        TE_randSetSeed(environmentScene.objects[i].seed);
+        int x = environmentScene.objects[i].x, y = environmentScene.objects[i].y;
+        if (environmentScene.objects[i].type == TYPE_TREE)
+        {
+            int dx = px - x, dy = py - y;
+            if (dx * dx + dy * dy < TREE_COLLIDE_RADIUS * TREE_COLLIDE_RADIUS)
+            {
+                return i;
+            }
+        }
+        else if (environmentScene.objects[i].type == TYPE_TREEGROUP)
+        {
+            int posX[32];
+            int posY[32];
+            int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
+            int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                TE_randRadius(treeGroupScatterRadius, &posX[j], &posY[j]);
+            }
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                int dx = px - x - posX[j], dy = py - y - posY[j];
+                if (dx * dx + dy * dy < 6 * 6)
+                {
+                    return i;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
 void Environment_update(RuntimeContext *ctx, TE_Img* img)
 {
     for (int i=0;i<environmentScene.environmentObjectCount;i++)
@@ -287,6 +374,10 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
             for (int j=0;j<treeGroupCount;j++)
             {
                 DrawTree(img, x + posX[j], y + posY[j]);
+                TE_Img_lineCircle(img, x + posX[j], y + posY[j], TREE_COLLIDE_RADIUS, DB32Colors[7], (TE_ImgOpState) {
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = 44 + y + posY[j],
+                });
             }
         }
     }

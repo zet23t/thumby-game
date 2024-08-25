@@ -1,7 +1,27 @@
 #include "game.h"
+#include "game_environment.h"
 #include <math.h>
+#include <stdio.h>
 
 #define RECTARG(r) r.x, r.y, r.width, r.height
+
+int Character_raycastCircle(Character *character, int16_t px, int16_t py, int16_t radius, int16_t *outCenterX, int16_t *outCenterY, int16_t *outRadius)
+{
+    int baseX = character->x - 1;
+    int baseY = character->y + 6;
+    int16_t dx = px - baseX;
+    int16_t dy = py - baseY;
+    int16_t sqLen = dx * dx + dy * dy;
+    int16_t cmpLen = radius + 4;
+    if (sqLen < cmpLen * cmpLen)
+    {
+        *outCenterX = baseX;
+        *outCenterY = baseY;
+        *outRadius = 4;
+        return 1;
+    }
+    return 0;
+}
 
 void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, float tx, float ty, int8_t dirX, int8_t dirY)
 {
@@ -31,6 +51,39 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     character->dirX = dx < -0.25f ? -1 : (dx > 0.25f ? 1 : character->dirX);
     character->dirY = dy < -0.25f ? -1 : (dy > 0.25f ? 1 : character->dirY);
 
+    int16_t x = (int16_t) floorf(character->x);
+    int16_t y = (int16_t) floorf(character->y);
+    int baseX = x - 1;
+    int baseY = y + 6;
+    int baseR = 4;
+    uint8_t charZ = (uint8_t) character->y + 12;
+
+    int16_t collideCenterX, collideCenterY, collideRadius;
+    if (
+        Environment_raycastCircle(baseX, baseY, baseR, &collideCenterX, &collideCenterY, &collideRadius) >= 0 ||
+        Characters_raycastCircle(character, baseX, baseY, baseR, &collideCenterX, &collideCenterY, &collideRadius) > 0
+        )
+    {
+        int16_t dx = collideCenterX - baseX;
+        int16_t dy = collideCenterY - baseY;
+        TE_Img_line(img, baseX, baseY, collideCenterX, collideCenterY, DB32Colors[9], (TE_ImgOpState) {
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = charZ + 8,
+                });
+        float len = sqrtf(dx * dx + dy * dy);
+        if (len > 0.0f && len < baseR + collideRadius)
+        {
+            float push = (baseR + collideRadius - len);
+            // printf("push %f %f %d %d\n", push, len, baseR, collideRadius);
+            character->x -= dx / len * push;
+            character->y -= dy / len * push;
+        }
+        TE_Img_lineCircle(img, baseX, baseY, 4, DB32Colors[9], (TE_ImgOpState) {
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = charZ + 8,
+                });
+    }
+
     uint8_t walkPhase = 0;
     uint8_t walkPhase1 = 0;
     uint8_t walkPhase2 = 0;
@@ -41,9 +94,6 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         walkPhase2 = (int)(character->lifeTime * 5 + .5f) % 2;
     }
 
-    uint8_t charZ = (uint8_t) character->y + 12;
-    int16_t x = (int16_t) floorf(character->x);
-    int16_t y = (int16_t) floorf(character->y);
     TL_Rect srcHead = character->dirY < 0 ? character->srcHeadBack : character->srcHeadFront;
     TE_Img_blitEx(img, &atlasImg, x - 8, y - 6, RECTARG(srcHead), (BlitEx) {
         .flipX = character->dirX < 0,
@@ -182,4 +232,5 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
             }
         });
     }
+
 }

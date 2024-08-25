@@ -64,7 +64,7 @@ DLL_EXPORT void init()
         .srcRightHand = { .x = 40, .y = 64, .width = 8, .height = 6 },
     };
 
-    enemyCharacters[0] = (Character)
+    characters[1] = (Character)
     {
         .srcHeadFront = { .x = 48, .y = 64, .width = 15, .height = 11 },
         .srcHeadBack = { .x = 48, .y = 64 + 16, .width = 15, .height = 11 },
@@ -75,14 +75,15 @@ DLL_EXPORT void init()
         .srcRightHand = { .x = 40+48, .y = 64, .width = 8, .height = 6 },
     };
 
-    Enemies_spawn(0, 28, 42);
-    Enemies_spawn(0, 44, 28);
+    Enemies_spawn(1, 28, 42);
+    Enemies_spawn(1, 44, 28);
 
     Environment_init();
     Environment_addTreeGroup(24, 30, 1232, 5, 25);
     Environment_addTreeGroup(114, 30, 122, 5, 25);
     Environment_addTreeGroup(114, 125, 1252, 5, 25);
     Environment_addTreeGroup(24, 124, 99, 5, 20);
+    Environment_addTreeGroup(64, 84, 199, 3, 20);
     // Environment_addTree(30,50, 12343050);
     // // Environment_addTree(35,50, 12343550);
     // // Environment_addTree(25,30, 12342530);

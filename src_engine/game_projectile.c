@@ -4,7 +4,7 @@
 #include "game_enemies.h"
 #include "TE_rand.h"
 #include <stdio.h>
-
+#include "game_environment.h"
 
 void Projectile_spawn(float x, float y, float vx, float vy, uint32_t color)
 {
@@ -51,6 +51,14 @@ void Projectiles_update(Projectile *projectile, RuntimeContext *ctx, TE_Img *img
                 enemies[hit].character.x = enemyX;
                 enemies[hit].character.y = enemyY;
                 printf("Hit enemy %d -> %f %f\n", hit, enemyX, enemyY);
+                continue;
+            }
+
+            hit = Environment_raycastPoint(projectiles[i].x, projectiles[i].y);
+            if (hit >= 0)
+            {
+                projectiles[i].lifeTime = 0.0f;
+                printf("Hit environment %d\n", hit);
                 continue;
             }
 

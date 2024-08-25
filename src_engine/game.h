@@ -9,6 +9,7 @@
 typedef struct Player
 {
     float x, y;
+    float aimX, aimY;
     int dx, dy;
     int dirX, dirY;
     int health;
@@ -67,7 +68,7 @@ typedef struct Enemy
 #define PROJECTILE_MAX_COUNT 32
 #define MAX_ENEMIES 16
 
-extern Character enemyCharacters[MAX_ENEMYTYPES];
+extern Character characters[MAX_ENEMYTYPES];
 extern Projectile projectiles[PROJECTILE_MAX_COUNT];
 extern Enemy enemies[MAX_ENEMIES];
 
@@ -75,5 +76,7 @@ extern Player player;
 extern Item items[16];
 extern Character playerCharacter;
 extern TE_Img atlasImg;
+
+int Characters_raycastCircle(Character* ignore, int x, int y, int radius, int16_t *outCenterX, int16_t *outCenterY, int16_t *outRadius);
 
 #endif

@@ -1,9 +1,9 @@
 #include <atlas.h>
 #include "TE_rand.h"
 #include "game.h"
+#include "game_character.h"
 
-
-Character enemyCharacters[MAX_ENEMYTYPES];
+Character characters[MAX_ENEMYTYPES];
 Projectile projectiles[PROJECTILE_MAX_COUNT];
 Enemy enemies[MAX_ENEMIES];
 
@@ -23,3 +23,22 @@ Character playerCharacter;
 
 TE_Img atlasImg;
 
+int Characters_raycastCircle(Character* ignore, int x, int y, int radius, int16_t *outCenterX, int16_t *outCenterY, int16_t *outRadius)
+{
+    int i;
+    for (i = 0; i < MAX_ENEMIES; i++)
+    {
+        if (enemies[i].health > 0 && &enemies[i].character != ignore)
+        {
+            if (Character_raycastCircle(&enemies[i].character, x, y, radius, outCenterX, outCenterY, outRadius))
+            {
+                return i + 1;
+            }
+        }
+    }
+    if (&playerCharacter != ignore && Character_raycastCircle(&playerCharacter, x, y, radius, outCenterX, outCenterY, outRadius))
+    {
+        return 1;
+    }
+    return 0;
+}

@@ -44,7 +44,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     }
 
     int sqLen = player->dx * player->dx + player->dy * player->dy;
-    float multiplier = sqLen == 2 ? 0.70710678118f * 16.0f : 16.0f;
+    float multiplier = sqLen == 2 ? 0.70710678118f * 32.0f : 32.0f;
     if (sqLen == 2)
     {
         // float frac = player->x - floorf(player->x);
@@ -54,10 +54,29 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
 
     player->x += player->dx * ctx->deltaTime * multiplier;
     player->y += player->dy * ctx->deltaTime * multiplier;
+    if (player->dx || player->dy)
+    {
+        float ang = atan2f(player->dy, player->dx);
+        float currentAng = atan2f(player->aimY, player->aimX);
+        float diff = ang - currentAng;
+        if (diff > M_PI)
+        {
+            diff -= 2.0f * M_PI;
+        }
+        if (diff < -M_PI)
+        {
+            diff += 2.0f * M_PI;
+        }
+        float maxDelta = ctx->deltaTime * 4.0f;
+        float change = maxDelta > fabsf(diff) ? diff : (diff < 0 ? -maxDelta : maxDelta);
 
+        float nextAng = currentAng + change;
+        player->aimX = cosf(nextAng);
+        player->aimY = sinf(nextAng);
+    }
 
-    float tdx = player->x - playerCharacter->x;
-    float tdy = player->y - playerCharacter->y;
+    float tdx = player->aimX;
+    float tdy = player->aimY;
     if (tdx == 0.0f && tdy == 0.0f)
     {
         tdy = -1.0f;
@@ -146,6 +165,8 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
 
 
     Character_update(playerCharacter, ctx, img, player->x, player->y, player->dirX, player->dirY);
+    player->x = playerCharacter->x * .15f + player->x * .85f;
+    player->y = playerCharacter->y * .15f + player->y * .85f;
 
     TE_Img_fillRect(img, 0, 0, 128, 11, DB32Colors[1], (TE_ImgOpState) {
         .zCompareMode = Z_COMPARE_ALWAYS,

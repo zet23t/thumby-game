@@ -19,7 +19,7 @@ int Enemies_spawn(int type, int x, int y)
     }
     enemies[index] = (Enemy) {
         .health = 3.0f,
-        .character = enemyCharacters[type],
+        .character = characters[type],
     };
     enemies[index].character.x = x;
     enemies[index].character.y = y;
