@@ -73,7 +73,7 @@ int TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_
             }
         }
 
-        textIndex = breakPos + 1;
+        textIndex = breakPos;
         if (text[textIndex] == '\n') textIndex += 1;
 
         line[linePos] = 0;
