@@ -34,12 +34,12 @@ int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t sp
     return width;
 }
 
-int TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_t w, uint8_t h, int8_t wordSpacing, int8_t lineSpacing, const char *text, float alignX, float alignY, uint32_t color, TE_ImgOpState state)
+static int TE_Font_drawTextBox_internal(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_t w, uint8_t h, int8_t wordSpacing, int8_t lineSpacing, const char *text, float alignX, float alignY, uint32_t color, TE_ImgOpState state, int draw)
 {
     int textIndex = 0;
     char line[256];
     int16_t lineY = y;
-    // TE_Img_lineRect(img, x, y, w, h, 0xff0000ff, state);
+    if (!draw) TE_Img_lineRect(img, x, y, w, h, 0xff0000ff, state);
     while (text[textIndex])
     {
         int lineWidth = TE_Font_getLetterWidth(font, text[textIndex]);
@@ -69,7 +69,7 @@ int TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_
             if (text[lineEndIndex + 1] <= ' ')
             {
                 breakWidth = lineWidth;
-                breakPos = lineEndIndex + 1;
+                breakPos = lineEndIndex + (text[lineEndIndex + 1] ? 2 : 1);
             }
         }
 
@@ -77,11 +77,23 @@ int TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_
         if (text[textIndex] == '\n') textIndex += 1;
 
         line[linePos] = 0;
-        int16_t lineX = x + (int16_t)ceilf((w - lineWidth) * alignX);
         // printf("line: %d,%d %s %d %d\n",lineX,lineY,line, lineWidth, w);
-        TE_Font_drawText(img, font, lineX, lineY, wordSpacing, line, color, state);
+        if (draw) {
+            int16_t lineX = x + (int16_t)ceilf((w - lineWidth) * alignX);
+            TE_Font_drawText(img, font, lineX, lineY, wordSpacing, line, color, state);
+        }
+        // TE_Img_lineRect(img, lineX, lineY, lineWidth, font->rectHeights[0], 0xff00ffff, (TE_ImgOpState){.zValue=255});
         lineY += font->rectHeights[0] + lineSpacing;
     }
+    return lineY - y - lineSpacing;
+}
+
+int TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_t w, uint8_t h, int8_t wordSpacing, int8_t lineSpacing, const char *text, float alignX, float alignY, uint32_t color, TE_ImgOpState state)
+{
+    int height = TE_Font_drawTextBox_internal(img, font, x, y, w, h, wordSpacing, lineSpacing, text, alignX, alignY, color, state, 0);
+    int16_t offset = (int16_t)ceilf((h - height) * alignY);
+    TE_Font_drawTextBox_internal(img, font, x, y + offset, w, h, wordSpacing, lineSpacing, text, alignX, alignY, color, state, 1);
+    return height;
 }
 
 int TE_Font_getLetterWidth(TE_Font *font, char c)
