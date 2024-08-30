@@ -22,6 +22,7 @@
 #include "game_player.h"
 #include "game_menu.h"
 #include "game_environment.h"
+#include "game_scenes.h"
 
 uint32_t DB32Colors[] = {
     0xFF000000, 0xFF342022, 0xFF3C2845, 0xFF313966, 0xFF3B568F, 0xFF2671DF, 0xFF66A0D9, 0xFF9AC3EE,
@@ -30,6 +31,7 @@ uint32_t DB32Colors[] = {
     0xFF6A6A69, 0xFF525659, 0xFF8A4276, 0xFF3232AC, 0xFF6357D9, 0xFFBA7BD7, 0xFF4A978F, 0xFF306F8A,
     0xFF36535E, 0xFF48687D, 0xFF3C7EA0, 0xFFC7C3C2, 0xFFE0E0E0,
 };
+
 
 DLL_EXPORT void init()
 {
@@ -75,15 +77,7 @@ DLL_EXPORT void init()
         .srcRightHand = { .x = 40+48, .y = 64, .width = 8, .height = 6 },
     };
 
-    Enemies_spawn(1, 28, 42);
-    Enemies_spawn(1, 44, 28);
-
-    Environment_init();
-    Environment_addTreeGroup(24, 30, 1232, 5, 25);
-    Environment_addTreeGroup(114, 30, 122, 5, 25);
-    Environment_addTreeGroup(114, 125, 1252, 5, 25);
-    Environment_addTreeGroup(24, 124, 99, 5, 20);
-    Environment_addTreeGroup(64, 84, 199, 3, 20);
+    Scene_init(1);
     // Environment_addTree(30,50, 12343050);
     // // Environment_addTree(35,50, 12343550);
     // // Environment_addTree(25,30, 12342530);
@@ -106,27 +100,11 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         .p2height = 7,
         .data = ctx->screenData,
     };
-
-    TE_Img myFontImg = {
-        .p2width = fnt_myfont_p2width,
-        .p2height = fnt_myfont_p2height,
-        .data = (uint32_t*) fnt_myfont_data,
-    };
     
     TE_Img tinyImg = {
         .p2width = fnt_tiny_p2width,
         .p2height = fnt_tiny_p2height,
         .data = (uint32_t*) fnt_tiny_data,
-    };
-
-    TE_Font myfont = {
-        .atlas = &myFontImg,
-        .glyphCount = fnt_myfont_glyph_count,
-        .glyphValues = fnt_myfont_glyphs_values,
-        .rectXs = fnt_myfont_glyphs_rects_x,
-        .rectYs = fnt_myfont_glyphs_rects_y,
-        .rectWidths = fnt_myfont_glyphs_rects_width,
-        .rectHeights = fnt_myfont_glyphs_rects_height,
     };
 
     TE_Font tinyfont = {
@@ -144,7 +122,6 @@ DLL_EXPORT void update(RuntimeContext *ctx)
 
 
     TE_randSetSeed(3294);
-
     for (int i=0;i<24;i++)
     {
         int x = TE_randRange(0, 120);
@@ -161,7 +138,7 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     
 
     Enemies_update(ctx, &img);
-
+    Scene_update(ctx, &img);
     Projectiles_update(projectiles, ctx, &img);
 
     Player_update(&player, &playerCharacter, ctx, &img);

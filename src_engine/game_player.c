@@ -6,6 +6,13 @@
 #include <math.h>
 #include <stdio.h>
 
+static uint8_t _playerWeaponIndex;
+
+void Player_setWeapon(uint8_t weaponIndex)
+{
+    _playerWeaponIndex = weaponIndex;
+}
+
 void Player_update(Player *player, Character *playerCharacter, RuntimeContext *ctx, TE_Img *img)
 {
     if (ctx->inputUp || ctx->inputDown)
@@ -51,9 +58,13 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         // player->y = floorf(player->y) + frac;
         // printf_s("Diagonal movement %f %f\n", player->x, player->y);
     }
-
+    if (ctx->inputA)
+    {
+        multiplier *= 0.5f;
+    }
     player->x += player->dx * ctx->deltaTime * multiplier;
     player->y += player->dy * ctx->deltaTime * multiplier;
+
     if (player->dx || player->dy)
     {
         float ang = atan2f(player->dy, player->dx);
@@ -82,7 +93,8 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         tdy = -1.0f;
     }
     #define SHOOT_COOLDOWN (0.8f)
-    if (ctx->inputA)
+    playerCharacter->itemRightHand = _playerWeaponIndex;
+    if (ctx->inputA && _playerWeaponIndex)
     {
         playerCharacter->isAiming = 1;
         playerCharacter->itemRightHand = -2;
@@ -168,22 +180,40 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     player->x = playerCharacter->x * .15f + player->x * .85f;
     player->y = playerCharacter->y * .15f + player->y * .85f;
 
-    TE_Img_fillRect(img, 0, 0, 128, 11, DB32Colors[1], (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 255,
-    });
-    
-    int currentHealth = player->health;
-    for (int i=0; i < player->maxHealth / 2; i++)
+
+    if (player->drawBar)
     {
-        int x = 8 + i * 8;
-        int y = 2;
-        int srcX = i == currentHealth / 2 && currentHealth % 2 == 0 ? 9 : 0;
-        if (i > currentHealth / 2)
+
+        TE_Img_fillRect(img, 0, 0, 128, 12, DB32Colors[1], (TE_ImgOpState) {
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        });
+        
+        int currentHealth = player->health;
+        for (int i=0; i < player->maxHealth / 2; i++)
         {
-            srcX = 18;
+            int x = 8 + i * 8;
+            int y = 2;
+            int srcX = i == currentHealth / 2 && currentHealth % 2 == 0 ? 9 : 0;
+            if (i > currentHealth / 2)
+            {
+                srcX = 18;
+            }
+            TE_Img_blitEx(img, &atlasImg, x, y, srcX, 112, 9, 8, (BlitEx) {
+                .flipX = 0,
+                .flipY = 0,
+                .rotate = 0,
+                .tint = 0,
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .tintColor = 0xffffffff,
+                .state = {
+                    .zCompareMode = Z_COMPARE_ALWAYS,
+                    .zValue = 255,
+                }
+            });
         }
-        TE_Img_blitEx(img, &atlasImg, x, y, srcX, 112, 9, 8, (BlitEx) {
+
+        TE_Img_blitEx(img, &atlasImg, 0, 0, 2, 64, 11, 11, (BlitEx) {
             .flipX = 0,
             .flipY = 0,
             .rotate = 0,
@@ -196,17 +226,4 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
             }
         });
     }
-
-    TE_Img_blitEx(img, &atlasImg, 0, 0, 2, 64, 11, 11, (BlitEx) {
-        .flipX = 0,
-        .flipY = 0,
-        .rotate = 0,
-        .tint = 0,
-        .blendMode = TE_BLEND_ALPHAMASK,
-        .tintColor = 0xffffffff,
-        .state = {
-            .zCompareMode = Z_COMPARE_ALWAYS,
-            .zValue = 255,
-        }
-    });
 }

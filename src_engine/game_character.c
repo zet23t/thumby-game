@@ -106,7 +106,7 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         walkPhase2 = (int)(character->lifeTime * 5 + .5f) % 2;
     }
 
-    TL_Rect srcHead = character->dirY < 0 ? character->srcHeadBack : character->srcHeadFront;
+    TE_Rect srcHead = character->dirY < 0 ? character->srcHeadBack : character->srcHeadFront;
     TE_Img_blitEx(img, &atlasImg, x - 8, y - 6, RECTARG(srcHead), (BlitEx) {
         .flipX = character->dirX < 0,
         .flipY = 0,
@@ -120,7 +120,7 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         }
     });
 
-    TL_Rect srcBody = character->dirY < 0 ? character->srcBodyBack : character->srcBodyFront;
+    TE_Rect srcBody = character->dirY < 0 ? character->srcBodyBack : character->srcBodyFront;
     TE_Img_blitEx(img, &atlasImg, x - 8, y - 8 + 10 - walkPhase2, RECTARG(srcBody), (BlitEx) {
         .flipX = 0,
         .flipY = 0,
@@ -135,7 +135,7 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     });
 
     // feet
-    TL_Rect srcLeftFoot = character->dirY < 0 ? character->srcLeftFootBack : character->srcLeftFootFront;
+    TE_Rect srcLeftFoot = character->dirY < 0 ? character->srcLeftFootBack : character->srcLeftFootFront;
     TE_Img_blitEx(img, &atlasImg, x - 8, y - 8 + 14 - walkPhase, 
         RECTARG(srcLeftFoot), (BlitEx) {
         .flipX = 0,

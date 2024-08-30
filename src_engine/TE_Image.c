@@ -6,6 +6,14 @@ void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_Img
     {
         return;
     }
+    if (state.scissorWidth > 0 || state.scissorHeight > 0)
+    {
+        if (x < state.scissorX || x >= state.scissorX + state.scissorWidth || y < state.scissorY || y >= state.scissorY + state.scissorHeight)
+        {
+            return;
+        }
+    }
+
     uint32_t *pixel = &img->data[(y << img->p2width) + x];
     uint8_t zDst = *pixel >> 24;
     if ((state.zCompareMode == Z_COMPARE_ALWAYS) ||
@@ -64,10 +72,97 @@ uint32_t TE_Img_getPixelEx(TE_Img *img, uint16_t ox, uint16_t oy, uint16_t x, ui
     return img->data[(y << img->p2width) + x];
 }
 
+void TE_Img_blitSprite(TE_Img *img, TE_Sprite sprite, int16_t x, int16_t y, BlitEx options)
+{
+    TE_Img_blitEx(img, sprite.img, x - sprite.pivotX, y - sprite.pivotY, sprite.src.x, sprite.src.y, sprite.src.width, sprite.src.height, options);
+}
+
 
 static int absi(int x)
 {
     return x < 0 ? -x : x;
+}
+
+void TE_Img_lineTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint32_t color, TE_ImgOpState state)
+{
+    if (y0 > y1)
+    {
+        int16_t tmp = y0;
+        y0 = y1;
+        y1 = tmp;
+        tmp = x0;
+        x0 = x1;
+        x1 = tmp;
+    }
+    if (y1 > y2)
+    {
+        int16_t tmp = y1;
+        y1 = y2;
+        y2 = tmp;
+        tmp = x1;
+        x1 = x2;
+        x2 = tmp;
+    }
+    if (y0 > y1)
+    {
+        int16_t tmp = y0;
+        y0 = y1;
+        y1 = tmp;
+        tmp = x0;
+        x0 = x1;
+        x1 = tmp;
+    }
+    
+    int16_t dx01 = x1 - x0;
+    int16_t dy01 = y1 - y0;
+    int16_t dx02 = x2 - x0;
+    int16_t dy02 = y2 - y0;
+    int16_t dx12 = x2 - x1;
+    int16_t dy12 = y2 - y1;
+
+    int16_t x, y;
+    if (dy01 == 0)
+    {
+        dy01 = 1;
+    }
+    if (dy02 == 0)
+    {
+        dy02 = 1;
+    }
+    if (dy12 == 0)
+    {
+        dy12 = 1;
+    }
+    for (y = y0; y <= y1; y++)
+    {
+        int16_t xL = x0 + dx01 * (y - y0) / dy01;
+        int16_t xR = x0 + dx02 * (y - y0) / dy02;
+        if (xL > xR)
+        {
+            int16_t tmp = xL;
+            xL = xR;
+            xR = tmp;
+        }
+        
+        // todo: fill in case angle is < 45 degrees
+        TE_Img_setPixel(img, xL, y, color, state);
+        TE_Img_setPixel(img, xR, y, color, state);
+        
+    }
+    for (y = y1; y <= y2; y++)
+    {
+        int16_t xL = x1 + dx12 * (y - y1) / dy12;
+        int16_t xR = x0 + dx02 * (y - y0) / dy02;
+        if (xL > xR)
+        {
+            int16_t tmp = xL;
+            xL = xR;
+            xR = tmp;
+        }
+        // todo: fill in case angle is < 45 degrees
+        TE_Img_setPixel(img, xL, y, color, state);
+        TE_Img_setPixel(img, xR, y, color, state);
+    }
 }
 
 void TE_Img_fillTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint32_t color, TE_ImgOpState state)
@@ -175,7 +270,7 @@ int lineRectClip(int16_t rectX, int16_t rectY, int16_t rectW, int16_t rectH, int
 
     if (*x2 < rectX)
     {
-        *y2 += (*y2 - *y1) * (rectX - *x1) / (*x2 - *x1);
+        *y2 += (*y2 - *y1) * (rectX - *x2) / (*x2 - *x1);
         *x2 = rectX;
     }
     if (*x2 >= rectX + rectW)
@@ -206,7 +301,7 @@ int lineRectClip(int16_t rectX, int16_t rectY, int16_t rectW, int16_t rectH, int
 
     if (*y2 < rectY)
     {
-        *x2 += (*x2 - *x1) * (rectY - *y1) / (*y2 - *y1);
+        *x2 += (*x2 - *x1) * (rectY - *y2) / (*y2 - *y1);
         *y2 = rectY;
     }
 
@@ -216,7 +311,8 @@ int lineRectClip(int16_t rectX, int16_t rectY, int16_t rectW, int16_t rectH, int
         *y2 = rectY + rectH;
     }
 
-    return 1;
+    return (*x1 > rectX && *x1 < rectX + rectW && *y1 > rectY && *y1 < rectY + rectH)
+        || (*x2 > rectX && *x2 < rectX + rectW && *y2 > rectY && *y2 < rectY + rectH);
 }
 
 void TE_Img_line(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint32_t color, TE_ImgOpState state)
@@ -351,22 +447,23 @@ void TE_Img_lineRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, 
 
 void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t color, TE_ImgOpState state)
 {
-    if (x >= (1 << img->p2width) || y >= (1 << img->p2height) || x < 0 || y < 0)
+    int16_t x1 = x < 0 ? 0 : x;
+    int16_t y1 = y < 0 ? 0 : y;
+    int16_t x2 = x + w;
+    int16_t y2 = y + h;
+
+    if (x1 >= (1 << img->p2width) || y1 >= (1 << img->p2height) || x2 < 0 || y2 < 0)
     {
         return;
     }
 
-    uint16_t x1 = x < 0 ? 0 : x;
-    uint16_t y1 = y < 0 ? 0 : y;
-    uint16_t x2 = x + w;
-    uint16_t y2 = y + h;
 
-    x2 = x2 >= (1 << img->p2width) ? (1 << img->p2width) - 1 : x2;
-    y2 = y2 >= (1 << img->p2height) ? (1 << img->p2height) - 1 : y2;
+    x2 = x2 >= (1 << img->p2width) ? (1 << img->p2width) : x2;
+    y2 = y2 >= (1 << img->p2height) ? (1 << img->p2height) : y2;
 
-    for (uint16_t i = y1; i <= y2; i++)
+    for (uint16_t i = y1; i < y2; i++)
     {
-        for (uint16_t j = x1; j <= x2; j++)
+        for (uint16_t j = x1; j < x2; j++)
         {
             TE_Img_setPixel(img, j, i, color, state);
         }

@@ -3,12 +3,28 @@
 
 #include <inttypes.h>
 
+typedef struct TE_Rect
+{
+    int16_t x;
+    int16_t y;
+    int16_t width;
+    int16_t height;
+} TE_Rect;
+
 typedef struct TE_Img
 {
     uint8_t p2width;
     uint8_t p2height;
     uint32_t *data;
 } TE_Img;
+
+typedef struct TE_Sprite
+{
+    TE_Img *img;
+    TE_Rect src;
+    int8_t pivotX;
+    int8_t pivotY;
+} TE_Sprite;
 
 #define Z_COMPARE_ALWAYS 0
 #define Z_COMPARE_EQUAL 1
@@ -23,6 +39,10 @@ typedef struct TE_ImgOpState
     uint8_t zCompareMode : 3;
     uint8_t zNoWrite : 1;
     uint8_t zValue;
+    uint8_t scissorX;
+    uint8_t scissorY;
+    uint8_t scissorWidth;
+    uint8_t scissorHeight;
 } TE_ImgOpState;
 
 
@@ -43,6 +63,7 @@ typedef struct BlitEx
 
 void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_ImgOpState state);
 void TE_Img_fillTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint32_t color, TE_ImgOpState state);
+void TE_Img_lineTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint32_t color, TE_ImgOpState state);
 uint32_t TE_Img_getPixelEx(TE_Img *img, uint16_t ox, uint16_t oy, uint16_t x, uint16_t y, uint16_t w, uint16_t h, BlitEx options);
 void TE_Img_line(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint32_t color, TE_ImgOpState state);
 uint32_t TE_Color_tint(uint32_t color, uint32_t tint);
@@ -53,5 +74,6 @@ void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, 
 void TE_Img_drawPatch9(TE_Img *img, TE_Img* src, int16_t x, int16_t y, int16_t w, int16_t h,
     int16_t srcX, int16_t srcY, uint8_t cellWidth, uint8_t cellHeight, BlitEx options);
 void TE_Img_lineCircle(TE_Img *img, int16_t x, int16_t y, uint16_t radius, uint32_t color, TE_ImgOpState state);
+void TE_Img_blitSprite(TE_Img *img, TE_Sprite sprite, int16_t x, int16_t y, BlitEx options);
 
 #endif

@@ -14,13 +14,14 @@ typedef struct Player
     int dirX, dirY;
     int health;
     int maxHealth;
+    uint8_t drawBar;
 } Player;
 
 typedef struct Item
 {
     int8_t pivotX;
     int8_t pivotY;
-    TL_Rect src;
+    TE_Rect src;
 } Item;
 
 typedef struct Character 
@@ -35,13 +36,13 @@ typedef struct Character
     int8_t dx, dy;
     int8_t dirX, dirY;
     int8_t isAiming;
-    TL_Rect srcHeadFront;
-    TL_Rect srcHeadBack;
-    TL_Rect srcBodyFront;
-    TL_Rect srcBodyBack;
-    TL_Rect srcLeftFootFront;
-    TL_Rect srcLeftFootBack;
-    TL_Rect srcRightHand;
+    TE_Rect srcHeadFront;
+    TE_Rect srcHeadBack;
+    TE_Rect srcBodyFront;
+    TE_Rect srcBodyBack;
+    TE_Rect srcLeftFootFront;
+    TE_Rect srcLeftFootBack;
+    TE_Rect srcRightHand;
     int8_t itemRightHand;
     int8_t itemLeftHand;
 } Character;
@@ -61,8 +62,6 @@ typedef struct Enemy
     float idleTime;
     Character character;
 } Enemy;
-
-
 
 #define MAX_ENEMYTYPES 4
 #define PROJECTILE_MAX_COUNT 32

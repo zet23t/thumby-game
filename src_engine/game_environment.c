@@ -102,8 +102,8 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
     uint8_t pos = 0;
     TreeGen(nodes, &pos, 255, 1, 0, treeX, treeY, TE_randRange(-3,4), -4);
     TE_Img atlasImg = {
-        .p2width = 7,
-        .p2height = 7,
+        .p2width = atlas_p2width,
+        .p2height = atlas_p2height,
         .data = (uint32_t*) atlas_data,
     };
     int8_t treePoints[16*2];

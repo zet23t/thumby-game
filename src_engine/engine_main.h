@@ -20,13 +20,6 @@ typedef struct RuntimeContext
     float deltaTime;
 } RuntimeContext;
 
-typedef struct TL_Rect
-{
-    int16_t x;
-    int16_t y;
-    int16_t width;
-    int16_t height;
-} TL_Rect;
 
 extern uint32_t DB32Colors[];
 

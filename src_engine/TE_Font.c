@@ -39,7 +39,7 @@ static int TE_Font_drawTextBox_internal(TE_Img *img, TE_Font *font, int16_t x, i
     int textIndex = 0;
     char line[256];
     int16_t lineY = y;
-    if (!draw) TE_Img_lineRect(img, x, y, w, h, 0xff0000ff, state);
+    // if (!draw) TE_Img_lineRect(img, x, y, w, h, 0xff0000ff, state);
     while (text[textIndex])
     {
         int lineWidth = TE_Font_getLetterWidth(font, text[textIndex]);

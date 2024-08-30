@@ -4,12 +4,13 @@
 #include "fnt_myfont.h"
 #include "fnt_tiny.h"
 #include "fnt_medium.h"
-#include <math.h>
+#include "TE_math.h"
 
 typedef struct GameMenu
 {
     int8_t isActive:1;
     int8_t isTriggered:1;
+    float openProgress;
 } GameMenu;
 
 static GameMenu gameMenu;
@@ -27,7 +28,9 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
         gameMenu.isTriggered = 0;
     }
 
-    if (!gameMenu.isActive)
+    float target = gameMenu.isActive ? 1.0f : 0.0f;
+    gameMenu.openProgress = fMoveTowards(gameMenu.openProgress, target, ctx->deltaTime * 2.0f);
+    if (!gameMenu.isActive && gameMenu.openProgress <= 0.001f)
     {
         return;
     }
@@ -80,9 +83,25 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
     };
 
     int menuX = 16;
-    int menuY = 20;
+    int menuY = fLerpClamped(-8, 20, gameMenu.openProgress * 8.0f);
 
-    TE_Img_drawPatch9(img, &atlasImg, menuX, menuY, 127-menuX * 2, 127-menuY * 2, 56, 104, 8, 8, (BlitEx) {
+    int16_t menuWidth = 127 - menuX * 2;
+    int16_t menuHeight = 127 - menuY * 2;
+    menuHeight = (int16_t)(menuHeight * fTweenElasticOut(gameMenu.openProgress * 1.125f - 0.125f));
+
+    for (int i=0;i<2;i++)
+    {
+        TE_Img_line(img, 64, i, menuWidth + menuX, menuY + i, DB32Colors[3 - i], (TE_ImgOpState) {
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        });
+        TE_Img_line(img, 64, i, menuX - 4, menuY + i, DB32Colors[3 - i], (TE_ImgOpState) {
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        });
+    }
+
+    TE_Img_drawPatch9(img, &atlasImg, menuX, menuY, menuWidth, menuHeight, 56, 104, 8, 8, (BlitEx) {
         .flipX = 0,
         .flipY = 0,
         .rotate = 0,
@@ -96,18 +115,57 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
     });
 
     #define TITLE "Robin of Lootly"
-    int titleWidth = TE_Font_getWidth(&myfont, TITLE, -1);
-    int titleX = menuX + ((127-menuX * 2) - titleWidth) / 2;
-    float alignX = cosf(ctx->time * 1.25f) * 0.5f + 0.5f;
-    float alignY = sinf(ctx->time * 2.5f) * 0.5f + 0.5f;
+    float alignX = 0.5f;// cosf(ctx->time * 1.25f) * 0.5f + 0.5f;
+    float alignY = 0.0f; //sinf(ctx->time * 2.5f) * 0.5f + 0.5f;
+    int clipHeight = menuHeight + (menuY < 0 ? menuY : 0);
+    if (clipHeight < 0)
+    {
+        clipHeight = 0;
+    }
     TE_Font_drawTextBox(img, &mediumfont, menuX + 4, menuY + 4, 127-(menuX + 4)*2 - 2, 64, -1, -4, TITLE, alignX, 0.0f, 0xffffffff, (TE_ImgOpState) {
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,
+        .scissorX = menuX,
+        .scissorY = menuY < 0 ? 0 : menuY,
+        .scissorWidth = menuWidth,
+        .scissorHeight = clipHeight,
     });
 
-    TE_Font_drawTextBox(img, &mediumfont, menuX + 4, menuY + 18, 127-(menuX + 4)*2 - 2, 64, -1, -4, "This is some longer text test with line breaks in between", alignX, alignY, 0xffffffff, (TE_ImgOpState)
+    TE_Font_drawTextBox(img, &mediumfont, menuX + 4, menuY + 18, 127-(menuX + 4)*2 - 2, 64, -1, -4, 
+        "You found the menu that does nothing for now. Come back later!", alignX, alignY, 0xffffffff, (TE_ImgOpState)
     {
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,
+        .scissorX = menuX,
+        .scissorY = menuY < 0 ? 0 : menuY,
+        .scissorWidth = menuWidth,
+        .scissorHeight = clipHeight,
+    });
+
+    // barrels
+    TE_Img_drawPatch9(img, &atlasImg, menuX-5, menuY-2, menuWidth+8, 12, 80, 103, 6, 4, (BlitEx) {
+        .flipX = 0,
+        .flipY = 0,
+        .rotate = 0,
+        .tint = 0,
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tintColor = 0xffffffff,
+        .state = {
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        }
+    });
+
+    TE_Img_drawPatch9(img, &atlasImg, menuX-5, menuY-7+menuHeight, menuWidth+8, 12, 80, 103, 6, 4, (BlitEx) {
+        .flipX = 0,
+        .flipY = 0,
+        .rotate = 0,
+        .tint = 0,
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tintColor = 0xffffffff,
+        .state = {
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        }
     });
 }
