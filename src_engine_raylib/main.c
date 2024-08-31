@@ -214,6 +214,16 @@ int main(void)
         {
             step = 1;
         }
+
+        if (IsKeyPressed(KEY_F))
+        {
+            // toggle window always on top
+            static int topmost = 0;
+            if (topmost)
+                topmost = 0, ClearWindowState(FLAG_WINDOW_TOPMOST);
+            else
+                topmost = 1, SetWindowState(FLAG_WINDOW_TOPMOST);
+        }
             
 
         if (IsKeyPressed(KEY_R))

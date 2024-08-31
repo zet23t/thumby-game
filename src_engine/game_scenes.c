@@ -123,6 +123,7 @@ static void Scene_1_Update(RuntimeContext *ctx, TE_Img *screenData)
     // Update scene 1
     int16_t cartX = player.x - 20;
     
+    // draw path
     const uint16_t pathQHeight = 16;
     for (uint16_t x=0;x<128;x+=2)
     {
@@ -234,20 +235,152 @@ static void Scene_1_init()
     // Environment_addTreeGroup(64, 84, 199, 3, 20);
 }
 
-static Scene scenes[] = {
+static void Scene_2_init()
+{
+    Environment_addBushGroup(112, 90, 1232, 5, 10);
+
+    Environment_addTreeGroup(24, 120, 122, 5, 25);
+    Environment_addTreeGroup(104, 10, 1522, 5, 35);
+    Environment_addTreeGroup(54, 20, 1622, 5, 20);
+    Environment_addTreeGroup(10, 15, 522, 5, 25);
+    Environment_addTree(118, 125, 5122);
+}
+static void DrawTower(TE_Img *screenData, int16_t x, int16_t y, uint8_t z)
+{
+    TE_Img_blitEx(screenData, &atlasImg, x, y - 14, 114, 97, 28, 24, (BlitEx){
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = z,
+        }
+    });
+    TE_Img_blitEx(screenData, &atlasImg, x+2, y + 4, 116, 128, 24, 37, (BlitEx){
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = z,
+        }
+    });
+}
+static void Scene_2_Update(RuntimeContext *ctx, TE_Img *screenData)
+{
+    // Update scene 2
+    // DrawTextBlock(screenData, 10, 10, 108, 30, "Scene 2");
+
+    int16_t castleX = 108;
+
+    DrawTower(screenData, castleX+10, 64, 120);
+
+    DrawSpeechBubble(screenData, 10,100, 108, 20, player.x, player.y + 18, "Ahh, my castle!");
+
+
+    // building
+    TE_Img_blitEx(screenData, &atlasImg, castleX-8, 10, 0, 144, 39, 45, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS,
+                .zValue = 80,
+            }
+        });
+    TE_Img_blitEx(screenData, &atlasImg, castleX-5, 2, 39, 144, 16, 31, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS,
+                .zValue = 80,
+            }
+        });
+    
+
+    TE_Img_blitEx(screenData, &atlasImg, castleX-25, 40, 144, 160, 17, 36, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS,
+                .zValue = 80,
+            }
+        });
+
+    // big flag
+    for (int y = 0; y < 24; y++)
+    {
+        int16_t xoffset = (int) (sinf(-ctx->time * 5.0f + y * .5f) * ((y-3) * 0.065f)-.5f);
+        TE_Img_blitEx(screenData, &atlasImg, castleX-20 + xoffset, 20+y, 192, 112+y, 9, 1, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS,
+                .zValue = 80,
+            }
+        });
+    }
+    // wall fronts left
+    for (int i=0;i<4;i++)
+    {
+        TE_Img_blitEx(screenData, &atlasImg, castleX+16*i-48, 16*i, i == 0 ? 144 : 160, 113, 16, 47, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS,
+                .zValue = 80,
+            }
+        });
+    }
+
+    DrawTower(screenData, castleX-54, 1,80);
+
+    // backside wall
+    for (int i=0;i<4;i++)
+    {
+        TE_Img_blitEx(screenData, &atlasImg, castleX+16*i-28, -8*i-18, 176, 113, 16, 47, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS,
+                .zValue = 10,
+            }
+        });
+    }
+
+    // draw path
+    const uint16_t pathQHeight = 14;
+    for (uint16_t x=0;x<100;x+=2)
+    {
+        uint16_t srcX = x % 16;
+        int16_t y = 65 - (int16_t)(sin((x * 1.2f+12.0f) * 0.05f) * 5.0f + x * 0.2f);
+
+        TE_Img_blitEx(screenData, &atlasImg, x, y, 71 + srcX, 16, 2, pathQHeight, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 0,
+            }
+        });
+        TE_Img_blitEx(screenData, &atlasImg, x, y+pathQHeight, 71 + srcX, 16 + 24, 2, pathQHeight, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 0,
+            }
+        });
+    }
+}
+
+static const Scene scenes[] = {
     { .id = 1, .initFn = Scene_1_init, .updateFn = Scene_1_Update },
+    { .id = 2, .initFn = Scene_2_init, .updateFn = Scene_2_Update },
     {0}
 };
 
 static void NoSceneUpdate(RuntimeContext *ctx, TE_Img *screenData)
 {
     // Do nothing
+    DrawTextBlock(screenData, 10, 10, 108, 30, "No scene loaded");
 }
 
 void Scene_init(uint8_t sceneId)
 {
     Player_setWeapon(0);
     Environment_init();
+    player.x = 64;
+    player.y = 64;
+    playerCharacter.x = player.x;
+    playerCharacter.y = player.y;
 
     for (int i=0;scenes[i].initFn;i++)
     {

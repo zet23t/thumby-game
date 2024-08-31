@@ -29,6 +29,8 @@ typedef struct TreeNode
 
 #define TYPE_TREE 0
 #define TYPE_TREEGROUP 1
+#define TYPE_BUSHGROUP 2
+#define TYPE_FLOWERGROUP 2
 
 typedef struct TreeGroupData
 {
@@ -92,6 +94,54 @@ void TreeGen(TreeNode *nodes, uint8_t *pos, uint8_t maxCount, uint8_t isMain, ui
         int8_t dx2 = dx < 0 ? TE_randRange(1,5) : TE_randRange(-5,-1);
         TreeGen(nodes, pos, maxCount, 0, depth + 1, x2, y2, dx2, dy * 3 / 5);
     }
+}
+
+static void DrawBush(TE_Img *img, int16_t bushX, int16_t bushY)
+{
+    int16_t srcYOffset = 0;
+    uint8_t zValue = bushY + 4;
+    int16_t x = bushX;
+    int16_t y = bushY;
+    // TE_Img_fillRect(img, x, y, 8, 8, color, (TE_ImgOpState) {
+    //     .zCompareMode = Z_COMPARE_LESS_EQUAL,
+    //     .zValue = zValue,
+    // });
+    uint8_t n = TE_randRange(3, 5);
+    for (int i=0;i<n;i++)
+    {
+        uint32_t color = DB32Colors[i==0 ? 30 : 12 + i%2];
+
+        TE_Img_blitEx(img, &atlasImg, TE_randRange(x-3,x+3), TE_randRange(y-3,y), TE_randRange(0,2)*8, TE_randRange(0,2)*8 + srcYOffset, 8, 8, (BlitEx) {
+            .flipX = 0,
+            .flipY = 0,
+            .rotate = TE_randRange(0, 4),
+            .tint = 1,
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .tintColor = color,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS,
+                .zValue = zValue,
+            }
+        });
+    }
+
+    // transform x/y to shadow projected x/y
+    int dx = x - bushX;
+    int dy = y - bushY;
+    int shadowX =bushX + 2;
+    int shadowY = bushY + 2;
+    TE_Img_blitEx(img, &atlasImg, shadowX, shadowY, TE_randRange(0,2)*8, TE_randRange(0,2)*8 + srcYOffset, 8, 8, (BlitEx) {
+        .flipX = 0,
+        .flipY = 0,
+        .rotate = TE_randRange(0, 4),
+        .tint = 1,
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tintColor = DB32Colors[14],
+        .state = {
+            .zCompareMode = Z_COMPARE_EQUAL,
+            .zValue = 0,
+        }
+    });
 }
 
 void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
@@ -269,6 +319,20 @@ void Environment_addTreeGroup(int16_t x, int16_t y, uint32_t seed, uint8_t count
     };
 }
 
+void Environment_addBushGroup(int16_t x, int16_t y, uint32_t seed, uint8_t count, uint8_t scatterRadius)
+{
+    environmentScene.objects[environmentScene.environmentObjectCount++] = (EnvironmentObject) {
+        .type = TYPE_BUSHGROUP,
+        .seed = seed,
+        .x = x,
+        .y = y,
+        .treeGroupData = {
+            .count = count,
+            .scatterRadius = scatterRadius,
+        }
+    };
+}
+
 float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_t *nearestY)
 {
     float minDist = 9999;
@@ -424,6 +488,21 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
                 //     .zCompareMode = Z_COMPARE_LESS,
                 //     .zValue = 44 + y + posY[j],
                 // });
+            }
+        }
+        else if (environmentScene.objects[i].type == TYPE_BUSHGROUP)
+        {
+            int posX[32];
+            int posY[32];
+            int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
+            int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                TE_randRadius(treeGroupScatterRadius, &posX[j], &posY[j]);
+            }
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                DrawBush(img, x + posX[j], y + posY[j]);
             }
         }
     }

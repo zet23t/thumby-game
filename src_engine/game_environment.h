@@ -6,6 +6,7 @@
 #include "TE_Image.h"
 
 void Environment_init();
+void Environment_addBushGroup(int16_t x, int16_t y, uint32_t seed, uint8_t count, uint8_t scatterRadius);
 void Environment_addTree(int16_t x, int16_t y, uint32_t seed);
 void Environment_addTreeGroup(int16_t x, int16_t y, uint32_t seed, uint8_t count, uint8_t scatterRadius);
 int Environment_raycastPoint(int16_t px, int16_t py);

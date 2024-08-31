@@ -69,6 +69,11 @@ uint32_t TE_Img_getPixelEx(TE_Img *img, uint16_t ox, uint16_t oy, uint16_t x, ui
     x += ox;
     y += oy;
 
+    if (x >= (1 << img->p2width) || y >= (1 << img->p2height))
+    {
+        return 0;
+    }
+
     return img->data[(y << img->p2width) + x];
 }
 

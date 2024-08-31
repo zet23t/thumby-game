@@ -77,7 +77,7 @@ DLL_EXPORT void init()
         .srcRightHand = { .x = 40+48, .y = 64, .width = 8, .height = 6 },
     };
 
-    Scene_init(1);
+    Scene_init(2);
     // Environment_addTree(30,50, 12343050);
     // // Environment_addTree(35,50, 12343550);
     // // Environment_addTree(25,30, 12342530);
