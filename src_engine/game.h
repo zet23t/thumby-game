@@ -60,12 +60,15 @@ typedef struct Enemy
 {
     float health;
     float idleTime;
+    uint8_t id;
     Character character;
 } Enemy;
 
 #define MAX_ENEMYTYPES 4
 #define PROJECTILE_MAX_COUNT 32
 #define MAX_ENEMIES 16
+
+#define ITEM_PIKE 3
 
 extern Character characters[MAX_ENEMYTYPES];
 extern Projectile projectiles[PROJECTILE_MAX_COUNT];

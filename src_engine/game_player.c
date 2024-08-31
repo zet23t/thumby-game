@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 static uint8_t _playerWeaponIndex;
+static uint8_t _playerInputEnabled;
 
 void Player_setWeapon(uint8_t weaponIndex)
 {
@@ -15,39 +16,46 @@ void Player_setWeapon(uint8_t weaponIndex)
 
 void Player_update(Player *player, Character *playerCharacter, RuntimeContext *ctx, TE_Img *img)
 {
-    if (ctx->inputUp || ctx->inputDown)
+    if (_playerInputEnabled)
     {
-        player->dirX = player->dirY = 0;
-    }
+        if (ctx->inputUp || ctx->inputDown)
+        {
+            player->dirX = player->dirY = 0;
+        }
 
-    if (ctx->inputUp)
-    {
-        player->dy = -1;
-        player->dirY = -1;
-    }
-    else if (ctx->inputDown)
-    {
-        player->dy = 1;
-        player->dirY = 1;
+        if (ctx->inputUp)
+        {
+            player->dy = -1;
+            player->dirY = -1;
+        }
+        else if (ctx->inputDown)
+        {
+            player->dy = 1;
+            player->dirY = 1;
+        }
+        else
+        {
+            player->dy = 0;
+        }
+
+        if (ctx->inputLeft)
+        {
+            player->dx = -1;
+            player->dirX = -1;
+        }
+        else if (ctx->inputRight)
+        {
+            player->dx = 1;
+            player->dirX = 1;
+        }
+        else
+        {
+            player->dx = 0;
+        }
     }
     else
     {
-        player->dy = 0;
-    }
-
-    if (ctx->inputLeft)
-    {
-        player->dx = -1;
-        player->dirX = -1;
-    }
-    else if (ctx->inputRight)
-    {
-        player->dx = 1;
-        player->dirX = 1;
-    }
-    else
-    {
-        player->dx = 0;
+        player->dx = player->dy = 0;
     }
 
     int sqLen = player->dx * player->dx + player->dy * player->dy;
@@ -226,4 +234,9 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
             }
         });
     }
+}
+
+void Player_setInputEnabled(uint8_t enabled)
+{
+    _playerInputEnabled = enabled;
 }

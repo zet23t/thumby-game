@@ -23,6 +23,7 @@
 #include "game_menu.h"
 #include "game_environment.h"
 #include "game_scenes.h"
+#include "stdarg.h"
 
 uint32_t DB32Colors[] = {
     0xFF000000, 0xFF342022, 0xFF3C2845, 0xFF313966, 0xFF3B568F, 0xFF2671DF, 0xFF66A0D9, 0xFF9AC3EE,
@@ -32,9 +33,20 @@ uint32_t DB32Colors[] = {
     0xFF36535E, 0xFF48687D, 0xFF3C7EA0, 0xFFC7C3C2, 0xFFE0E0E0,
 };
 
+void TE_Logf(const char *tag, const char *fmt, ...)
+{
+    printf("[%s] ", tag);
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+    printf("\n");
+}
+
 
 DLL_EXPORT void init()
 {
+    TE_Logf(LOG_TAG_SYSTEM, "Initializing");
     atlasImg = (TE_Img) {
         .p2width = atlas_p2width,
         .p2height = atlas_p2height,
@@ -50,6 +62,12 @@ DLL_EXPORT void init()
         .pivotX = 6,
         .pivotY = 4,
         .src = { .x = 7, .y = 96, .width = 9, .height = 13 },
+    };
+    
+    items[ITEM_PIKE - 1] = (Item) {
+        .pivotX = 1,
+        .pivotY = 8,
+        .src = { .x = 64, .y = 80, .width = 8, .height = 16 },
     };
 
     playerCharacter = (Character)
@@ -75,6 +93,17 @@ DLL_EXPORT void init()
         .srcLeftFootFront = { .x = 32+48, .y = 64, .width = 8, .height = 6 },
         .srcLeftFootBack = { .x = 32+48, .y = 72, .width = 8, .height = 6 },
         .srcRightHand = { .x = 40+48, .y = 64, .width = 8, .height = 6 },
+    };
+
+    characters[2] = (Character)
+    {
+        .srcHeadFront = { .x = 48 * 2, .y = 64, .width = 15, .height = 11 },
+        .srcHeadBack = { .x = 48 * 2, .y = 64 + 16, .width = 15, .height = 11 },
+        .srcBodyFront = { .x = 16+48 * 2, .y = 64, .width = 15, .height = 6 },
+        .srcBodyBack = { .x = 16+48 * 2, .y = 64 + 8, .width = 15, .height = 6 },
+        .srcLeftFootFront = { .x = 32+48 * 2, .y = 64, .width = 8, .height = 6 },
+        .srcLeftFootBack = { .x = 32+48 * 2, .y = 72, .width = 8, .height = 6 },
+        .srcRightHand = { .x = 40+48 * 2, .y = 64, .width = 8, .height = 6 },
     };
 
     Scene_init(2);
@@ -137,8 +166,8 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     }
     
 
-    Enemies_update(ctx, &img);
     Scene_update(ctx, &img);
+    Enemies_update(ctx, &img);
     Projectiles_update(projectiles, ctx, &img);
 
     Player_update(&player, &playerCharacter, ctx, &img);
@@ -150,8 +179,13 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     //     .zValue = 100,
     // });
 
+    int fps = (int)roundl(1.0f / ctx->deltaTime);
+    if (fps > 25)
+    {
+        return;
+    }
     char text[64];
-    sprintf(text, "FPS: %d", (int)roundl(1.0f / ctx->deltaTime));
+    sprintf(text, "FPS: %d", fps);
     TE_Font_drawText(&img, &tinyfont, 2, 112, -1, text, 0xffffffff, (TE_ImgOpState) {
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,

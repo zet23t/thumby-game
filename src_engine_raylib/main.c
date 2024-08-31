@@ -263,6 +263,8 @@ int main(void)
         {
             step = 0;
             ctx.frameCount++;
+            ctx.previousInputState = ctx.inputState;
+            
             ctx.inputA = IsKeyDown(KEY_I);
             ctx.inputB = IsKeyDown(KEY_J);
             ctx.inputUp = IsKeyDown(KEY_W);
