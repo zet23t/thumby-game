@@ -8,6 +8,7 @@
 #define SPRITE_CART_WHEEL_SIDE 2
 #define SPRITE_CART_SIDE 3
 #define SPRITE_CART_GOLD 4
+#define SPRITE_ARROW_RIGHT 5
 
 TE_Sprite GameAssets_getSprite(uint8_t index);
 TE_Font GameAssets_getFont(uint8_t index);

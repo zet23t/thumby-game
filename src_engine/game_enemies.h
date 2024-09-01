@@ -17,5 +17,6 @@ void Enemies_update(RuntimeContext *ctx, TE_Img *img);
 int Enemies_raycastPoint(float x, float y);
 void Enemies_setItem(uint8_t id, int8_t leftItemIndex, int8_t rightItemIndex);
 int Enemies_getPosition(uint8_t id, float *outX, float *outY);
+void Enemies_setHealth(uint8_t id, float health);
 
 #endif

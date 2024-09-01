@@ -14,6 +14,7 @@ typedef struct Condition
     uint8_t type;
     union {
         struct RectCondition {
+            uint8_t npcIds[4];
             int16_t x;
             int16_t y;
             int16_t width;
@@ -24,17 +25,64 @@ typedef struct Condition
 
 #define CONDITION_TYPE_PLAYER_IN_RECT 1
 #define CONDITION_TYPE_PRESS_NEXT 2
+#define CONDITION_TYPE_NPCS_IN_RECT 3
 
 uint8_t Condition_update(Condition *condition, RuntimeContext *ctx, TE_Img *screenData)
 {
     if (condition->type == CONDITION_TYPE_PLAYER_IN_RECT)
     {
-        return (player.x >= condition->x && player.x < condition->x + condition->width
-            && player.y >= condition->y && player.y < condition->y + condition->height);
+        int16_t x = playerCharacter.x, y = playerCharacter.y;
+        // TE_Logf("CONDITION", "Player pos: %d %d -> %d %d, rect: %d %d %d %d", x, y, 
+        //     (int)playerCharacter.targetX, (int)playerCharacter.targetY,
+        //     condition->x, condition->y, 
+        //     condition->width, condition->height);
+        return (x >= condition->x && x < condition->x + condition->width
+            && y >= condition->y && y < condition->y + condition->height);
+    }
+
+    if (condition->type == CONDITION_TYPE_NPCS_IN_RECT)
+    {
+        for (int i=0;i<4;i++)
+        {
+            float x, y;
+            if (Enemies_getPosition(condition->npcIds[i], &x, &y))
+            {
+                if (x < condition->x || x > condition->x + condition->width
+                    || y < condition->y || y > condition->y + condition->height)
+                {
+                    return 0;
+                }
+            }
+        }
+        return 1;
     }
 
     if (condition->type == CONDITION_TYPE_PRESS_NEXT)
     {
+        int16_t pressY = (int16_t)(fmodf(ctx->time, 0.6f) * 2.0f) + 117;
+        TE_Img_fillCircle(screenData, 117, pressY, 6, DB32Colors[18], (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        });
+        TE_Img_lineCircle(screenData, 117, pressY, 6, DB32Colors[1], (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        });
+        TE_Img_lineCircle(screenData, 117, pressY+1, 6, DB32Colors[1], (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = 255,
+        });
+        TE_Img_lineCircle(screenData, 117, 119, 6, DB32Colors[1], (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = 255,
+        });
+        TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_ARROW_RIGHT), 118, pressY, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 255,
+            }
+        });
         return ctx->inputRight && !ctx->prevInputRight;
     }
 
@@ -50,9 +98,10 @@ typedef struct ScriptedAction
     union {
         struct SpeechBubbleData {
             const char *text;
-            uint8_t speaker;
-            uint8_t speechBubbleX;
-            uint8_t speechBubbleY;
+            uint8_t speaker:5;
+            uint8_t isRelative:1;
+            int16_t speechBubbleX;
+            int16_t speechBubbleY;
             uint8_t speechBubbleWidth;
             uint8_t speechBubbleHeight;
             int8_t arrowXOffset;
@@ -69,16 +118,33 @@ typedef struct ScriptedAction
             uint8_t id;
             int16_t x;
             int16_t y;
+        } npcTarget;
+        
+        struct SetPlayerTargetData {
+            int16_t targetX;
+            int16_t targetY;
+            uint8_t setX;
+            uint8_t setY;
+        } playerTarget;
+
+        struct SetFlagsData {
+            uint32_t setFlags;
+            uint32_t mask;
         };
+        struct SetNPCHealthData {
+            uint8_t id;
+            float health;
+        } npcHealth;
     };
 } ScriptedAction;
 
-#define MAX_SCRIPTED_ACTIONS 64
+#define MAX_SCRIPTED_ACTIONS 128
 
 typedef struct ScriptedActions
 {
     ScriptedAction actions[MAX_SCRIPTED_ACTIONS];
     uint8_t currentPlotIndex;
+    uint32_t flags;
 } ScriptedActions;
 
 struct ScriptedActions scriptedActions;
@@ -88,6 +154,9 @@ struct ScriptedActions scriptedActions;
 #define SCRIPTED_ACTION_TYPE_SET_PLAYER_CONTROLS_ENABLED 2
 #define SCRIPTED_ACTION_TYPE_PROCEED_PLOT_CONDITION 3
 #define SCRIPTED_ACTION_TYPE_SET_NPC_TARGET 4
+#define SCRIPTED_ACTION_TYPE_SET_FLAGS 5
+#define SCRIPTED_ACTION_TYPE_SET_PLAYER_TARGET 6
+#define SCRIPTED_ACTION_TYPE_SET_NPC_HEALTH 7
 
 void ScriptedAction_init()
 {
@@ -96,9 +165,10 @@ void ScriptedAction_init()
         scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_NONE;
     }
     scriptedActions.currentPlotIndex = 0;
+    scriptedActions.flags = 0;
 }
 
-void ScriptedAction_addSpeechBubble(uint8_t stepStart, uint8_t stepStop, const char *text, uint8_t speaker, uint8_t speechBubbleX, uint8_t speechBubbleY, uint8_t speechBubbleWidth, uint8_t speechBubbleHeight, int8_t arrowXOffset, int8_t arrowYOffset)
+ScriptedAction* ScriptedAction_addSpeechBubble(uint8_t stepStart, uint8_t stepStop, const char *text, uint8_t speaker, int16_t speechBubbleX, int16_t speechBubbleY, uint8_t speechBubbleWidth, uint8_t speechBubbleHeight, int8_t arrowXOffset, int8_t arrowYOffset)
 {
     for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
     {
@@ -115,9 +185,11 @@ void ScriptedAction_addSpeechBubble(uint8_t stepStart, uint8_t stepStop, const c
             scriptedActions.actions[i].arrowYOffset = arrowYOffset;
             scriptedActions.actions[i].startPlotIndex = stepStart;
             scriptedActions.actions[i].endPlotIndex = stepStop;
-            return;
+            return &scriptedActions.actions[i];
         }
     }
+
+    return NULL;
 }
 
 void ScriptedAction_addPlayerControlsEnabled(uint8_t stepStart, uint8_t stepStop, uint8_t enabled)
@@ -135,16 +207,34 @@ void ScriptedAction_addPlayerControlsEnabled(uint8_t stepStart, uint8_t stepStop
     }
 }
 
-void ScriptedAction_setNPCTarget(uint8_t stepStart, uint8_t stepStop, uint8_t id, int16_t x, int16_t y)
+void ScriptedAction_addSetPlayerTarget(uint8_t stepStart, uint8_t stepStop, int16_t x, int16_t y, uint8_t setX, uint8_t setY)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_PLAYER_TARGET;
+            scriptedActions.actions[i].playerTarget.targetX = x;
+            scriptedActions.actions[i].playerTarget.targetY = y;
+            scriptedActions.actions[i].playerTarget.setX = setX;
+            scriptedActions.actions[i].playerTarget.setY = setY;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
+void ScriptedAction_addSetNPCTarget(uint8_t stepStart, uint8_t stepStop, uint8_t id, int16_t x, int16_t y)
 {
     for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
     {
         if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
         {
             scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_NPC_TARGET;
-            scriptedActions.actions[i].id = id;
-            scriptedActions.actions[i].x = x;
-            scriptedActions.actions[i].y = y;
+            scriptedActions.actions[i].npcTarget.id = id;
+            scriptedActions.actions[i].npcTarget.x = x;
+            scriptedActions.actions[i].npcTarget.y = y;
             scriptedActions.actions[i].startPlotIndex = stepStart;
             scriptedActions.actions[i].endPlotIndex = stepStop;
             return;
@@ -168,9 +258,42 @@ void ScriptedAction_addProceedPlotCondition(uint8_t stepStart, uint8_t stepStop,
     }
 }
 
+void ScriptedAction_addSetFlags(uint8_t stepStart, uint8_t stepStop, uint32_t setFlags, uint32_t mask)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_FLAGS;
+            scriptedActions.actions[i].setFlags = setFlags;
+            scriptedActions.actions[i].mask = mask;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
+void ScriptedAction_addSetNPCHealth(uint8_t stepStart, uint8_t stepStop, uint8_t id, float health)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_NPC_HEALTH;
+            scriptedActions.actions[i].npcHealth.id = id;
+            scriptedActions.actions[i].npcHealth.health = health;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
 void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 {
     uint8_t nextPlotIndex = scriptedActions.currentPlotIndex;
+    uint32_t nextFlags = scriptedActions.flags;
     for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
     {
         if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
@@ -219,12 +342,41 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 
         if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_NPC_TARGET)
         {
-            Enemies_setTarget(scriptedActions.actions[i].id, scriptedActions.actions[i].x, scriptedActions.actions[i].y);
+            Enemies_setTarget(
+                scriptedActions.actions[i].npcTarget.id, 
+                scriptedActions.actions[i].npcTarget.x, 
+                scriptedActions.actions[i].npcTarget.y);
+            continue;
+        }
+
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_TARGET)
+        {
+            if (scriptedActions.actions[i].playerTarget.setX)
+            {
+                playerCharacter.targetX = scriptedActions.actions[i].playerTarget.targetX;
+            }
+            if (scriptedActions.actions[i].playerTarget.setY)
+            {
+                playerCharacter.targetY = scriptedActions.actions[i].playerTarget.targetY;
+            }
+            continue;
+        }
+
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_FLAGS)
+        {
+            nextFlags = (nextFlags & ~scriptedActions.actions[i].mask) | scriptedActions.actions[i].setFlags;
+            continue;
+        }
+
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_NPC_HEALTH)
+        {
+            Enemies_setHealth(scriptedActions.actions[i].npcHealth.id, scriptedActions.actions[i].npcHealth.health);
             continue;
         }
     }
 
     scriptedActions.currentPlotIndex = nextPlotIndex;
+    scriptedActions.flags = nextFlags;
 }
 
 
@@ -454,6 +606,10 @@ static void Scene_1_init()
     // Environment_addTreeGroup(64, 84, 199, 3, 20);
 }
 
+#define SCENE_2_FLAG_PULLING_CART 1
+#define SCENE_2_FLAG_DINGLEWORT_OUTSIDE 2
+#define SCENE_2_FLAG_DOOR_OPEN 4
+
 static void Scene_2_init()
 {
     Environment_addBushGroup(112, 90, 1232, 5, 10);
@@ -464,7 +620,7 @@ static void Scene_2_init()
     Environment_addTreeGroup(10, 15, 522, 5, 25);
     Environment_addTree(118, 125, 5122);
 
-    player.x = -5;
+    player.x = -15;
     playerCharacter.x = player.x;
     Enemies_init();
     Enemies_spawn(1, 1, 102,66);
@@ -482,8 +638,29 @@ static void Scene_2_init()
         .height = 128,
     });
 
-    uint8_t step = 1;
+    scriptedActions.flags = SCENE_2_FLAG_PULLING_CART;
+
+    uint8_t step = 0;
     ScriptedAction_addPlayerControlsEnabled(step, step, 0);
+    ScriptedAction_addSetPlayerTarget(step, step, 8, 60, 1, 0);
+    ScriptedAction_addSpeechBubble(step, step, "Ah, my castle!", 0, 8, 96, 112, 28, 0, 10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addPlayerControlsEnabled(step, step, 0);
+    ScriptedAction_addSetPlayerTarget(step, step, 15, 60, 1, 0);
+    ScriptedAction_addSpeechBubble(step, step, "What a weird looking banner...", 0, 8, 96, 112, 28, 0, 10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addPlayerControlsEnabled(step, step, 0);
+    ScriptedAction_addSetPlayerTarget(step, step, 40, 60, 1, 0);
+    ScriptedAction_addSetNPCTarget(step, step, 3, 80, 50);
+    ScriptedAction_addSetFlags(step, step, SCENE_2_FLAG_DOOR_OPEN, SCENE_2_FLAG_DOOR_OPEN);
+    ScriptedAction_addSpeechBubble(step, step, "Why does it say 'For Sale'?!", 0, 8, 96, 112, 28, 0, 10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
     ScriptedAction_addSpeechBubble(step, step, "Welcome, Sire!", 3, 8, 4, 112, 28, 0, -10);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
@@ -525,9 +702,9 @@ static void Scene_2_init()
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "... as down payment to your tax pay debts.", 3, 8, 4, 112, 30, 0, -10);
-    ScriptedAction_setNPCTarget(step, step, 1, 25, 70);
-    ScriptedAction_setNPCTarget(step, step, 2, 25, 55);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    ScriptedAction_addSetNPCTarget(step, step, 1, 25, 70);
+    ScriptedAction_addSetNPCTarget(step, step, 2, 25, 55);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_NPCS_IN_RECT, .npcIds = {1,2,0,0}, .x = 20, .y = 50, .width = 20, .height = 30 });
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "You have no right, this is my loot!", 0, 8, 86, 112, 38, 0, 10);
@@ -535,7 +712,10 @@ static void Scene_2_init()
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "As the tax collector of Nottingham,", 3, 8, 4, 112, 30, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    ScriptedAction_addSetNPCTarget(step, step, 1, -25, 70 + 15);
+    ScriptedAction_addSetNPCTarget(step, step, 2, -25, 55 + 16);
+    ScriptedAction_addSetFlags(step, step, 0, SCENE_2_FLAG_PULLING_CART);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_NPCS_IN_RECT, .npcIds = {1,2,0,0}, .x = -30, .y = 0, .width = 10, .height = 128 });
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "I am obliged to do that.", 3, 8, 4, 112, 30, 0, -10);
@@ -568,6 +748,36 @@ static void Scene_2_init()
 
     ScriptedAction_addSpeechBubble(step, step, "... is up to the Sheriff to decide.", 3, 8, 4, 112, 30, 0, -10);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "I look forward to meet you again.", 3, 8, 4, 112, 30, 0, -10);
+    ScriptedAction_addSetNPCTarget(step, step, 3, 96, 43);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "With the rest of your due taxes!", 3, 8, 4, 112, 30, 0, -10);
+    ScriptedAction_addSetFlags(step, step, 0, SCENE_2_FLAG_DOOR_OPEN);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+    
+    ScriptedAction_addSpeechBubble(step, step, "What just happened?!", 0, 8, 86, 112, 38, 0, 10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "And where's my LOOT!?!", 0, 8, 86, 112, 38, 0, 10);
+    ScriptedAction_addSetPlayerTarget(step, step, 20, 60, 1, 0);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Dingleduck is going to pay for that.", 0, 8, 86, 112, 38, 0, 10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "First I'll get my loot back!", 0, 8, 86, 112, 38, 0, 10);
+    ScriptedAction_addSetPlayerTarget(step, step, -50, 60, 1, 0);
+    ScriptedAction_addSetNPCHealth(step, step, 1, 0);
+    ScriptedAction_addSetNPCHealth(step, step, 2, 0);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PLAYER_IN_RECT, .x = -40, .y = 0, .width = 20, .height = 128 });
     step++;
     
 }
@@ -602,23 +812,40 @@ static void Scene_2_Update(RuntimeContext *ctx, TE_Img *screenData)
     int16_t cartY = 78 - (int16_t)(sin((cartX * 1.2f+12.0f) * 0.05f) * 5.0f + cartX * 0.2f);
     int16_t cartYAnchor = 80 - (int16_t)(sin(((cartX+6.0f) * 1.2f+12.0f) * 0.05f) * 5.0f + (cartX+6.0f) * 0.2f);
 
+    uint8_t isPullingCart = (scriptedActions.flags & SCENE_2_FLAG_PULLING_CART) != 0;
+
     player.y = 74 - (int16_t)(sin((player.x * 1.2f+12.0f) * 0.05f) * 5.0f + player.x * 0.2f);
     player.aimY = 1;
     player.dirY = 1;
     player.dy = 1;
     playerCharacter.y = player.y;
     playerCharacter.dirY = 1;
+    playerCharacter.targetY = player.y;
+
+    if (!isPullingCart)
+    {
+        float x1, y1, x2, y2;
+        Enemies_getPosition(1, &x1, &y1);
+        Enemies_getPosition(2, &x2, &y2);
+        float cx = (x1 + x2) * 0.5f;
+        float cy = (y1 + y2) * 0.5f;
+        cartX = (int16_t)cx - 4;
+        cartY = (int16_t)cy + 6;
+    }
 
     Cart_draw(screenData, cartX, cartY,1, ctx);
 
-    TE_Img_line(screenData, cartX+8, cartYAnchor, cartX+20, player.y + 4, DB32Colors[3], (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 83,
-    });
-    TE_Img_line(screenData, cartX+8, cartYAnchor + 1, cartX+20, player.y + 5, DB32Colors[2], (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 83,
-    });
+    if (isPullingCart)
+    {
+        TE_Img_line(screenData, cartX+8, cartYAnchor, cartX+20, player.y + 4, DB32Colors[3], (TE_ImgOpState) {
+            .zCompareMode = Z_COMPARE_LESS_EQUAL,
+            .zValue = 83,
+        });
+        TE_Img_line(screenData, cartX+8, cartYAnchor + 1, cartX+20, player.y + 5, DB32Colors[2], (TE_ImgOpState) {
+            .zCompareMode = Z_COMPARE_LESS_EQUAL,
+            .zValue = 83,
+        });
+    }
 
 
     const uint8_t castleZ = 70;
@@ -664,9 +891,9 @@ static void Scene_2_Update(RuntimeContext *ctx, TE_Img *screenData)
             }
         });
     
-    if (player.x > 23)
+    if (scriptedActions.flags & SCENE_2_FLAG_DOOR_OPEN)
     {
-        Enemies_setTarget(3, 80,50);
+        // Enemies_setTarget(3, 80,50);
         // open door state: open part
         TE_Img_blitEx(screenData, &atlasImg, castleX-23, 42, 169, 160, 8, 21, (BlitEx){
                 .blendMode = TE_BLEND_ALPHAMASK,
@@ -762,7 +989,7 @@ static void Scene_2_Update(RuntimeContext *ctx, TE_Img *screenData)
 
     if (text)
     {
-        DrawSpeechBubble(screenData, 5,98, 118, 28, player.x, player.y + 18, text);
+        // DrawSpeechBubble(screenData, 5,98, 118, 28, player.x, player.y + 18, text);
     }
 
 }

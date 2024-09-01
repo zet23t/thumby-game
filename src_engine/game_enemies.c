@@ -187,3 +187,15 @@ int Enemies_getPosition(uint8_t id, float *outX, float *outY)
     }
     return 0;
 }
+
+void Enemies_setHealth(uint8_t id, float health)
+{
+    for (int i=0;i<MAX_ENEMIES;i++)
+    {
+        if (enemies[i].health > 0.0f && enemies[i].id == id)
+        {
+            enemies[i].health = health;
+            break;
+        }
+    }
+}

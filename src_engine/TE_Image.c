@@ -475,11 +475,36 @@ void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, 
     }
 }
 
+void TE_Img_fillCircle(TE_Img *img, int16_t x, int16_t y, uint16_t radius, uint32_t color, TE_ImgOpState state)
+{
+    int16_t x0 = radius;
+    int16_t y0 = 0;
+    int16_t err = radius < 5 ? 4 - 2 * radius : -5;
+
+    while (x0 >= y0)
+    {
+        TE_Img_HLine(img, x - x0, y + y0, x0 * 2, color, state);
+        TE_Img_HLine(img, x - x0, y - y0, x0 * 2, color, state);
+        TE_Img_HLine(img, x - y0, y + x0, y0 * 2, color, state);
+        TE_Img_HLine(img, x - y0, y - x0, y0 * 2, color, state);
+
+        if (err <= 0)
+        {
+            y0 += 1;
+            err += 2 * y0 + 1;
+        }
+        if (err > 0)
+        {
+            x0 -= 1;
+            err -= 2 * x0 + 1;
+        }
+    }
+}
 void TE_Img_lineCircle(TE_Img *img, int16_t x, int16_t y, uint16_t radius, uint32_t color, TE_ImgOpState state)
 {
     int16_t x0 = radius;
     int16_t y0 = 0;
-    int16_t err = radius < 5 ? 3 - 2 * radius : -1;
+    int16_t err = radius < 5 ? 4 - 2 * radius : -5;
 
     while (x0 >= y0)
     {

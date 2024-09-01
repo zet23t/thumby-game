@@ -39,6 +39,10 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
 {
     float dx = tx - character->x;
     float dy = ty - character->y;
+    // TE_Img_line(img, (int16_t) character->x, (int16_t) character->y, (int16_t) tx, (int16_t) ty, DB32Colors[9], (TE_ImgOpState) {
+    //             .zCompareMode = Z_COMPARE_LESS,
+    //             .zValue = (uint8_t) character->y + 8,
+    //         });
     int8_t signX = dx < 0.0f ? -1 : (dx > 0.0f ? 1 : 0);
     int8_t signY = dy < 0.0f ? -1 : (dy > 0.0f ? 1 : 0);
     float len = sqrtf(dx * dx + dy * dy);

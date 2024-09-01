@@ -17,6 +17,7 @@ static const SpriteData _sprites[] = {
     {0, 138, 7, 6, 3,3}, // CART_WHEEL_SIDE
     {0, 127, 16, 10, 8, 4}, // CART_SIDE
     {16, 125, 16, 7, 8, 2}, // CART_GOLD
+    {0, 240, 6, 7, 3, 3}, // ARROW_RIGHT
 };
 
 static SpriteData _getSpriteData(uint8_t index)

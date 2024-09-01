@@ -183,8 +183,19 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         playerCharacter->shootCooldown = -SHOOT_COOLDOWN;
     }
 
-
-    Character_update(playerCharacter, ctx, img, player->x, player->y, player->dirX, player->dirY);
+    float targetX = player->x;
+    float targetY = player->y;
+    int dirX = player->dirX;
+    int dirY = player->dirY;
+    if (!_playerInputEnabled)
+    {
+        targetX = playerCharacter->targetX;
+        targetY = playerCharacter->targetY;
+        dirX = playerCharacter->x < targetX ? 1 : (playerCharacter->x > targetX ? -1 : playerCharacter->dirX);
+        dirY = playerCharacter->y < targetY ? 1 : (playerCharacter->y > targetY ? -1 : playerCharacter->dirY);
+        // TE_Logf("DBG", "Player target %f %f : %f %f", targetX, targetY, player->dirX, player->dirY);
+    }
+    Character_update(playerCharacter, ctx, img, targetX, targetY, dirX, dirY);
     player->x = playerCharacter->x * .15f + player->x * .85f;
     player->y = playerCharacter->y * .15f + player->y * .85f;
 
