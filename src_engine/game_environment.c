@@ -546,56 +546,57 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
             {
                 uint8_t color = _flowerColor[TE_rand() % FLOWER_COLOR_COUNT];
                 uint8_t flowerSize = TE_randRange(1, 4);
+                uint8_t zValue = 1;
                 if (flowerSize == 1)
                 {
                     TE_Img_setPixel(img, x + posX[j], y + posY[j], DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                 }
                 else if(flowerSize == 2)
                 {
                     TE_Img_setPixel(img, x + posX[j], y + posY[j], DB32Colors[DB32_YELLOW], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                     TE_Img_setPixel(img, x + posX[j]+1, y + posY[j], DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                     TE_Img_setPixel(img, x + posX[j]-1, y + posY[j], DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                     TE_Img_setPixel(img, x + posX[j], y + posY[j]+1, DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                     TE_Img_setPixel(img, x + posX[j], y + posY[j]-1, DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                 } else if (flowerSize == 3)
                 {
                     TE_Img_setPixel(img, x + posX[j], y + posY[j], DB32Colors[DB32_YELLOW], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                     TE_Img_setPixel(img, x + posX[j]+1, y + posY[j]+1, DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                     TE_Img_setPixel(img, x + posX[j]-1, y + posY[j]-1, DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                     TE_Img_setPixel(img, x + posX[j]-1, y + posY[j]+1, DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
                     TE_Img_setPixel(img, x + posX[j]+1, y + posY[j]-1, DB32Colors[color], (TE_ImgOpState) {
                         .zCompareMode = Z_COMPARE_LESS,
-                        .zValue = y + posY[j],
+                        .zValue = zValue,
                     });
 
                 }

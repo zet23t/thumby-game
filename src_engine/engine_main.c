@@ -106,7 +106,7 @@ DLL_EXPORT void init()
         .srcRightHand = { .x = 40+48 * 2, .y = 64, .width = 8, .height = 6 },
     };
 
-    Scene_init(1);
+    Scene_init(3);
     // Environment_addTree(30,50, 12343050);
     // // Environment_addTree(35,50, 12343550);
     // // Environment_addTree(25,30, 12342530);
@@ -150,7 +150,7 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     TE_Img_clear(&img, DB32Colors[13], 0);
 
 
-    TE_randSetSeed(3294);
+    TE_randSetSeed(Scene_getCurrentSceneId() * 127 + 392);
     for (int i=0;i<24;i++)
     {
         int x = TE_randRange(0, 120);
@@ -174,6 +174,7 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     
     Environment_update(ctx, &img);
     ScriptedAction_update(ctx, &img);
+    Menu_update(ctx, &img);
 
     // TE_Font_drawText(&img, &myfont, 2, 2, -1, "Sherwood Forest", 0xffffffff, (TE_ImgOpState) {
     //     .zCompareMode = Z_COMPARE_LESS_EQUAL,
@@ -192,5 +193,4 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         .zValue = 255,
     });
 
-    Menu_update(ctx, &img);
 }

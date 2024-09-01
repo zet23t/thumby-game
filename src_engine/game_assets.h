@@ -9,6 +9,7 @@
 #define SPRITE_CART_SIDE 3
 #define SPRITE_CART_GOLD 4
 #define SPRITE_ARROW_RIGHT 5
+#define SPRITE_POLE_TOP 6
 
 #define FONT_MEDIUM 0
 #define FONT_LARGE 1

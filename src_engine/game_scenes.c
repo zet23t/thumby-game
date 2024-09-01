@@ -697,7 +697,7 @@ static void Cart_draw(TE_Img *screenData, int16_t x, int16_t y, uint8_t loaded, 
     });
 }
 
-static void Scene_1_Update(RuntimeContext *ctx, TE_Img *screenData)
+static void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData)
 {
     // Update scene 1
     int16_t cartX = player.x - 20;
@@ -1019,7 +1019,7 @@ static void DrawTower(TE_Img *screenData, int16_t x, int16_t y, uint8_t z)
         }
     });
 }
-static void Scene_2_Update(RuntimeContext *ctx, TE_Img *screenData)
+static void Scene_2_update(RuntimeContext *ctx, TE_Img *screenData)
 {
     // Update scene 2
     // DrawTextBlock(screenData, 10, 10, 108, 30, "Scene 2");
@@ -1214,9 +1214,208 @@ static void Scene_2_Update(RuntimeContext *ctx, TE_Img *screenData)
 
 }
 
+void Scene_3_init()
+{
+    Environment_addTreeGroup(20, 20, 18522, 4, 20);
+    Environment_addTreeGroup(100, 30, 1852, 6, 25);
+    Environment_addFlowerGroup(76,40, 232, 15, 20);
+    Environment_addBushGroup(75,35, 1232, 5, 10);
+
+    player.x = 160;
+    playerCharacter.x = player.x;
+    player.y = 100;
+    playerCharacter.y = player.y;
+
+    uint8_t step = 0;
+
+    ScriptedAction_addSetPlayerTarget(step, step, 90, 70, 1, 1);
+    ScriptedAction_addPlayerControlsEnabled(step, step, 0);
+    ScriptedAction_addSceneFadeOut(step, step, FADEIN_RIGHT_TO_LEFT, step + 1, 0.85f, 0.4f, 1.0f);
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "The shortcut over the stream. That way I can catch up!", 0, 8, 4, 112, 38, 0, -10);
+}
+
+void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
+{
+    // river
+    int16_t flowOffset1 = (int16_t)(ctx->time * 11.0f);
+    int16_t flowOffset2 = (int16_t)(ctx->time * 14.5f);
+    int16_t flowOffsetAcc1 = 0;
+    int16_t flowOffsetAcc2 = 0;
+    TE_randSetSeed(32912);
+    for (int y=0;y<128;y++)
+    {
+        int16_t x = (int16_t)(sin(y * 0.1f) * 5.0f + cos(y * 0.035f) * 8.0f + 44 - y * 0.3f);
+        int16_t width = (int16_t)(sin(y * 0.06f) * 5.0f + 5); 
+        flowOffsetAcc1 += width;
+        flowOffsetAcc2 += width + x - 44;
+
+        if (TE_randRange(0, 100) < 25)
+        {
+            // little rocks
+            TE_Img_blitEx(screenData, &atlasImg, x + TE_randRange(-width / 2 - 10, -width / 2 + 3), y, 
+                144 + TE_rand() % 4 * 8, 32 + TE_rand() % 2 * 8, 8, 8, (BlitEx){
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .state = {
+                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                    .zValue = 2,
+                }
+            });
+            TE_Img_blitEx(screenData, &atlasImg, x + TE_randRange(width / 2 +20, +width / 2 + 30), y, 
+                144 + TE_rand() % 4 * 8, 32 + TE_rand() % 2 * 8, 8, 8, (BlitEx){
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .state = {
+                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                    .zValue = 2,
+                }
+            });
+        }
+        
+        TE_Img_blitEx(screenData, &atlasImg, x - width / 2-5, y, 176, y%48, 10, 1, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 0,
+            }
+        });
+        TE_Img_blitEx(screenData, &atlasImg, x + width / 2 + 27, y, 176, (48*48-y + 17)%48, 10, 1, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .flipX = 1,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 0,
+            }
+        });
+
+        // flowing water
+        TE_Img_blitEx(screenData, &atlasImg, x - width / 2, y, 112, y%32, 16, 1, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 1,
+            }
+        });
+        TE_Img_blitEx(screenData, &atlasImg, x - width / 2 + width + 16, y, 128, y%32, 16, 1, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 1,
+            }
+        });
+        TE_Img_fillRect(screenData, x + 16 - width / 2, y, width, 1, DB32Colors[17], (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_LESS_EQUAL,
+            .zValue = 1,
+        }); 
+
+        TE_Img_blitEx(screenData, &atlasImg, x + 1, y, 144, (y - flowOffset1 + flowOffsetAcc1 / 14)&31, 32, 1, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 1,
+            }
+        });
+
+        TE_Img_blitEx(screenData, &atlasImg, x - 1, y, 144, (y - flowOffset2 + flowOffsetAcc2 / 74)&31, 32, 1, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .flipX = 1,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 1,
+            }
+        });
+        
+    }
+
+    
+    // path to bridge from right side
+    for (int x=52;x<128;x+=2)
+    {
+        int16_t y = 63+ (int16_t)(sin((x * 1.2f+12.0f) * 0.05f) * 5.0f + x * 0.2f);
+        TE_Img_blitEx(screenData, &atlasImg, x, y, 104 + (x%24), 32, 2, 14, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 0,
+            }
+        });
+    }
+    // path to bridge from left side
+    for (int x=0;x<14;x+=2)
+    {
+        int16_t y = 63+ (int16_t)(sin((x * 1.2f+10.0f) * 0.05f) * 5.0f - x * 0.2f);
+        TE_Img_blitEx(screenData, &atlasImg, x, y, 104 + (x%24), 32, 2, 14, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 0,
+            }
+        });
+    }
+
+    // bridge drawing
+    TE_randSetSeed(ctx->frameCount/4);
+    const int bridgeXEnd = 54;
+    for (int x = 14, p=0; x < bridgeXEnd; x++,p++)
+    {
+        int y = 64 + x / 8;
+        int xoffset = p%16;
+        if (p < 3)
+        {
+            xoffset -= 1;
+        }
+        else if (bridgeXEnd - x < 4)
+        {
+            xoffset = 17 - (bridgeXEnd - x);
+        }
+        TE_Img_blitEx(screenData, &atlasImg, x, y, 144 + xoffset, 48, 1, 16, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 3,
+            }
+        });
+        int bridgeHeightLeft = p - 5;
+        int bridgeHeightRight = bridgeXEnd - x - 7;
+        int bridgeHeight = bridgeHeightLeft < bridgeHeightRight ? bridgeHeightLeft : bridgeHeightRight;
+        if (bridgeHeight > 0)
+        {
+            if (bridgeHeight > 5) bridgeHeight = 5;
+            bridgeHeight += TE_rand() % 2;
+            int polePos = p%13;
+            if (polePos >= 3 && polePos <= 6) bridgeHeight += 2;
+            // bridge shadow
+            TE_Img_fillRect(screenData, x, y + 14, 1, bridgeHeight, DB32Colors[16], (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 1,
+            });
+        }
+        if (p % 13 == 5)
+        {
+            TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_POLE_TOP), x + 2, y + 1, (BlitEx){
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .state = {
+                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                    .zValue = 2,
+                }
+            });
+            TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_POLE_TOP), x, y + 14, (BlitEx){
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .state = {
+                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                    .zValue = 4,
+                }
+            });
+        }
+    }
+
+    
+}
+
 static const Scene scenes[] = {
-    { .id = SCENE_1_PULLING_THE_CART, .initFn = Scene_1_init, .updateFn = Scene_1_Update },
-    { .id = SCENE_2_ARRIVING_AT_HOME, .initFn = Scene_2_init, .updateFn = Scene_2_Update },
+    { .id = SCENE_1_PULLING_THE_CART, .initFn = Scene_1_init, .updateFn = Scene_1_update },
+    { .id = SCENE_2_ARRIVING_AT_HOME, .initFn = Scene_2_init, .updateFn = Scene_2_update },
+    { .id = SCENE_3_CHASING_THE_LOOT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
     {0}
 };
 
@@ -1226,8 +1425,11 @@ static void NoSceneUpdate(RuntimeContext *ctx, TE_Img *screenData)
     DrawTextBlock(screenData, 10, 10, 108, 30, "No scene loaded");
 }
 
+static uint8_t _currentSceneId = 0;
+
 void Scene_init(uint8_t sceneId)
 {
+    _currentSceneId = sceneId;
     TE_Logf("SCENE", "Init scene %d", sceneId);
     Enemies_init();
     Player_setInputEnabled(1);
@@ -1260,4 +1462,9 @@ void Scene_update(RuntimeContext *ctx, TE_Img *screen)
         _loadNextScene = -1;
     }
     _sceneUpdateFn(ctx, screen);
+}
+
+uint8_t Scene_getCurrentSceneId()
+{
+    return _currentSceneId;
 }
