@@ -84,6 +84,7 @@ DLL_EXPORT void init()
         .srcRightHand = { .x = 40, .y = 64, .width = 8, .height = 6 },
     };
 
+    // Henchman
     characters[1] = (Character)
     {
         .srcHeadFront = { .x = 48, .y = 64, .width = 15, .height = 11 },
@@ -94,7 +95,7 @@ DLL_EXPORT void init()
         .srcLeftFootBack = { .x = 32+48, .y = 72, .width = 8, .height = 6 },
         .srcRightHand = { .x = 40+48, .y = 64, .width = 8, .height = 6 },
     };
-
+    // Dinglewort
     characters[2] = (Character)
     {
         .srcHeadFront = { .x = 48 * 2, .y = 64, .width = 15, .height = 11 },
@@ -104,6 +105,28 @@ DLL_EXPORT void init()
         .srcLeftFootFront = { .x = 32+48 * 2, .y = 64, .width = 8, .height = 6 },
         .srcLeftFootBack = { .x = 32+48 * 2, .y = 72, .width = 8, .height = 6 },
         .srcRightHand = { .x = 40+48 * 2, .y = 64, .width = 8, .height = 6 },
+    };
+    // bandit 1
+    characters[3] = (Character)
+    {
+        .srcHeadFront = { .x = 48 * 3, .y = 64, .width = 15, .height = 11 },
+        .srcHeadBack = { .x = 48 * 3, .y = 64 + 16, .width = 15, .height = 11 },
+        .srcBodyFront = { .x = 16+48 * 3, .y = 64, .width = 15, .height = 6 },
+        .srcBodyBack = { .x = 16+48 * 3, .y = 64 + 8, .width = 15, .height = 6 },
+        .srcLeftFootFront = { .x = 32+48 * 3, .y = 64, .width = 8, .height = 6 },
+        .srcLeftFootBack = { .x = 32+48 * 3, .y = 72, .width = 8, .height = 6 },
+        .srcRightHand = { .x = 40+48 * 3, .y = 64, .width = 8, .height = 6 },
+    };
+    // bandit 2
+    characters[4] = (Character)
+    {
+        .srcHeadFront = { .x = 160, .y = 80, .width = 15, .height = 11 },
+        .srcHeadBack = { .x = 176, .y = 80, .width = 15, .height = 11 },
+        .srcBodyFront = { .x = 16+48 * 3, .y = 64, .width = 15, .height = 6 },
+        .srcBodyBack = { .x = 16+48 * 3, .y = 64 + 8, .width = 15, .height = 6 },
+        .srcLeftFootFront = { .x = 32+48 * 3, .y = 64, .width = 8, .height = 6 },
+        .srcLeftFootBack = { .x = 32+48 * 3, .y = 72, .width = 8, .height = 6 },
+        .srcRightHand = { .x = 40+48 * 3, .y = 64, .width = 8, .height = 6 },
     };
 
     Scene_init(3);

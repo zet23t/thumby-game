@@ -64,7 +64,7 @@ typedef struct Enemy
     Character character;
 } Enemy;
 
-#define MAX_ENEMYTYPES 4
+#define MAX_ENEMYTYPES 8
 #define PROJECTILE_MAX_COUNT 32
 #define MAX_ENEMIES 16
 

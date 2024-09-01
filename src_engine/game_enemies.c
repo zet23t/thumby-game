@@ -199,3 +199,15 @@ void Enemies_setHealth(uint8_t id, float health)
         }
     }
 }
+
+int Enemies_isAlive(uint8_t id)
+{
+    for (int i=0;i<MAX_ENEMIES;i++)
+    {
+        if (enemies[i].health > 0.0f && enemies[i].id == id)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}

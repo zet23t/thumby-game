@@ -166,6 +166,14 @@ typedef struct ScriptedAction
             uint32_t color;
             uint8_t z;
         } clearScreen;
+        struct NPCSpawnData {
+            uint8_t id;
+            uint8_t characterType;
+            int16_t x;
+            int16_t y;
+            int16_t targetX;
+            int16_t targetY;
+        } npcSpawn;
     };
 } ScriptedAction;
 
@@ -194,6 +202,7 @@ struct ScriptedActions scriptedActions;
 #define SCRIPTED_ACTION_TYPE_TITLE_SCREEN 9
 #define SCRIPTED_ACTION_TYPE_LOAD_SCENE 10
 #define SCRIPTED_ACTION_TYPE_CLEAR_SCREEN 11
+#define SCRIPTED_ACTION_TYPE_NPC_SPAWN 12
 
 void ScriptedAction_init()
 {
@@ -403,13 +412,36 @@ void ScriptedAction_addClearScreen(uint8_t stepStart, uint8_t stepStop, uint32_t
     }
 }
 
+void ScriptedAction_addNPCSpawn(uint8_t stepStart, uint8_t stepStop, uint8_t npcId, uint8_t characterType, 
+    int16_t x, int16_t y, int16_t targetX, int16_t targetY)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        ScriptedAction *action = &scriptedActions.actions[i];
+        if (action->actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            action->actionType = SCRIPTED_ACTION_TYPE_NPC_SPAWN;
+            action->npcSpawn.id = npcId;
+            action->npcSpawn.characterType = characterType;
+            action->npcSpawn.x = x;
+            action->npcSpawn.y = y;
+            action->npcSpawn.targetX = targetX;
+            action->npcSpawn.targetY = targetY;
+            action->startPlotIndex = stepStart;
+            action->endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
 void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 {
     uint8_t nextPlotIndex = scriptedActions.currentPlotIndex;
     uint32_t nextFlags = scriptedActions.flags;
-
+    uint8_t isNewStep;
     if (scriptedActions.startedTimerPlotIndex != scriptedActions.currentPlotIndex)
     {
+        isNewStep = 1;
         scriptedActions.plotIndexStartTime = ctx->time;
         scriptedActions.startedTimerPlotIndex = scriptedActions.currentPlotIndex;
     }
@@ -577,6 +609,16 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
         if (action.actionType == SCRIPTED_ACTION_TYPE_CLEAR_SCREEN)
         {
             TE_Img_clear(screenData, action.clearScreen.color, action.clearScreen.z);
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_NPC_SPAWN)
+        {
+            if (!Enemies_isAlive(action.npcSpawn.id) && isNewStep)
+            {
+                Enemies_spawn(action.npcSpawn.id, action.npcSpawn.characterType, action.npcSpawn.x, action.npcSpawn.y);
+                Enemies_setTarget(action.npcSpawn.id, action.npcSpawn.targetX, action.npcSpawn.targetY);
+            }
             continue;
         }
     }
@@ -1223,17 +1265,94 @@ void Scene_3_init()
 
     player.x = 160;
     playerCharacter.x = player.x;
-    player.y = 100;
+    player.y = 110;
     playerCharacter.y = player.y;
 
     uint8_t step = 0;
 
-    ScriptedAction_addSetPlayerTarget(step, step, 90, 70, 1, 1);
+    ScriptedAction_addSetPlayerTarget(step, step, 90, 73, 1, 1);
     ScriptedAction_addPlayerControlsEnabled(step, step, 0);
     ScriptedAction_addSceneFadeOut(step, step, FADEIN_RIGHT_TO_LEFT, step + 1, 0.85f, 0.4f, 1.0f);
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "The shortcut over the stream. That way I can catch up!", 0, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addNPCSpawn(step, step, 1, 3, -5, 60, 60, 70);
+    ScriptedAction_addNPCSpawn(step, step, 2, 4, -20, 60, 50, 66);
+    ScriptedAction_addSpeechBubble(step, step, "Lucky we maintain the bridge so faithfully!", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Too bad it's so expensive to do that ...", 2, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Right, if only someone paid us to do so.", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Are you both born fools, or did you train for it?", 0, 8, 88, 112, 38, 0, 8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "My father built that bridge ...", 0, 8, 88, 112, 38, 0, 8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "... and it's the same pieces of wood from back then.", 0, 8, 88, 112, 38, 0, 8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Did he just insult us, Lenny?", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "I bet he did, Pip.", 2, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Normally it costs gold to cross the bridge.", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "But for you, we'll make an exception.", 2, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Thank goodness, that way I can still get them!", 0, 8, 88, 112, 38, 0, 8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "For you it costs gold to leave as well.", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Listen, the tax collector stole my cart full with gold!", 0, 8, 88, 112, 38, 0, 8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Ha ha ha ha. Good joke!", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "The gold is always in the other pocket.", 2, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "That's it, it's time to beat sense into you two!", 0, 8, 88, 112, 38, 0, 8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Ye think so? Too bad it's not just the two of us.", 2, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    
+    ScriptedAction_addNPCSpawn(step, step, 3, 3, 100, 0, 100, 40);
+    ScriptedAction_addNPCSpawn(step, step, 4, 4, 130, 120, 100, 96);
+    ScriptedAction_addPlayerControlsEnabled(step, step, 1);
 }
 
 void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
