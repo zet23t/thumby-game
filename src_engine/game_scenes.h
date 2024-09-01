@@ -7,5 +7,6 @@
 
 void Scene_init(uint8_t sceneId);
 void Scene_update(RuntimeContext *ctx, TE_Img *screen);
+void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData);
 
 #endif

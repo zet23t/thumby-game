@@ -10,6 +10,9 @@
 #define SPRITE_CART_GOLD 4
 #define SPRITE_ARROW_RIGHT 5
 
+#define FONT_MEDIUM 0
+#define FONT_LARGE 1
+
 TE_Sprite GameAssets_getSprite(uint8_t index);
 TE_Font GameAssets_getFont(uint8_t index);
 

@@ -7,6 +7,12 @@
 #include <math.h>
 #include <stdio.h>
 
+#define SCENE_1_PULLING_THE_CART 1
+#define SCENE_2_ARRIVING_AT_HOME 2
+#define SCENE_3_CHASING_THE_LOOT 3
+
+int8_t _loadNextScene = -1;
+
 static void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, int16_t arrowX, int16_t arrowY, const char *text);
 
 typedef struct Condition
@@ -27,7 +33,35 @@ typedef struct Condition
 #define CONDITION_TYPE_PRESS_NEXT 2
 #define CONDITION_TYPE_NPCS_IN_RECT 3
 
-uint8_t Condition_update(Condition *condition, RuntimeContext *ctx, TE_Img *screenData)
+static void DrawNextButtonAction(RuntimeContext *ctx, TE_Img *screenData)
+{
+    int16_t pressY = (int16_t)(fmodf(ctx->time, 0.6f) * 2.0f) + 117;
+    TE_Img_fillCircle(screenData, 117, pressY, 6, DB32Colors[18], (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+    TE_Img_lineCircle(screenData, 117, pressY, 6, DB32Colors[1], (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+    TE_Img_lineCircle(screenData, 117, pressY+1, 6, DB32Colors[1], (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS,
+        .zValue = 255,
+    });
+    TE_Img_lineCircle(screenData, 117, 119, 6, DB32Colors[1], (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS,
+        .zValue = 255,
+    });
+    TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_ARROW_RIGHT), 118, pressY, (BlitEx){
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .state = {
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        }
+    });
+}
+
+uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img *screenData)
 {
     if (condition->type == CONDITION_TYPE_PLAYER_IN_RECT)
     {
@@ -59,30 +93,7 @@ uint8_t Condition_update(Condition *condition, RuntimeContext *ctx, TE_Img *scre
 
     if (condition->type == CONDITION_TYPE_PRESS_NEXT)
     {
-        int16_t pressY = (int16_t)(fmodf(ctx->time, 0.6f) * 2.0f) + 117;
-        TE_Img_fillCircle(screenData, 117, pressY, 6, DB32Colors[18], (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_ALWAYS,
-            .zValue = 255,
-        });
-        TE_Img_lineCircle(screenData, 117, pressY, 6, DB32Colors[1], (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_ALWAYS,
-            .zValue = 255,
-        });
-        TE_Img_lineCircle(screenData, 117, pressY+1, 6, DB32Colors[1], (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_LESS,
-            .zValue = 255,
-        });
-        TE_Img_lineCircle(screenData, 117, 119, 6, DB32Colors[1], (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_LESS,
-            .zValue = 255,
-        });
-        TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_ARROW_RIGHT), 118, pressY, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_ALWAYS,
-                .zValue = 255,
-            }
-        });
+        DrawNextButtonAction(ctx, screenData);
         return ctx->inputRight && !ctx->prevInputRight;
     }
 
@@ -106,7 +117,7 @@ typedef struct ScriptedAction
             uint8_t speechBubbleHeight;
             int8_t arrowXOffset;
             int8_t arrowYOffset;
-        };
+        } speechBubble;
         struct PlayerControlsData {
             uint8_t enabled;
         };
@@ -135,6 +146,26 @@ typedef struct ScriptedAction
             uint8_t id;
             float health;
         } npcHealth;
+        struct SceneFadeOutData {
+            uint8_t type;
+            uint8_t nextPlotIndex;
+            float duration;
+            float beginDelay;
+            float finishDelay;
+        } sceneFadeOut;
+        struct TitleScreenData {
+            const char *titleText;
+            const char *subText;
+            uint8_t nextPlotIndex;
+            uint8_t fillBlackBackground;
+        } titleScreen;
+        struct LoadSceneData {
+            uint8_t sceneId;
+        } loadScene;
+        struct ClearScreenData {
+            uint32_t color;
+            uint8_t z;
+        } clearScreen;
     };
 } ScriptedAction;
 
@@ -144,7 +175,9 @@ typedef struct ScriptedActions
 {
     ScriptedAction actions[MAX_SCRIPTED_ACTIONS];
     uint8_t currentPlotIndex;
+    uint8_t startedTimerPlotIndex;
     uint32_t flags;
+    float plotIndexStartTime;
 } ScriptedActions;
 
 struct ScriptedActions scriptedActions;
@@ -157,6 +190,10 @@ struct ScriptedActions scriptedActions;
 #define SCRIPTED_ACTION_TYPE_SET_FLAGS 5
 #define SCRIPTED_ACTION_TYPE_SET_PLAYER_TARGET 6
 #define SCRIPTED_ACTION_TYPE_SET_NPC_HEALTH 7
+#define SCRIPTED_ACTION_TYPE_SCENE_FADE_OUT 8
+#define SCRIPTED_ACTION_TYPE_TITLE_SCREEN 9
+#define SCRIPTED_ACTION_TYPE_LOAD_SCENE 10
+#define SCRIPTED_ACTION_TYPE_CLEAR_SCREEN 11
 
 void ScriptedAction_init()
 {
@@ -166,6 +203,8 @@ void ScriptedAction_init()
     }
     scriptedActions.currentPlotIndex = 0;
     scriptedActions.flags = 0;
+    scriptedActions.startedTimerPlotIndex = 0xff;
+    scriptedActions.plotIndexStartTime = 0.0f;
 }
 
 ScriptedAction* ScriptedAction_addSpeechBubble(uint8_t stepStart, uint8_t stepStop, const char *text, uint8_t speaker, int16_t speechBubbleX, int16_t speechBubbleY, uint8_t speechBubbleWidth, uint8_t speechBubbleHeight, int8_t arrowXOffset, int8_t arrowYOffset)
@@ -175,14 +214,14 @@ ScriptedAction* ScriptedAction_addSpeechBubble(uint8_t stepStart, uint8_t stepSt
         if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
         {
             scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SPEECH_BUBBLE;
-            scriptedActions.actions[i].text = text;
-            scriptedActions.actions[i].speaker = speaker;
-            scriptedActions.actions[i].speechBubbleX = speechBubbleX;
-            scriptedActions.actions[i].speechBubbleY = speechBubbleY;
-            scriptedActions.actions[i].speechBubbleWidth = speechBubbleWidth;
-            scriptedActions.actions[i].speechBubbleHeight = speechBubbleHeight;
-            scriptedActions.actions[i].arrowXOffset = arrowXOffset;
-            scriptedActions.actions[i].arrowYOffset = arrowYOffset;
+            scriptedActions.actions[i].speechBubble.text = text;
+            scriptedActions.actions[i].speechBubble.speaker = speaker;
+            scriptedActions.actions[i].speechBubble.speechBubbleX = speechBubbleX;
+            scriptedActions.actions[i].speechBubble.speechBubbleY = speechBubbleY;
+            scriptedActions.actions[i].speechBubble.speechBubbleWidth = speechBubbleWidth;
+            scriptedActions.actions[i].speechBubble.speechBubbleHeight = speechBubbleHeight;
+            scriptedActions.actions[i].speechBubble.arrowXOffset = arrowXOffset;
+            scriptedActions.actions[i].speechBubble.arrowYOffset = arrowYOffset;
             scriptedActions.actions[i].startPlotIndex = stepStart;
             scriptedActions.actions[i].endPlotIndex = stepStop;
             return &scriptedActions.actions[i];
@@ -290,87 +329,254 @@ void ScriptedAction_addSetNPCHealth(uint8_t stepStart, uint8_t stepStop, uint8_t
     }
 }
 
-void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
+#define FADEIN_FLAG 1
+#define FADEOUT_RIGHT_TO_LEFT 0
+#define FADEIN_LEFT_TO_RIGHT 1
+#define FADEOUT_LEFT_TO_RIGHT 2
+#define FADEIN_RIGHT_TO_LEFT 3
+
+void ScriptedAction_addSceneFadeOut(uint8_t stepStart, uint8_t stepStop, uint8_t type, uint8_t nextPlotIndex, float duration, float beginDelay, float finishDelay)
 {
-    uint8_t nextPlotIndex = scriptedActions.currentPlotIndex;
-    uint32_t nextFlags = scriptedActions.flags;
     for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
     {
         if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
         {
-            continue;
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SCENE_FADE_OUT;
+            scriptedActions.actions[i].sceneFadeOut.type = type;
+            scriptedActions.actions[i].sceneFadeOut.duration = duration;
+            scriptedActions.actions[i].sceneFadeOut.beginDelay = beginDelay;
+            scriptedActions.actions[i].sceneFadeOut.finishDelay = finishDelay;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            scriptedActions.actions[i].sceneFadeOut.nextPlotIndex = nextPlotIndex;
+            return;
         }
+    }
+}
 
-        if (scriptedActions.actions[i].startPlotIndex > scriptedActions.currentPlotIndex
-            || scriptedActions.actions[i].endPlotIndex < scriptedActions.currentPlotIndex)
+void ScriptedAction_addTitleScreen(uint8_t stepStart, uint8_t stepStop, const char *text, const char *subtitle, uint8_t fillBlackBackground, uint8_t nextPlotIndex)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_TITLE_SCREEN;
+            scriptedActions.actions[i].titleScreen.titleText = text;
+            scriptedActions.actions[i].titleScreen.subText = subtitle;
+            scriptedActions.actions[i].titleScreen.fillBlackBackground = fillBlackBackground;
+            scriptedActions.actions[i].titleScreen.nextPlotIndex = nextPlotIndex;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
+void ScriptedAction_addLoadScene(uint8_t stepStart, uint8_t stepStop, uint8_t sceneId)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_LOAD_SCENE;
+            scriptedActions.actions[i].loadScene.sceneId = sceneId;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
+void ScriptedAction_addClearScreen(uint8_t stepStart, uint8_t stepStop, uint32_t color, uint8_t z)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_CLEAR_SCREEN;
+            scriptedActions.actions[i].clearScreen.color = color;
+            scriptedActions.actions[i].clearScreen.z = z;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
+void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
+{
+    uint8_t nextPlotIndex = scriptedActions.currentPlotIndex;
+    uint32_t nextFlags = scriptedActions.flags;
+
+    if (scriptedActions.startedTimerPlotIndex != scriptedActions.currentPlotIndex)
+    {
+        scriptedActions.plotIndexStartTime = ctx->time;
+        scriptedActions.startedTimerPlotIndex = scriptedActions.currentPlotIndex;
+    }
+    
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        const ScriptedAction action = scriptedActions.actions[i];
+        if (action.actionType == SCRIPTED_ACTION_TYPE_NONE)
         {
             continue;
         }
 
-        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SPEECH_BUBBLE)
+        if (action.startPlotIndex > scriptedActions.currentPlotIndex
+            || action.endPlotIndex < scriptedActions.currentPlotIndex)
         {
-            ScriptedAction action = scriptedActions.actions[i];
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SPEECH_BUBBLE)
+        {
             int16_t characterX = player.x;
             int16_t characterY = player.y;
             float chrX, chrY;
-            if (Enemies_getPosition(action.speaker, &chrX, &chrY))
+            if (Enemies_getPosition(action.speechBubble.speaker, &chrX, &chrY))
             {
                 characterX = (int16_t)chrX;
                 characterY = (int16_t)chrY;
             }
 
-            DrawSpeechBubble(screenData, action.speechBubbleX, action.speechBubbleY, action.speechBubbleWidth, action.speechBubbleHeight, 
-                characterX + action.arrowXOffset, characterY + action.arrowYOffset, action.text);
+            DrawSpeechBubble(screenData, action.speechBubble.speechBubbleX, action.speechBubble.speechBubbleY, action.speechBubble.speechBubbleWidth, action.speechBubble.speechBubbleHeight, 
+                characterX + action.speechBubble.arrowXOffset, characterY + action.speechBubble.arrowYOffset, action.speechBubble.text);
             continue;
         }
 
-        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_CONTROLS_ENABLED)
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_CONTROLS_ENABLED)
         {
-            Player_setInputEnabled(scriptedActions.actions[i].enabled);
+            Player_setInputEnabled(action.enabled);
             continue;
         }
 
-        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_PROCEED_PLOT_CONDITION)
+        if (action.actionType == SCRIPTED_ACTION_TYPE_PROCEED_PLOT_CONDITION)
         {
-            if (Condition_update(&scriptedActions.actions[i].condition, ctx, screenData))
+            if (Condition_update(&action.condition, ctx, screenData))
             {
-                TE_Logf("SCRIPTED_ACTION", "Condition met, proceeding plot to %d", scriptedActions.actions[i].setPlotIndex);
-                nextPlotIndex = scriptedActions.actions[i].setPlotIndex;
+                TE_Logf("SCRIPTED_ACTION", "Condition met, proceeding plot to %d", action.setPlotIndex);
+                nextPlotIndex = action.setPlotIndex;
             }
             continue;
         }
 
-        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_NPC_TARGET)
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_NPC_TARGET)
         {
             Enemies_setTarget(
-                scriptedActions.actions[i].npcTarget.id, 
-                scriptedActions.actions[i].npcTarget.x, 
-                scriptedActions.actions[i].npcTarget.y);
+                action.npcTarget.id, 
+                action.npcTarget.x, 
+                action.npcTarget.y);
             continue;
         }
 
-        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_TARGET)
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_TARGET)
         {
-            if (scriptedActions.actions[i].playerTarget.setX)
+            if (action.playerTarget.setX)
             {
-                playerCharacter.targetX = scriptedActions.actions[i].playerTarget.targetX;
+                playerCharacter.targetX = action.playerTarget.targetX;
             }
-            if (scriptedActions.actions[i].playerTarget.setY)
+            if (action.playerTarget.setY)
             {
-                playerCharacter.targetY = scriptedActions.actions[i].playerTarget.targetY;
+                playerCharacter.targetY = action.playerTarget.targetY;
             }
             continue;
         }
 
-        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_FLAGS)
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_FLAGS)
         {
-            nextFlags = (nextFlags & ~scriptedActions.actions[i].mask) | scriptedActions.actions[i].setFlags;
+            nextFlags = (nextFlags & ~action.mask) | action.setFlags;
             continue;
         }
 
-        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_SET_NPC_HEALTH)
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_NPC_HEALTH)
         {
-            Enemies_setHealth(scriptedActions.actions[i].npcHealth.id, scriptedActions.actions[i].npcHealth.health);
+            Enemies_setHealth(action.npcHealth.id, action.npcHealth.health);
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SCENE_FADE_OUT)
+        {
+            float fadeTime = ctx->time - scriptedActions.plotIndexStartTime - action.sceneFadeOut.beginDelay;
+            float fadePercent = fadeTime / action.sceneFadeOut.duration;
+            // TE_Logf("SCRIPTED_ACTION", "Fading out %.2f (%.2f:%.2f)", fadePercent, fadeTime, action.sceneFadeOut.duration);
+            if (fadePercent < 0.0f)
+            {
+                fadePercent = 0.0f;
+            }
+
+            if (fadeTime > action.sceneFadeOut.duration + action.sceneFadeOut.finishDelay + action.sceneFadeOut.beginDelay)
+            {
+                TE_Logf("SCRIPTED_ACTION", "Fading out done, going to %d (t=%.2f [%.2f; %.2f; %.2f])", 
+                    action.sceneFadeOut.nextPlotIndex, fadeTime, action.sceneFadeOut.duration, action.sceneFadeOut.finishDelay, action.sceneFadeOut.beginDelay);
+                nextPlotIndex = action.sceneFadeOut.nextPlotIndex;
+            }
+            if (fadePercent > 1.0f)
+            {
+                fadePercent = 1.0f;
+            }
+            if (action.sceneFadeOut.type & FADEIN_FLAG)
+            {
+                fadePercent = 1.0f - fadePercent;
+            }
+            switch (action.sceneFadeOut.type & ~FADEIN_FLAG)
+            {
+                case FADEOUT_LEFT_TO_RIGHT:
+                    TE_Img_fillRect(screenData, 0, 0, (int16_t)(fadePercent * 128.0f), 128, DB32Colors[0], (TE_ImgOpState){
+                        .zCompareMode = Z_COMPARE_ALWAYS,
+                        .zValue = 255,
+                    });
+                    break;
+                case FADEOUT_RIGHT_TO_LEFT:
+                    TE_Img_fillRect(screenData, 128 - (int16_t)(fadePercent * 128.0f), 0, (int16_t)(fadePercent * 128.0f), 128, DB32Colors[0], (TE_ImgOpState){
+                        .zCompareMode = Z_COMPARE_ALWAYS,
+                        .zValue = 255,
+                    });
+                    break;
+            }
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_TITLE_SCREEN)
+        {
+            if (action.titleScreen.fillBlackBackground)
+            {
+                TE_Img_clear(screenData, DB32Colors[0], 0);
+            }
+            TE_Font largeFont = GameAssets_getFont(FONT_LARGE);
+            int16_t centerY = 60;
+            TE_Font_drawTextBox(screenData, &largeFont, 4, centerY - 40, 120, 35, -1, -4, action.titleScreen.titleText, 0.5f, 1.0f, 0xffffffff, (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 255,
+            });
+            TE_Font mediumFont = GameAssets_getFont(FONT_MEDIUM);
+            TE_Font_drawTextBox(screenData, &mediumFont, 4, centerY + 5, 120, 80, -1, -4, action.titleScreen.subText, 0.5f, 0.0f, 0xffffffff, (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 255,
+            });
+
+            TE_Img_fillRect(screenData, 4, centerY, 120, 1, 0xffffffff, (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 255,
+            });
+
+            DrawNextButtonAction(ctx, screenData);
+            if (ctx->inputRight && !ctx->prevInputRight)
+            {
+                nextPlotIndex = action.titleScreen.nextPlotIndex;
+            }
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_LOAD_SCENE)
+        {
+            TE_Logf("SCRIPTED_ACTION", "Loading scene %d", action.loadScene.sceneId);
+            _loadNextScene = action.loadScene.sceneId;
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_CLEAR_SCREEN)
+        {
+            TE_Img_clear(screenData, action.clearScreen.color, action.clearScreen.z);
             continue;
         }
     }
@@ -619,6 +825,7 @@ static void Scene_2_init()
     Environment_addTreeGroup(54, 20, 1622, 5, 20);
     Environment_addTreeGroup(10, 15, 522, 5, 25);
     Environment_addTree(118, 125, 5122);
+    Environment_addFlowerGroup(60,110, 232, 15, 20);
 
     player.x = -15;
     playerCharacter.x = player.x;
@@ -641,13 +848,17 @@ static void Scene_2_init()
     scriptedActions.flags = SCENE_2_FLAG_PULLING_CART;
 
     uint8_t step = 0;
+
+    ScriptedAction_addSceneFadeOut(step, step, FADEIN_LEFT_TO_RIGHT, step + 1, .85f, 0.75f, 0.0f);
+    step++;
+
     ScriptedAction_addPlayerControlsEnabled(step, step, 0);
-    ScriptedAction_addSetPlayerTarget(step, step, 8, 60, 1, 0);
     ScriptedAction_addSpeechBubble(step, step, "Ah, my castle!", 0, 8, 96, 112, 28, 0, 10);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
 
     ScriptedAction_addPlayerControlsEnabled(step, step, 0);
+    ScriptedAction_addSetPlayerTarget(step, step, 8, 60, 1, 0);
     ScriptedAction_addSetPlayerTarget(step, step, 15, 60, 1, 0);
     ScriptedAction_addSpeechBubble(step, step, "What a weird looking banner...", 0, 8, 96, 112, 28, 0, 10);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
@@ -704,7 +915,8 @@ static void Scene_2_init()
     ScriptedAction_addSpeechBubble(step, step, "... as down payment to your tax pay debts.", 3, 8, 4, 112, 30, 0, -10);
     ScriptedAction_addSetNPCTarget(step, step, 1, 25, 70);
     ScriptedAction_addSetNPCTarget(step, step, 2, 25, 55);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_NPCS_IN_RECT, .npcIds = {1,2,0,0}, .x = 20, .y = 50, .width = 20, .height = 30 });
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_NPCS_IN_RECT, 
+        .npcIds = {1,2,0,0}, .x = 20, .y = 50, .width = 20, .height = 30 });
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "You have no right, this is my loot!", 0, 8, 86, 112, 38, 0, 10);
@@ -715,7 +927,8 @@ static void Scene_2_init()
     ScriptedAction_addSetNPCTarget(step, step, 1, -25, 70 + 15);
     ScriptedAction_addSetNPCTarget(step, step, 2, -25, 55 + 16);
     ScriptedAction_addSetFlags(step, step, 0, SCENE_2_FLAG_PULLING_CART);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_NPCS_IN_RECT, .npcIds = {1,2,0,0}, .x = -30, .y = 0, .width = 10, .height = 128 });
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_NPCS_IN_RECT, 
+        .npcIds = {1,2,0,0}, .x = -30, .y = 0, .width = 10, .height = 128 });
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "I am obliged to do that.", 3, 8, 4, 112, 30, 0, -10);
@@ -780,6 +993,13 @@ static void Scene_2_init()
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PLAYER_IN_RECT, .x = -40, .y = 0, .width = 20, .height = 128 });
     step++;
     
+    ScriptedAction_addSceneFadeOut(step, step, FADEOUT_RIGHT_TO_LEFT, step + 1, 1.5f, 0.0f, 1.0f);
+    step++;
+
+    ScriptedAction_addTitleScreen(step, step, "Part 1", "Where is my loot?", 1, step + 1);
+    step++;
+
+    ScriptedAction_addLoadScene(step, step, SCENE_3_CHASING_THE_LOOT);
 }
 
 static void DrawTower(TE_Img *screenData, int16_t x, int16_t y, uint8_t z)
@@ -995,8 +1215,8 @@ static void Scene_2_Update(RuntimeContext *ctx, TE_Img *screenData)
 }
 
 static const Scene scenes[] = {
-    { .id = 1, .initFn = Scene_1_init, .updateFn = Scene_1_Update },
-    { .id = 2, .initFn = Scene_2_init, .updateFn = Scene_2_Update },
+    { .id = SCENE_1_PULLING_THE_CART, .initFn = Scene_1_init, .updateFn = Scene_1_Update },
+    { .id = SCENE_2_ARRIVING_AT_HOME, .initFn = Scene_2_init, .updateFn = Scene_2_Update },
     {0}
 };
 
@@ -1008,6 +1228,8 @@ static void NoSceneUpdate(RuntimeContext *ctx, TE_Img *screenData)
 
 void Scene_init(uint8_t sceneId)
 {
+    TE_Logf("SCENE", "Init scene %d", sceneId);
+    Enemies_init();
     Player_setInputEnabled(1);
     ScriptedAction_init();
     Player_setWeapon(0);
@@ -1032,6 +1254,10 @@ void Scene_init(uint8_t sceneId)
 
 void Scene_update(RuntimeContext *ctx, TE_Img *screen)
 {
+    if (_loadNextScene >= 0)
+    {
+        Scene_init(_loadNextScene);
+        _loadNextScene = -1;
+    }
     _sceneUpdateFn(ctx, screen);
-    ScriptedAction_update(ctx, screen);
 }

@@ -45,6 +45,33 @@ typedef struct RuntimeContext
 
 extern uint32_t DB32Colors[];
 
+
+#define DB32_BLACK 0
+#define DB32_DEEPINDIGO 1
+#define DB32_DEEPPURPLE 2
+#define DB32_DARKBROWN 3
+#define DB32_BROWN 4
+#define DB32_ORANGE 5
+#define DB32_DARKTAN 6
+#define DB32_TAN 7
+#define DB32_YELLOW 8
+#define DB32_LIGHTGREEN 9
+#define DB32_FELTGREEN 12
+#define DB32_DARKGREEN 14
+#define DB32_DARKBLUE 15
+#define DB32_BLUE 17
+#define DB32_SKYBLUE 18
+#define DB32_CYAN 19
+#define DB32_LIGHTBLUE 20
+#define DB32_WHITE 21
+#define DB32_LIGHTGRAY 23
+#define DB32_GRAY 24
+#define DB32_DARKGRAY 25
+#define DB32_PURPLE 26
+#define DB32_RED 27
+#define DB32_PINK 29
+#define DB32_FIELDGREEN 30
+
 #define LOG_TAG_SYSTEM "SYSTEM"
 void TE_Logf(const char *tag, const char *format, ...);
 

@@ -1,6 +1,7 @@
 #include "game_environment.h"
 #include "game.h"
 #include "atlas.h"
+#include "engine_main.h"
 #include "TE_rand.h"
 #include <math.h>
 
@@ -30,7 +31,7 @@ typedef struct TreeNode
 #define TYPE_TREE 0
 #define TYPE_TREEGROUP 1
 #define TYPE_BUSHGROUP 2
-#define TYPE_FLOWERGROUP 2
+#define TYPE_FLOWERGROUP 3
 
 typedef struct TreeGroupData
 {
@@ -333,6 +334,20 @@ void Environment_addBushGroup(int16_t x, int16_t y, uint32_t seed, uint8_t count
     };
 }
 
+void Environment_addFlowerGroup(int16_t x, int16_t y, uint32_t seed, uint8_t count, uint8_t scatterRadius)
+{
+    environmentScene.objects[environmentScene.environmentObjectCount++] = (EnvironmentObject) {
+        .type = TYPE_FLOWERGROUP,
+        .seed = seed,
+        .x = x,
+        .y = y,
+        .treeGroupData = {
+            .count = count,
+            .scatterRadius = scatterRadius,
+        }
+    };
+}
+
 float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_t *nearestY)
 {
     float minDist = 9999;
@@ -461,6 +476,18 @@ int Environment_raycastPoint(int16_t px, int16_t py)
     return -1;
 }
 
+const uint8_t _flowerColor[] = {
+    DB32_YELLOW,
+    DB32_YELLOW,
+    DB32_RED,
+    DB32_RED,
+    DB32_PINK,
+    DB32_PINK,
+    DB32_CYAN,
+    DB32_WHITE,
+};
+#define FLOWER_COLOR_COUNT (sizeof(_flowerColor) / sizeof(uint8_t))
+
 void Environment_update(RuntimeContext *ctx, TE_Img* img)
 {
     for (int i=0;i<environmentScene.environmentObjectCount;i++)
@@ -503,6 +530,75 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
             for (int j=0;j<treeGroupCount;j++)
             {
                 DrawBush(img, x + posX[j], y + posY[j]);
+            }
+        }
+        else if (environmentScene.objects[i].type == TYPE_FLOWERGROUP)
+        {
+            int posX[32];
+            int posY[32];
+            int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
+            int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                TE_randRadius(treeGroupScatterRadius, &posX[j], &posY[j]);
+            }
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                uint8_t color = _flowerColor[TE_rand() % FLOWER_COLOR_COUNT];
+                uint8_t flowerSize = TE_randRange(1, 4);
+                if (flowerSize == 1)
+                {
+                    TE_Img_setPixel(img, x + posX[j], y + posY[j], DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                }
+                else if(flowerSize == 2)
+                {
+                    TE_Img_setPixel(img, x + posX[j], y + posY[j], DB32Colors[DB32_YELLOW], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                    TE_Img_setPixel(img, x + posX[j]+1, y + posY[j], DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                    TE_Img_setPixel(img, x + posX[j]-1, y + posY[j], DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                    TE_Img_setPixel(img, x + posX[j], y + posY[j]+1, DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                    TE_Img_setPixel(img, x + posX[j], y + posY[j]-1, DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                } else if (flowerSize == 3)
+                {
+                    TE_Img_setPixel(img, x + posX[j], y + posY[j], DB32Colors[DB32_YELLOW], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                    TE_Img_setPixel(img, x + posX[j]+1, y + posY[j]+1, DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                    TE_Img_setPixel(img, x + posX[j]-1, y + posY[j]-1, DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                    TE_Img_setPixel(img, x + posX[j]-1, y + posY[j]+1, DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+                    TE_Img_setPixel(img, x + posX[j]+1, y + posY[j]-1, DB32Colors[color], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = y + posY[j],
+                    });
+
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 #include "game_assets.h"
 #include "game.h"
 #include "fnt_medium.h"
+#include "fnt_myfont.h"
 
 typedef struct SpriteData
 {
@@ -39,11 +40,29 @@ TE_Sprite GameAssets_getSprite(uint8_t index)
 }
 
 static TE_Img mediumImg;
+static TE_Img myfontImg;
 
 TE_Font GameAssets_getFont(uint8_t index)
 {
     switch (index)
     {
+        case FONT_LARGE:
+        {
+            myfontImg = (TE_Img) {
+                .p2width = fnt_myfont_p2width,
+                .p2height = fnt_myfont_p2height,
+                .data = (uint32_t*) fnt_myfont_data,
+            };
+            return (TE_Font) {
+                .atlas = &myfontImg,
+                .glyphCount = fnt_myfont_glyph_count,
+                .glyphValues = fnt_myfont_glyphs_values,
+                .rectXs = fnt_myfont_glyphs_rects_x,
+                .rectYs = fnt_myfont_glyphs_rects_y,
+                .rectWidths = fnt_myfont_glyphs_rects_width,
+                .rectHeights = fnt_myfont_glyphs_rects_height,
+            };
+        }
         default:
         {
             mediumImg = (TE_Img) {
