@@ -23,6 +23,7 @@
 #include "game_menu.h"
 #include "game_environment.h"
 #include "game_scenes.h"
+#include "game_assets.h"
 #include "stdarg.h"
 
 uint32_t DB32Colors[] = {
@@ -135,6 +136,10 @@ DLL_EXPORT void init()
         .srcRightHand = { .x = 40+48 * 3, .y = 64, .width = 8, .height = 6 },
     };
 
+    TE_Logf(LOG_TAG_SYSTEM, "Initialized");
+    TE_Logf(LOG_TAG_SYSTEM, "sizeof(items) = %d; sizeof(characters) = %d", 
+        sizeof(items), sizeof(characters));
+
     Scene_init(3);
     // Environment_addTree(30,50, 12343050);
     // // Environment_addTree(35,50, 12343550);
@@ -203,6 +208,16 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     
     Environment_update(ctx, &img);
     ScriptedAction_update(ctx, &img);
+
+    // GameAssets_drawAnimation(ANIMATION_HAHAHA_RIGHT, &img, ctx->time * 1000.0f, 64, 64, (BlitEx) {
+    //     .blendMode = TE_BLEND_ALPHAMASK,
+    //     .tintColor = 0xffffffff,
+    //     .state = {
+    //         .zCompareMode = Z_COMPARE_ALWAYS,
+    //         .zValue = 255,
+    //     }
+    // },1);
+
     Menu_update(ctx, &img);
 
     // TE_Font_drawText(&img, &myfont, 2, 2, -1, "Sherwood Forest", 0xffffffff, (TE_ImgOpState) {

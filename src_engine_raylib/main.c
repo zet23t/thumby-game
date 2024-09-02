@@ -204,6 +204,7 @@ int main(void)
 
     Texture2D texture = LoadTextureFromImage(img);
 
+    int loadSkip = 0;
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
@@ -231,6 +232,9 @@ int main(void)
             float t = GetTime();
             buildCoreDLL(IsKeyDown(KEY_LEFT_CONTROL));
             printf("Rebuilt core DLL in %f seconds\n", GetTime() - t);
+            loadSkip = 2;
+            ctx.time = 0.0f;
+            ctx.frameCount = 0;
         }
         int winW = 0, winH = 0;
         if (IsKeyPressed(KEY_ONE)) winW = 128, winH = 128;
@@ -259,12 +263,12 @@ int main(void)
         float scale = min(screenWidth / 128.0f, screenHeight / 128.0f);
         Vector2 offset = (Vector2){(screenWidth - 128 * scale) / 2, (screenHeight - 128 * scale) / 2};
 
-        if (!isPaused || step)
+        if ((!isPaused || step) && loadSkip-- <= 0)
         {
             step = 0;
             ctx.frameCount++;
             ctx.previousInputState = ctx.inputState;
-            
+
             ctx.inputA = IsKeyDown(KEY_I);
             ctx.inputB = IsKeyDown(KEY_J);
             ctx.inputUp = IsKeyDown(KEY_W);

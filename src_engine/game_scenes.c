@@ -25,13 +25,17 @@ typedef struct Condition
             int16_t y;
             int16_t width;
             int16_t height;
-        };
+        } npcsInRect;
+        struct WaitCondition {
+            float duration;
+        } wait;
     };
 } Condition;
 
 #define CONDITION_TYPE_PLAYER_IN_RECT 1
 #define CONDITION_TYPE_PRESS_NEXT 2
 #define CONDITION_TYPE_NPCS_IN_RECT 3
+#define CONDITION_TYPE_WAIT 4
 
 static void DrawNextButtonAction(RuntimeContext *ctx, TE_Img *screenData)
 {
@@ -61,7 +65,7 @@ static void DrawNextButtonAction(RuntimeContext *ctx, TE_Img *screenData)
     });
 }
 
-uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img *screenData)
+uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img *screenData, float time)
 {
     if (condition->type == CONDITION_TYPE_PLAYER_IN_RECT)
     {
@@ -70,8 +74,8 @@ uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img
         //     (int)playerCharacter.targetX, (int)playerCharacter.targetY,
         //     condition->x, condition->y, 
         //     condition->width, condition->height);
-        return (x >= condition->x && x < condition->x + condition->width
-            && y >= condition->y && y < condition->y + condition->height);
+        return (x >= condition->npcsInRect.x && x < condition->npcsInRect.x + condition->npcsInRect.width
+            && y >= condition->npcsInRect.y && y < condition->npcsInRect.y + condition->npcsInRect.height);
     }
 
     if (condition->type == CONDITION_TYPE_NPCS_IN_RECT)
@@ -79,16 +83,21 @@ uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img
         for (int i=0;i<4;i++)
         {
             float x, y;
-            if (Enemies_getPosition(condition->npcIds[i], &x, &y))
+            if (Enemies_getPosition(condition->npcsInRect.npcIds[i], &x, &y))
             {
-                if (x < condition->x || x > condition->x + condition->width
-                    || y < condition->y || y > condition->y + condition->height)
+                if (x < condition->npcsInRect.x || x > condition->npcsInRect.x + condition->npcsInRect.width
+                    || y < condition->npcsInRect.y || y > condition->npcsInRect.y + condition->npcsInRect.height)
                 {
                     return 0;
                 }
             }
         }
         return 1;
+    }
+
+    if (condition->type == CONDITION_TYPE_WAIT)
+    {
+        return time >= condition->wait.duration;
     }
 
     if (condition->type == CONDITION_TYPE_PRESS_NEXT)
@@ -106,6 +115,7 @@ typedef struct ScriptedAction
     int16_t startPlotIndex;
     int16_t endPlotIndex;
     uint8_t actionType;
+    float actionStartTime;
     union {
         struct SpeechBubbleData {
             const char *text;
@@ -179,6 +189,16 @@ typedef struct ScriptedAction
             int8_t leftItemIndex;
             int8_t rightItemIndex;
         } setItem;
+        struct AnimationPlaybackData {
+            uint8_t animationId;
+            uint8_t maxLoopCount;
+            uint8_t z;
+            int16_t x;
+            int16_t y;
+            uint32_t tintColor;
+            float delay;
+            float speed;
+        } animationPlayback;
     };
 } ScriptedAction;
 
@@ -209,12 +229,14 @@ struct ScriptedActions scriptedActions;
 #define SCRIPTED_ACTION_TYPE_CLEAR_SCREEN 11
 #define SCRIPTED_ACTION_TYPE_NPC_SPAWN 12
 #define SCRIPTED_ACTION_TYPE_SET_ITEM 13
+#define SCRIPTED_ACTION_TYPE_ANIMATION_PLAYBACK 14
 
 void ScriptedAction_init()
 {
     for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
     {
         scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_NONE;
+        scriptedActions.actions[i].actionStartTime = 0.0f;
     }
     scriptedActions.currentPlotIndex = 0;
     scriptedActions.flags = 0;
@@ -460,6 +482,30 @@ void ScriptedAction_addNPCSpawn(uint8_t stepStart, uint8_t stepStop, uint8_t npc
     }
 }
 
+void ScriptedAction_addAnimationPlayback(uint8_t stepStart, uint8_t stepStop, uint8_t animationId, int16_t x, int16_t y, uint8_t z,
+    float delay, float speed, uint8_t loop, uint32_t tintColor)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        ScriptedAction *action = &scriptedActions.actions[i];
+        if (action->actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            action->actionType = SCRIPTED_ACTION_TYPE_ANIMATION_PLAYBACK;
+            action->animationPlayback.animationId = animationId;
+            action->animationPlayback.x = x;
+            action->animationPlayback.y = y;
+            action->animationPlayback.z = z;
+            action->animationPlayback.delay = delay;
+            action->animationPlayback.speed = speed;
+            action->animationPlayback.maxLoopCount = loop;
+            action->startPlotIndex = stepStart;
+            action->endPlotIndex = stepStop;
+            action->animationPlayback.tintColor = tintColor;
+            return;
+        }
+    }
+}
+
 void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 {
     uint8_t nextPlotIndex = scriptedActions.currentPlotIndex;
@@ -474,16 +520,23 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
     
     for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
     {
-        const ScriptedAction action = scriptedActions.actions[i];
+        ScriptedAction action = scriptedActions.actions[i];
         if (action.actionType == SCRIPTED_ACTION_TYPE_NONE)
         {
             continue;
         }
 
+
         if (action.startPlotIndex > scriptedActions.currentPlotIndex
             || action.endPlotIndex < scriptedActions.currentPlotIndex)
         {
             continue;
+        }
+
+        if (isNewStep && action.actionStartTime == 0.0f)
+        {
+            scriptedActions.actions[i].actionStartTime = ctx->time;
+            action.actionStartTime = ctx->time;
         }
 
         if (action.actionType == SCRIPTED_ACTION_TYPE_SPEECH_BUBBLE)
@@ -510,7 +563,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 
         if (action.actionType == SCRIPTED_ACTION_TYPE_PROCEED_PLOT_CONDITION)
         {
-            if (Condition_update(&action.condition, ctx, screenData))
+            if (Condition_update(&action.condition, ctx, screenData, ctx->time - scriptedActions.plotIndexStartTime))
             {
                 TE_Logf("SCRIPTED_ACTION", "Condition met, proceeding plot to %d", action.setPlotIndex);
                 nextPlotIndex = action.setPlotIndex;
@@ -657,6 +710,24 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
             else
             {
                 Enemies_setItem(action.setItem.charId, action.setItem.leftItemIndex, action.setItem.rightItemIndex);
+            }
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_ANIMATION_PLAYBACK)
+        {
+            float t = ctx->time - action.actionStartTime;
+            if (action.animationPlayback.delay <= t)
+            {
+                t = (t - action.animationPlayback.delay) * action.animationPlayback.speed;
+                uint32_t msTick = (uint32_t)(t * 1000.0f);
+                GameAssets_drawAnimation(action.animationPlayback.animationId, screenData, msTick,
+                    action.animationPlayback.x, action.animationPlayback.y, action.animationPlayback.maxLoopCount,
+                    (BlitEx) {
+                        .tintColor = action.animationPlayback.tintColor,
+                        .blendMode = TE_BLEND_ALPHAMASK,
+                        .state.zValue = action.animationPlayback.z,
+                    });
             }
             continue;
         }
@@ -920,10 +991,10 @@ static void Scene_2_init()
 
     ScriptedAction_addProceedPlotCondition(0, 0, 1, (Condition){
         .type = CONDITION_TYPE_PLAYER_IN_RECT,
-        .x = 40,
-        .y = 0,
-        .width = 20,
-        .height = 128,
+        .npcsInRect.x = 40,
+        .npcsInRect.y = 0,
+        .npcsInRect.width = 20,
+        .npcsInRect.height = 128,
     });
 
     scriptedActions.flags = SCENE_2_FLAG_PULLING_CART;
@@ -997,7 +1068,7 @@ static void Scene_2_init()
     ScriptedAction_addSetNPCTarget(step, step, 1, 25, 70);
     ScriptedAction_addSetNPCTarget(step, step, 2, 25, 55);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_NPCS_IN_RECT, 
-        .npcIds = {1,2,0,0}, .x = 20, .y = 50, .width = 20, .height = 30 });
+        .npcsInRect.npcIds = {1,2,0,0}, .npcsInRect.x = 20, .npcsInRect.y = 50, .npcsInRect.width = 20, .npcsInRect.height = 30 });
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "You have no right, this is my loot!", 0, 8, 86, 112, 38, 0, 10);
@@ -1009,7 +1080,7 @@ static void Scene_2_init()
     ScriptedAction_addSetNPCTarget(step, step, 2, -25, 55 + 16);
     ScriptedAction_addSetFlags(step, step, 0, SCENE_2_FLAG_PULLING_CART);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_NPCS_IN_RECT, 
-        .npcIds = {1,2,0,0}, .x = -30, .y = 0, .width = 10, .height = 128 });
+        .npcsInRect.npcIds = {1,2,0,0}, .npcsInRect.x = -30, .npcsInRect.y = 0, .npcsInRect.width = 10, .npcsInRect.height = 128 });
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "I am obliged to do that.", 3, 8, 4, 112, 30, 0, -10);
@@ -1071,7 +1142,8 @@ static void Scene_2_init()
     ScriptedAction_addSetPlayerTarget(step, step, -50, 60, 1, 0);
     ScriptedAction_addSetNPCHealth(step, step, 1, 0);
     ScriptedAction_addSetNPCHealth(step, step, 2, 0);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PLAYER_IN_RECT, .x = -40, .y = 0, .width = 20, .height = 128 });
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PLAYER_IN_RECT, 
+        .npcsInRect.x = -40, .npcsInRect.y = 0, .npcsInRect.width = 20, .npcsInRect.height = 128 });
     step++;
     
     ScriptedAction_addSceneFadeOut(step, step, FADEOUT_RIGHT_TO_LEFT, step + 1, 1.5f, 0.0f, 1.0f);
@@ -1360,7 +1432,7 @@ void Scene_3_init()
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
 
-    ScriptedAction_addSpeechBubble(step, step, "Thank goodness, that way I can still get them!", 0, 8, 88, 112, 38, 0, 8);
+    ScriptedAction_addSpeechBubble(step, step, "Thank goodness, that way I can catch them!", 0, 8, 88, 112, 38, 0, 8);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
 
@@ -1372,8 +1444,9 @@ void Scene_3_init()
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
 
-    ScriptedAction_addSpeechBubble(step, step, "Ha ha ha ha. Good joke!", 1, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    ScriptedAction_addAnimationPlayback(step,step + 10, ANIMATION_HAHAHA_RIGHT, 35,50,70, 0.0f, 1.0f, 1, DB32Colors[DB32_ORANGE]);
+    // ScriptedAction_addSpeechBubble(step, step, "Ha ha ha ha. Good joke!", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 1.75f });
     step++;
 
     ScriptedAction_addSpeechBubble(step, step, "The gold is always in the other pocket.", 2, 8, 4, 112, 38, 0, -10);

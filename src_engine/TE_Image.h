@@ -38,6 +38,7 @@ typedef struct TE_ImgOpState
 {
     uint8_t zCompareMode : 3;
     uint8_t zNoWrite : 1;
+    uint8_t zAlphaBlend : 1;
     uint8_t zValue;
     uint8_t scissorX;
     uint8_t scissorY;

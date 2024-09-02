@@ -17,10 +17,13 @@ typedef struct Player
     uint8_t drawBar;
 } Player;
 
+
 typedef struct Item
 {
     int8_t pivotX;
     int8_t pivotY;
+    int8_t idleAnimationId;
+    int8_t attackAnimationId;
     TE_Rect src;
 } Item;
 

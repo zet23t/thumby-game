@@ -25,6 +25,19 @@ void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_Img
         (state.zCompareMode == Z_COMPARE_NOT_EQUAL && zDst != state.zValue)
     )
     {
+        if (state.zAlphaBlend && (color & 0xFF000000) < 0xfe000000)
+        {
+            uint32_t a = color >> 24;
+            uint32_t r = (color & 0xFF) * a >> 8;
+            uint32_t g = ((color >> 8) & 0xFF) * a >> 8;
+            uint32_t b = ((color >> 16) & 0xFF) * a >> 8;
+            uint32_t colorDst = *pixel;
+            uint32_t aDst = colorDst & 0xff000000;
+            uint32_t rDst = (colorDst & 0xFF) * (255 - a) >> 8;
+            uint32_t gDst = ((colorDst >> 8) & 0xFF) * (255 - a) >> 8;
+            uint32_t bDst = ((colorDst >> 16) & 0xFF) * (255 - a) >> 8;
+            color = r + rDst | ((g + gDst) << 8) | ((b + bDst) << 16) | aDst;
+        }
         if (state.zNoWrite)
         {
             color = (color & 0xffffff) | (zDst << 24);
