@@ -174,6 +174,11 @@ typedef struct ScriptedAction
             int16_t targetX;
             int16_t targetY;
         } npcSpawn;
+        struct SetItemData {
+            uint8_t charId;
+            int8_t leftItemIndex;
+            int8_t rightItemIndex;
+        } setItem;
     };
 } ScriptedAction;
 
@@ -203,6 +208,7 @@ struct ScriptedActions scriptedActions;
 #define SCRIPTED_ACTION_TYPE_LOAD_SCENE 10
 #define SCRIPTED_ACTION_TYPE_CLEAR_SCREEN 11
 #define SCRIPTED_ACTION_TYPE_NPC_SPAWN 12
+#define SCRIPTED_ACTION_TYPE_SET_ITEM 13
 
 void ScriptedAction_init()
 {
@@ -331,6 +337,26 @@ void ScriptedAction_addSetNPCHealth(uint8_t stepStart, uint8_t stepStop, uint8_t
             scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_NPC_HEALTH;
             scriptedActions.actions[i].npcHealth.id = id;
             scriptedActions.actions[i].npcHealth.health = health;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
+#define ITEM_SLOT_LEFT_HAND 1
+#define ITEM_SLOT_RIGHT_HAND 2
+
+void ScriptedAction_addSetItem(uint8_t stepStart, uint8_t stepStop, uint8_t charId, int8_t leftItemIndex, int8_t rightItemIndex)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_ITEM;
+            scriptedActions.actions[i].setItem.charId = charId;
+            scriptedActions.actions[i].setItem.leftItemIndex = leftItemIndex;
+            scriptedActions.actions[i].setItem.rightItemIndex = rightItemIndex;
             scriptedActions.actions[i].startPlotIndex = stepStart;
             scriptedActions.actions[i].endPlotIndex = stepStop;
             return;
@@ -618,6 +644,19 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
             {
                 Enemies_spawn(action.npcSpawn.id, action.npcSpawn.characterType, action.npcSpawn.x, action.npcSpawn.y);
                 Enemies_setTarget(action.npcSpawn.id, action.npcSpawn.targetX, action.npcSpawn.targetY);
+            }
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_ITEM)
+        {
+            if (action.setItem.charId == 0)
+            {
+                Player_setWeapon(action.setItem.rightItemIndex);
+            }
+            else
+            {
+                Enemies_setItem(action.setItem.charId, action.setItem.leftItemIndex, action.setItem.rightItemIndex);
             }
             continue;
         }
@@ -1325,7 +1364,7 @@ void Scene_3_init()
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
 
-    ScriptedAction_addSpeechBubble(step, step, "For you it costs gold to leave as well.", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addSpeechBubble(step, step, "For you it'll cost gold to leave as well.", 1, 8, 4, 112, 38, 0, -10);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
 
@@ -1353,6 +1392,11 @@ void Scene_3_init()
     ScriptedAction_addNPCSpawn(step, step, 3, 3, 100, 0, 100, 40);
     ScriptedAction_addNPCSpawn(step, step, 4, 4, 130, 120, 100, 96);
     ScriptedAction_addPlayerControlsEnabled(step, step, 1);
+    ScriptedAction_addSetItem(step, step, 0, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step, 1, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step, 2, -ITEM_STAFF, 0);
+    ScriptedAction_addSetItem(step, step, 3, 0, -ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step, 4, 0, ITEM_STAFF);
 }
 
 void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)

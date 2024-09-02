@@ -70,6 +70,12 @@ DLL_EXPORT void init()
         .src = { .x = 64, .y = 80, .width = 8, .height = 16 },
     };
 
+    items[ITEM_STAFF - 1] = (Item) {
+        .pivotX = 0,
+        .pivotY = 8,
+        .src = { .x = 16, .y = 96, .width = 3, .height = 16 },
+    };
+
     playerCharacter = (Character)
     {
         .x = player.x,

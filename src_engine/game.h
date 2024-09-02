@@ -69,6 +69,7 @@ typedef struct Enemy
 #define MAX_ENEMIES 16
 
 #define ITEM_PIKE 3
+#define ITEM_STAFF 4
 
 extern Character characters[MAX_ENEMYTYPES];
 extern Projectile projectiles[PROJECTILE_MAX_COUNT];
