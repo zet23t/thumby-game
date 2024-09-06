@@ -350,6 +350,7 @@ void Environment_addFlowerGroup(int16_t x, int16_t y, uint32_t seed, uint8_t cou
 
 float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_t *nearestY)
 {
+    uint8_t oldSeed = TE_randGetSeed();
     float minDist = 9999;
     for (int i=0;i<environmentScene.environmentObjectCount;i++)
     {
@@ -389,7 +390,7 @@ float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_
             }
         }
     }
-
+    TE_randSetSeed(oldSeed);
     return sqrtf(minDist) - TREE_COLLIDE_RADIUS;
 }
 
@@ -397,6 +398,7 @@ int Environment_raycastCircle(int16_t px, int16_t py, int16_t radius, int16_t *o
 {
     int dmin = radius + TREE_COLLIDE_RADIUS;
     int dmin2 = dmin * dmin;
+    uint32_t oldSeed = TE_randGetSeed();
     for (int i=0;i<environmentScene.environmentObjectCount;i++)
     {
         TE_randSetSeed(environmentScene.objects[i].seed);
@@ -409,6 +411,8 @@ int Environment_raycastCircle(int16_t px, int16_t py, int16_t radius, int16_t *o
                 *outX = x;
                 *outY = y;
                 *outRadius = TREE_COLLIDE_RADIUS;
+                TE_randSetSeed(oldSeed);
+
                 return i;
             }
         }
@@ -430,16 +434,22 @@ int Environment_raycastCircle(int16_t px, int16_t py, int16_t radius, int16_t *o
                     *outX = x + posX[j];
                     *outY = y + posY[j];
                     *outRadius = TREE_COLLIDE_RADIUS;
+
+                    TE_randSetSeed(oldSeed);
+
                     return i;
                 }
             }
         }
     }
 
+    TE_randSetSeed(oldSeed);
+
     return -1;
 }
 int Environment_raycastPoint(int16_t px, int16_t py)
 {
+    uint32_t oldSeed = TE_randGetSeed();
     for (int i=0;i<environmentScene.environmentObjectCount;i++)
     {
         TE_randSetSeed(environmentScene.objects[i].seed);
@@ -449,6 +459,7 @@ int Environment_raycastPoint(int16_t px, int16_t py)
             int dx = px - x, dy = py - y;
             if (dx * dx + dy * dy < TREE_COLLIDE_RADIUS * TREE_COLLIDE_RADIUS)
             {
+                TE_randSetSeed(oldSeed);
                 return i;
             }
         }
@@ -467,12 +478,14 @@ int Environment_raycastPoint(int16_t px, int16_t py)
                 int dx = px - x - posX[j], dy = py - y - posY[j];
                 if (dx * dx + dy * dy < 6 * 6)
                 {
+                    TE_randSetSeed(oldSeed);
                     return i;
                 }
             }
         }
     }
 
+    TE_randSetSeed(oldSeed);
     return -1;
 }
 
@@ -490,6 +503,7 @@ const uint8_t _flowerColor[] = {
 
 void Environment_update(RuntimeContext *ctx, TE_Img* img)
 {
+    uint32_t oldSeed = TE_randGetSeed();
     for (int i=0;i<environmentScene.environmentObjectCount;i++)
     {
         TE_randSetSeed(environmentScene.objects[i].seed);
@@ -603,4 +617,6 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
             }
         }
     }
+
+    TE_randSetSeed(oldSeed);
 }

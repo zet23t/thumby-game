@@ -44,13 +44,8 @@ void Projectiles_update(Projectile *projectile, RuntimeContext *ctx, TE_Img *img
             {
                 enemies[hit].health -= 1.0f;
                 projectiles[i].lifeTime = 0.0f;
-                float enemyX = enemies[hit].character.x;
-                float enemyY = enemies[hit].character.y;
-                enemyX += TE_randRange(-1, 2) * 0.0f + projectiles[i].vx * 0.05f;
-                enemyY += TE_randRange(-1, 2) * 0.0f + projectiles[i].vy * 0.05f;
-                enemies[hit].character.x = enemyX;
-                enemies[hit].character.y = enemyY;
-                printf("Hit enemy %d -> %f %f\n", hit, enemyX, enemyY);
+
+                Enemy_takeDamage(&enemies[hit], 1.0f, projectiles[i].vx, projectiles[i].vy);
                 continue;
             }
 

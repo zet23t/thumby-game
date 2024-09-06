@@ -2,9 +2,21 @@
 
 static int TE_seed = 0x3291;
 
-void TE_randSetSeed(uint32_t seed)
+uint32_t TE_randGetSeed()
 {
+    return TE_seed;
+}
+
+uint32_t TE_randSetSeed(uint32_t seed)
+{
+    uint32_t oldSeed = TE_seed;
     TE_seed = seed;
+    return oldSeed;
+}
+
+void TE_addEntropy(uint32_t entropy)
+{
+    TE_seed ^= entropy;
 }
 
 uint32_t TE_rand()

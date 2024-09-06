@@ -3,41 +3,17 @@
 #include "game_player.h"
 #include "game_assets.h"
 #include "game_environment.h"
+#include "game_particlesystem.h"
 #include "TE_rand.h"
 #include <math.h>
 #include <stdio.h>
 
-#define SCENE_1_PULLING_THE_CART 1
-#define SCENE_2_ARRIVING_AT_HOME 2
-#define SCENE_3_CHASING_THE_LOOT 3
 
 int8_t _loadNextScene = -1;
 
-static void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, int16_t arrowX, int16_t arrowY, const char *text);
+void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, int16_t arrowX, int16_t arrowY, const char *text);
 
-typedef struct Condition
-{
-    uint8_t type;
-    union {
-        struct RectCondition {
-            uint8_t npcIds[4];
-            int16_t x;
-            int16_t y;
-            int16_t width;
-            int16_t height;
-        } npcsInRect;
-        struct WaitCondition {
-            float duration;
-        } wait;
-    };
-} Condition;
-
-#define CONDITION_TYPE_PLAYER_IN_RECT 1
-#define CONDITION_TYPE_PRESS_NEXT 2
-#define CONDITION_TYPE_NPCS_IN_RECT 3
-#define CONDITION_TYPE_WAIT 4
-
-static void DrawNextButtonAction(RuntimeContext *ctx, TE_Img *screenData)
+void DrawNextButtonAction(RuntimeContext *ctx, TE_Img *screenData)
 {
     int16_t pressY = (int16_t)(fmodf(ctx->time, 0.6f) * 2.0f) + 117;
     TE_Img_fillCircle(screenData, 117, pressY, 6, DB32Colors[18], (TE_ImgOpState){
@@ -110,109 +86,6 @@ uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img
 }
 
 
-typedef struct ScriptedAction
-{
-    int16_t startPlotIndex;
-    int16_t endPlotIndex;
-    uint8_t actionType;
-    float actionStartTime;
-    union {
-        struct SpeechBubbleData {
-            const char *text;
-            uint8_t speaker:5;
-            uint8_t isRelative:1;
-            int16_t speechBubbleX;
-            int16_t speechBubbleY;
-            uint8_t speechBubbleWidth;
-            uint8_t speechBubbleHeight;
-            int8_t arrowXOffset;
-            int8_t arrowYOffset;
-        } speechBubble;
-        struct PlayerControlsData {
-            uint8_t enabled;
-        };
-        struct ProceedPlotConditionData {
-            uint8_t setPlotIndex;
-            Condition condition;
-        };
-        struct SetNPCTargetData {
-            uint8_t id;
-            int16_t x;
-            int16_t y;
-        } npcTarget;
-        
-        struct SetPlayerTargetData {
-            int16_t targetX;
-            int16_t targetY;
-            uint8_t setX;
-            uint8_t setY;
-        } playerTarget;
-
-        struct SetFlagsData {
-            uint32_t setFlags;
-            uint32_t mask;
-        };
-        struct SetNPCHealthData {
-            uint8_t id;
-            float health;
-        } npcHealth;
-        struct SceneFadeOutData {
-            uint8_t type;
-            uint8_t nextPlotIndex;
-            float duration;
-            float beginDelay;
-            float finishDelay;
-        } sceneFadeOut;
-        struct TitleScreenData {
-            const char *titleText;
-            const char *subText;
-            uint8_t nextPlotIndex;
-            uint8_t fillBlackBackground;
-        } titleScreen;
-        struct LoadSceneData {
-            uint8_t sceneId;
-        } loadScene;
-        struct ClearScreenData {
-            uint32_t color;
-            uint8_t z;
-        } clearScreen;
-        struct NPCSpawnData {
-            uint8_t id;
-            uint8_t characterType;
-            int16_t x;
-            int16_t y;
-            int16_t targetX;
-            int16_t targetY;
-        } npcSpawn;
-        struct SetItemData {
-            uint8_t charId;
-            int8_t leftItemIndex;
-            int8_t rightItemIndex;
-        } setItem;
-        struct AnimationPlaybackData {
-            uint8_t animationId;
-            uint8_t maxLoopCount;
-            uint8_t z;
-            int16_t x;
-            int16_t y;
-            uint32_t tintColor;
-            float delay;
-            float speed;
-        } animationPlayback;
-    };
-} ScriptedAction;
-
-#define MAX_SCRIPTED_ACTIONS 128
-
-typedef struct ScriptedActions
-{
-    ScriptedAction actions[MAX_SCRIPTED_ACTIONS];
-    uint8_t currentPlotIndex;
-    uint8_t startedTimerPlotIndex;
-    uint32_t flags;
-    float plotIndexStartTime;
-} ScriptedActions;
-
 struct ScriptedActions scriptedActions;
 
 #define SCRIPTED_ACTION_TYPE_NONE 0
@@ -230,6 +103,9 @@ struct ScriptedActions scriptedActions;
 #define SCRIPTED_ACTION_TYPE_NPC_SPAWN 12
 #define SCRIPTED_ACTION_TYPE_SET_ITEM 13
 #define SCRIPTED_ACTION_TYPE_ANIMATION_PLAYBACK 14
+#define SCRIPTED_ACTION_TYPE_SET_PLAYER_POSITION 15
+#define SCRIPTED_ACTION_TYPE_SET_ENEMY_CALLBACK 16
+#define SCRIPTED_ACTION_TYPE_CUSTOM_CALLBACK 17
 
 void ScriptedAction_init()
 {
@@ -300,7 +176,23 @@ void ScriptedAction_addSetPlayerTarget(uint8_t stepStart, uint8_t stepStop, int1
         }
     }
 }
-
+void ScriptedAction_addSetPlayerPosition(uint8_t stepStart, uint8_t stepStop, int16_t x, int16_t y, uint8_t setX, uint8_t setY)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_PLAYER_POSITION;
+            scriptedActions.actions[i].playerTarget.targetX = x;
+            scriptedActions.actions[i].playerTarget.targetY = y;
+            scriptedActions.actions[i].playerTarget.setX = setX;
+            scriptedActions.actions[i].playerTarget.setY = setY;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
 void ScriptedAction_addSetNPCTarget(uint8_t stepStart, uint8_t stepStop, uint8_t id, int16_t x, int16_t y)
 {
     for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
@@ -366,8 +258,32 @@ void ScriptedAction_addSetNPCHealth(uint8_t stepStart, uint8_t stepStop, uint8_t
     }
 }
 
-#define ITEM_SLOT_LEFT_HAND 1
-#define ITEM_SLOT_RIGHT_HAND 2
+void ScriptedAction_addJumpStep(uint8_t stepStart, uint8_t stepStop, uint8_t stepTo)
+{
+    Condition condition = {
+        .type = CONDITION_TYPE_WAIT,
+        .wait = {
+            .duration = 0.0f,
+        }
+    };
+    ScriptedAction_addProceedPlotCondition(stepStart, stepStop, stepTo, condition);
+}
+
+void ScriptedAction_addSetEnemyCallback(uint8_t stepStart, uint8_t stepStop, uint8_t id, TookDamageCallbackData callback)
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_ENEMY_CALLBACK;
+            scriptedActions.actions[i].setEnemyCallback.id = id;
+            scriptedActions.actions[i].setEnemyCallback.callback = callback;
+            scriptedActions.actions[i].startPlotIndex = stepStart;
+            scriptedActions.actions[i].endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
 
 void ScriptedAction_addSetItem(uint8_t stepStart, uint8_t stepStop, uint8_t charId, int8_t leftItemIndex, int8_t rightItemIndex)
 {
@@ -386,11 +302,6 @@ void ScriptedAction_addSetItem(uint8_t stepStart, uint8_t stepStop, uint8_t char
     }
 }
 
-#define FADEIN_FLAG 1
-#define FADEOUT_RIGHT_TO_LEFT 0
-#define FADEIN_LEFT_TO_RIGHT 1
-#define FADEOUT_LEFT_TO_RIGHT 2
-#define FADEIN_RIGHT_TO_LEFT 3
 
 void ScriptedAction_addSceneFadeOut(uint8_t stepStart, uint8_t stepStop, uint8_t type, uint8_t nextPlotIndex, float duration, float beginDelay, float finishDelay)
 {
@@ -482,6 +393,22 @@ void ScriptedAction_addNPCSpawn(uint8_t stepStart, uint8_t stepStop, uint8_t npc
     }
 }
 
+ScriptedAction* ScriptedAction_addCustomCallback(uint8_t stepStart, uint8_t stepStop, void(*callback)(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction *callbackData))
+{
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        ScriptedAction *action = &scriptedActions.actions[i];
+        if (action->actionType == SCRIPTED_ACTION_TYPE_NONE)
+        {
+            action->actionType = SCRIPTED_ACTION_TYPE_CUSTOM_CALLBACK;
+            action->customCallback.callback = callback;
+            action->startPlotIndex = stepStart;
+            action->endPlotIndex = stepStop;
+            return;
+        }
+    }
+}
+
 void ScriptedAction_addAnimationPlayback(uint8_t stepStart, uint8_t stepStop, uint8_t animationId, int16_t x, int16_t y, uint8_t z,
     float delay, float speed, uint8_t loop, uint32_t tintColor)
 {
@@ -508,6 +435,7 @@ void ScriptedAction_addAnimationPlayback(uint8_t stepStart, uint8_t stepStop, ui
 
 void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 {
+    uint32_t oldSeed = TE_randSetSeed(ctx->frameCount * 13 + 8992);
     uint8_t nextPlotIndex = scriptedActions.currentPlotIndex;
     uint32_t nextFlags = scriptedActions.flags;
     uint8_t isNewStep;
@@ -580,15 +508,23 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
             continue;
         }
 
-        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_TARGET)
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_TARGET || action.actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_POSITION)
         {
             if (action.playerTarget.setX)
             {
                 playerCharacter.targetX = action.playerTarget.targetX;
+                if (action.actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_POSITION)
+                {
+                    playerCharacter.x = action.playerTarget.targetX;
+                }
             }
             if (action.playerTarget.setY)
             {
                 playerCharacter.targetY = action.playerTarget.targetY;
+                if (action.actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_POSITION)
+                {
+                    playerCharacter.y = action.playerTarget.targetY;
+                }
             }
             continue;
         }
@@ -602,6 +538,16 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
         if (action.actionType == SCRIPTED_ACTION_TYPE_SET_NPC_HEALTH)
         {
             Enemies_setHealth(action.npcHealth.id, action.npcHealth.health);
+            continue;
+        }
+
+        if (action.actionType == SCRIPTED_ACTION_TYPE_SET_ENEMY_CALLBACK)
+        {
+            Enemy* enemy = Enemies_getEnemy(action.setEnemyCallback.id);
+            if (enemy) {
+                LOG("Setting enemy[%d] (%p) callback", action.setEnemyCallback.id, enemy);
+                enemy->damageCallbackData = action.setEnemyCallback.callback;
+            }
             continue;
         }
 
@@ -701,6 +647,12 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
             continue;
         }
 
+        if (action.actionType == SCRIPTED_ACTION_TYPE_CUSTOM_CALLBACK)
+        {
+            action.customCallback.callback(ctx, screenData, &action);
+            continue;
+        }
+
         if (action.actionType == SCRIPTED_ACTION_TYPE_SET_ITEM)
         {
             if (action.setItem.charId == 0)
@@ -724,6 +676,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
                 GameAssets_drawAnimation(action.animationPlayback.animationId, screenData, msTick,
                     action.animationPlayback.x, action.animationPlayback.y, action.animationPlayback.maxLoopCount,
                     (BlitEx) {
+                        .tint = action.animationPlayback.tintColor != 0xffffffff,
                         .tintColor = action.animationPlayback.tintColor,
                         .blendMode = TE_BLEND_ALPHAMASK,
                         .state.zValue = action.animationPlayback.z,
@@ -735,6 +688,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 
     scriptedActions.currentPlotIndex = nextPlotIndex;
     scriptedActions.flags = nextFlags;
+    TE_randSetSeed(oldSeed);
 }
 
 
@@ -764,7 +718,7 @@ static void DrawTextBlock(TE_Img *screenData, int16_t x, int16_t y, int16_t widt
     });
 }
 
-static void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, int16_t arrowX, int16_t arrowY, const char *text)
+void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, int16_t arrowX, int16_t arrowY, const char *text)
 {
     TE_Font font = GameAssets_getFont(0);
     // TE_Img_drawPatch9(screenData, &font.atlas, x, y, width, height, 0, 0, 0, 0, (BlitEx){
@@ -1367,286 +1321,7 @@ static void Scene_2_update(RuntimeContext *ctx, TE_Img *screenData)
 
 }
 
-void Scene_3_init()
-{
-    Environment_addTreeGroup(20, 20, 18522, 4, 20);
-    Environment_addTreeGroup(100, 30, 1852, 6, 25);
-    Environment_addFlowerGroup(76,40, 232, 15, 20);
-    Environment_addBushGroup(75,35, 1232, 5, 10);
-
-    player.x = 160;
-    playerCharacter.x = player.x;
-    player.y = 110;
-    playerCharacter.y = player.y;
-
-    uint8_t step = 0;
-
-    ScriptedAction_addSetPlayerTarget(step, step, 90, 73, 1, 1);
-    ScriptedAction_addPlayerControlsEnabled(step, step, 0);
-    ScriptedAction_addSceneFadeOut(step, step, FADEIN_RIGHT_TO_LEFT, step + 1, 0.85f, 0.4f, 1.0f);
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "The shortcut over the stream. That way I can catch up!", 0, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addNPCSpawn(step, step, 1, 3, -5, 60, 60, 70);
-    ScriptedAction_addNPCSpawn(step, step, 2, 4, -20, 60, 50, 66);
-    ScriptedAction_addSpeechBubble(step, step, "Lucky we maintain the bridge so faithfully!", 1, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "Too bad it's so expensive to do that ...", 2, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "Right, if only someone paid us to do so.", 1, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "Are you both born fools, or did you train for it?", 0, 8, 88, 112, 38, 0, 8);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "My father built that bridge ...", 0, 8, 88, 112, 38, 0, 8);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "... and it's the same pieces of wood from back then.", 0, 8, 88, 112, 38, 0, 8);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "Did he just insult us, Lenny?", 1, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "I bet he did, Pip.", 2, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "Normally it costs gold to cross the bridge.", 1, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "But for you, we'll make an exception.", 2, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "Thank goodness, that way I can catch them!", 0, 8, 88, 112, 38, 0, 8);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "For you it'll cost gold to leave as well.", 1, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "Listen, the tax collector stole my cart full with gold!", 0, 8, 88, 112, 38, 0, 8);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addAnimationPlayback(step,step + 10, ANIMATION_HAHAHA_RIGHT, 35,50,70, 0.0f, 1.0f, 1, DB32Colors[DB32_ORANGE]);
-    // ScriptedAction_addSpeechBubble(step, step, "Ha ha ha ha. Good joke!", 1, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 1.75f });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "The gold is always in the other pocket.", 2, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "That's it, it's time to beat sense into you two!", 0, 8, 88, 112, 38, 0, 8);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    ScriptedAction_addSpeechBubble(step, step, "Ye think so? Too bad it's not just the two of us.", 2, 8, 4, 112, 38, 0, -10);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
-    step++;
-
-    
-    ScriptedAction_addNPCSpawn(step, step, 3, 3, 100, 0, 100, 40);
-    ScriptedAction_addNPCSpawn(step, step, 4, 4, 130, 120, 100, 96);
-    ScriptedAction_addPlayerControlsEnabled(step, step, 1);
-    ScriptedAction_addSetItem(step, step, 0, 0, ITEM_STAFF);
-    ScriptedAction_addSetItem(step, step, 1, 0, ITEM_STAFF);
-    ScriptedAction_addSetItem(step, step, 2, -ITEM_STAFF, 0);
-    ScriptedAction_addSetItem(step, step, 3, 0, -ITEM_STAFF);
-    ScriptedAction_addSetItem(step, step, 4, 0, ITEM_STAFF);
-}
-
-void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
-{
-    // river
-    int16_t flowOffset1 = (int16_t)(ctx->time * 11.0f);
-    int16_t flowOffset2 = (int16_t)(ctx->time * 14.5f);
-    int16_t flowOffsetAcc1 = 0;
-    int16_t flowOffsetAcc2 = 0;
-    TE_randSetSeed(32912);
-    for (int y=0;y<128;y++)
-    {
-        int16_t x = (int16_t)(sin(y * 0.1f) * 5.0f + cos(y * 0.035f) * 8.0f + 44 - y * 0.3f);
-        int16_t width = (int16_t)(sin(y * 0.06f) * 5.0f + 5); 
-        flowOffsetAcc1 += width;
-        flowOffsetAcc2 += width + x - 44;
-
-        if (TE_randRange(0, 100) < 25)
-        {
-            // little rocks
-            TE_Img_blitEx(screenData, &atlasImg, x + TE_randRange(-width / 2 - 10, -width / 2 + 3), y, 
-                144 + TE_rand() % 4 * 8, 32 + TE_rand() % 2 * 8, 8, 8, (BlitEx){
-                .blendMode = TE_BLEND_ALPHAMASK,
-                .state = {
-                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                    .zValue = 2,
-                }
-            });
-            TE_Img_blitEx(screenData, &atlasImg, x + TE_randRange(width / 2 +20, +width / 2 + 30), y, 
-                144 + TE_rand() % 4 * 8, 32 + TE_rand() % 2 * 8, 8, 8, (BlitEx){
-                .blendMode = TE_BLEND_ALPHAMASK,
-                .state = {
-                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                    .zValue = 2,
-                }
-            });
-        }
-        
-        TE_Img_blitEx(screenData, &atlasImg, x - width / 2-5, y, 176, y%48, 10, 1, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 0,
-            }
-        });
-        TE_Img_blitEx(screenData, &atlasImg, x + width / 2 + 27, y, 176, (48*48-y + 17)%48, 10, 1, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .flipX = 1,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 0,
-            }
-        });
-
-        // flowing water
-        TE_Img_blitEx(screenData, &atlasImg, x - width / 2, y, 112, y%32, 16, 1, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 1,
-            }
-        });
-        TE_Img_blitEx(screenData, &atlasImg, x - width / 2 + width + 16, y, 128, y%32, 16, 1, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 1,
-            }
-        });
-        TE_Img_fillRect(screenData, x + 16 - width / 2, y, width, 1, DB32Colors[17], (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_LESS_EQUAL,
-            .zValue = 1,
-        }); 
-
-        TE_Img_blitEx(screenData, &atlasImg, x + 1, y, 144, (y - flowOffset1 + flowOffsetAcc1 / 14)&31, 32, 1, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 1,
-            }
-        });
-
-        TE_Img_blitEx(screenData, &atlasImg, x - 1, y, 144, (y - flowOffset2 + flowOffsetAcc2 / 74)&31, 32, 1, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .flipX = 1,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 1,
-            }
-        });
-        
-    }
-
-    
-    // path to bridge from right side
-    for (int x=52;x<128;x+=2)
-    {
-        int16_t y = 63+ (int16_t)(sin((x * 1.2f+12.0f) * 0.05f) * 5.0f + x * 0.2f);
-        TE_Img_blitEx(screenData, &atlasImg, x, y, 104 + (x%24), 32, 2, 14, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 0,
-            }
-        });
-    }
-    // path to bridge from left side
-    for (int x=0;x<14;x+=2)
-    {
-        int16_t y = 63+ (int16_t)(sin((x * 1.2f+10.0f) * 0.05f) * 5.0f - x * 0.2f);
-        TE_Img_blitEx(screenData, &atlasImg, x, y, 104 + (x%24), 32, 2, 14, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 0,
-            }
-        });
-    }
-
-    // bridge drawing
-    TE_randSetSeed(ctx->frameCount/4);
-    const int bridgeXEnd = 54;
-    for (int x = 14, p=0; x < bridgeXEnd; x++,p++)
-    {
-        int y = 64 + x / 8;
-        int xoffset = p%16;
-        if (p < 3)
-        {
-            xoffset -= 1;
-        }
-        else if (bridgeXEnd - x < 4)
-        {
-            xoffset = 17 - (bridgeXEnd - x);
-        }
-        TE_Img_blitEx(screenData, &atlasImg, x, y, 144 + xoffset, 48, 1, 16, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 3,
-            }
-        });
-        int bridgeHeightLeft = p - 5;
-        int bridgeHeightRight = bridgeXEnd - x - 7;
-        int bridgeHeight = bridgeHeightLeft < bridgeHeightRight ? bridgeHeightLeft : bridgeHeightRight;
-        if (bridgeHeight > 0)
-        {
-            if (bridgeHeight > 5) bridgeHeight = 5;
-            bridgeHeight += TE_rand() % 2;
-            int polePos = p%13;
-            if (polePos >= 3 && polePos <= 6) bridgeHeight += 2;
-            // bridge shadow
-            TE_Img_fillRect(screenData, x, y + 14, 1, bridgeHeight, DB32Colors[16], (TE_ImgOpState){
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 1,
-            });
-        }
-        if (p % 13 == 5)
-        {
-            TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_POLE_TOP), x + 2, y + 1, (BlitEx){
-                .blendMode = TE_BLEND_ALPHAMASK,
-                .state = {
-                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                    .zValue = 2,
-                }
-            });
-            TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_POLE_TOP), x, y + 14, (BlitEx){
-                .blendMode = TE_BLEND_ALPHAMASK,
-                .state = {
-                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                    .zValue = 4,
-                }
-            });
-        }
-    }
-
-    
-}
+#include "game_scene_3.h"
 
 static const Scene scenes[] = {
     { .id = SCENE_1_PULLING_THE_CART, .initFn = Scene_1_init, .updateFn = Scene_1_update },
@@ -1667,6 +1342,7 @@ void Scene_init(uint8_t sceneId)
 {
     _currentSceneId = sceneId;
     TE_Logf("SCENE", "Init scene %d", sceneId);
+    ParticleSystem_init();
     Enemies_init();
     Player_setInputEnabled(1);
     ScriptedAction_init();
@@ -1703,4 +1379,28 @@ void Scene_update(RuntimeContext *ctx, TE_Img *screen)
 uint8_t Scene_getCurrentSceneId()
 {
     return _currentSceneId;
+}
+
+uint8_t Scene_getMaxStep()
+{
+    uint8_t maxStep = 0;
+    for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
+    {
+        if (scriptedActions.actions[i].actionType != SCRIPTED_ACTION_TYPE_NONE && 
+            scriptedActions.actions[i].endPlotIndex > maxStep)
+        {
+            maxStep = scriptedActions.actions[i].endPlotIndex;
+        }
+    }
+    return maxStep;
+}
+
+void Scene_setStep(uint8_t step)
+{
+    scriptedActions.currentPlotIndex = step;
+}
+
+uint8_t Scene_getStep()
+{
+    return scriptedActions.currentPlotIndex;
 }

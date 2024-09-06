@@ -1,6 +1,7 @@
 #include "game_player.h"
 #include "game_character.h"
 #include "game_projectile.h"
+#include "game_enemies.h"
 #include "TE_Image.h"
 #include <inttypes.h>
 #include <math.h>
@@ -100,14 +101,16 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     {
         tdy = -1.0f;
     }
-    #define SHOOT_COOLDOWN (0.8f)
     playerCharacter->itemRightHand = _playerWeaponIndex;
+
+    Item *item = &items[_playerWeaponIndex > 0 ? _playerWeaponIndex - 1 : 0];
+    float coolDown = item->cooldown;
     if (ctx->inputA && _playerWeaponIndex)
     {
         playerCharacter->isAiming = 1;
-        playerCharacter->itemRightHand = -2;
+        // playerCharacter->itemRightHand = -2;
         playerCharacter->shootCooldown += ctx->deltaTime;
-        float percent = playerCharacter->shootCooldown / SHOOT_COOLDOWN + 1.0f;
+        float percent = playerCharacter->shootCooldown / coolDown + 1.0f;
         uint32_t color = 0x44000088;
         if (percent > 1.0f) 
         {
@@ -120,12 +123,17 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         float sdLen = sqrtf(sdx * sdx + sdy * sdy);
         sdx /= sdLen;
         sdy /= sdLen;
+        float range = 16.0f;
+        if (item->meleeRange > 0)
+        {
+            range = item->meleeRange * 1.5f;
+        }
 
         int16_t x1 = (int)player->x, y1 = (int)player->y + 5;
-        int16_t x2 = (int)player->x + sdx * 16.0f - sdy * 8.0f * (1.0f - percent);
-        int16_t y2 = (int)player->y + sdy * 16.0f + sdx * 8.0f * (1.0f - percent) + 5;
-        int16_t x3 = (int)player->x + sdx * 16.0f + sdy * 8.0f * (1.0f - percent);
-        int16_t y3 = (int)player->y + sdy * 16.0f - sdx * 8.0f * (1.0f - percent) + 5;
+        int16_t x2 = (int)player->x + sdx * range - sdy * range * 0.5f * (1.0f - percent);
+        int16_t y2 = (int)player->y + sdy * range + sdx * range * 0.5f * (1.0f - percent) + 5;
+        int16_t x3 = (int)player->x + sdx * range + sdy * range * 0.5f * (1.0f - percent);
+        int16_t y3 = (int)player->y + sdy * range - sdx * range * 0.5f * (1.0f - percent) + 5;
 
         if (percent < 1.0f)
         {
@@ -164,23 +172,42 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     else if (playerCharacter->isAiming && playerCharacter->shootCooldown < 0.0f)
     {
         playerCharacter->isAiming = 0;
-        playerCharacter->itemRightHand = -1;
-        playerCharacter->shootCooldown = -SHOOT_COOLDOWN;
+        // playerCharacter->itemRightHand = -1;
+        playerCharacter->shootCooldown = -coolDown;
     }
     else if (playerCharacter->isAiming)
     {
         playerCharacter->isAiming = 0;
-        playerCharacter->itemRightHand = -1;
+        playerCharacter->isStriking = 1;
+        playerCharacter->runningAnimationTime = 0.0f;
+        // playerCharacter->itemRightHand = -1;
         
-        playerCharacter->shootCooldown = -SHOOT_COOLDOWN;
+        playerCharacter->shootCooldown = -coolDown;
         float len = sqrtf(tdx * tdx + tdy * tdy);
         tdx /= len;
         tdy /= len;
-        Projectile_spawn(player->x, player->y + 5, tdx * 128.0f, tdy * 128.0f, 0xff0000ff);
+        if (item->meleeRange > 0)
+        {
+            int16_t cx, cy, cr;
+            int16_t hitX = (int16_t)(player->x + tdx * item->meleeRange);
+            int16_t hitY = (int16_t)(player->y + tdy * item->meleeRange);
+            int hitInfo = Characters_raycastCircle(playerCharacter, hitX, hitY, item->meleeRange, &cx, &cy, &cr) - 1;
+            if (hitInfo>=0)
+            {
+                LOG("Hit %d %d %d", cx, cy, cr);
+                playerCharacter->isHitting = 1;
+                playerCharacter->isStriking = 0;
+                Enemy_takeDamage(&enemies[hitInfo], 1.0f, tdx * 128.0f, tdy * 128.0f);
+            }
+        } 
+        else
+        {
+            Projectile_spawn(player->x, player->y + 5, tdx * 128.0f, tdy * 128.0f, 0xff0000ff);
+        }
     }
     else
     {
-        playerCharacter->shootCooldown = -SHOOT_COOLDOWN;
+        playerCharacter->shootCooldown = -coolDown;
     }
 
     float targetX = player->x;

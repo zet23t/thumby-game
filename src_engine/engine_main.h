@@ -74,5 +74,7 @@ extern uint32_t DB32Colors[];
 
 #define LOG_TAG_SYSTEM "SYSTEM"
 void TE_Logf(const char *tag, const char *format, ...);
+const char* formatFileRef(const char *file, int line);
+#define LOG(...) TE_Logf(formatFileRef(__FILE__,__LINE__), __VA_ARGS__)
 
 #endif // __ENGINE_MAIN_H__

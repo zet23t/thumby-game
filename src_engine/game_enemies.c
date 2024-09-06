@@ -1,6 +1,7 @@
 #include "game_enemies.h"
 #include "game_character.h"
 #include "game_environment.h"
+#include "game_particlesystem.h"
 #include "TE_rand.h"
 #include <math.h>
 #include <stdio.h>
@@ -12,6 +13,7 @@ void Enemies_init()
         enemies[i] = (Enemy) {
             .health = 0.0f,
             .character = characters[0],
+            .damageCallbackData.callback = NULL,
         };
     }
 }
@@ -118,6 +120,7 @@ void Enemies_update(RuntimeContext *ctx, TE_Img *img)
 
             Character_fromBaseF(&enemies[i].character, &targetX, &targetY);
             Character_fromBaseF(&enemies[i].character, &x, &y);
+
             Character_update(&enemies[i].character, ctx, img, x + dx, y + dy, enemies[i].character.dirX, enemies[i].character.dirY);
             enemies[i].character.targetX = targetX;
             enemies[i].character.targetY = targetY;
@@ -154,6 +157,56 @@ void Enemies_update(RuntimeContext *ctx, TE_Img *img)
             // }
         }
     }
+}
+
+int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy)
+{
+    enemy->health -= damage;
+
+    float enemyX = enemy->character.x;
+    float enemyY = enemy->character.y;
+    enemyX += TE_randRange(-1, 2) * 0.0f + srcVx * 0.05f;
+    enemyY += TE_randRange(-1, 2) * 0.0f + srcVy * 0.05f;
+    enemy->character.x = enemyX;
+    enemy->character.y = enemyY;
+
+    uint8_t charZ = (uint8_t) enemies->character.y + 14;
+    for (int i=0;i<2;i++)
+    {
+        TE_addEntropy(i^(int)enemyX^(int)enemyY<<i);
+        float vx = TE_randRange(-25, 25);
+        float vy = TE_randRange(-25, 25);
+
+        ParticleSystem_spawn(PARTICLE_TYPE_SIMPLE, enemyX, enemyY, 
+            charZ, vx, vy, (ParticleTypeData){
+            .simpleType = {
+                .color = 0xff0000ff,
+                .maxLife = 0.5f,
+                .accelY = 52.5f,
+                .accelX = 0.0f,
+                .drag = 0.5f,
+                .size = 1,
+            },
+        });
+    }
+    if (enemy->damageCallbackData.callback)
+    {
+        LOG("Calling took damage callback %p", enemy);
+        enemy->damageCallbackData.callback(enemy, damage, srcVx, srcVy);
+    }
+    return enemy->health > 0.0f;
+}
+
+Enemy* Enemies_getEnemy(uint8_t id)
+{
+    for (int i=0;i<MAX_ENEMIES;i++)
+    {
+        if (enemies[i].health > 0.0f && enemies[i].id == id)
+        {
+            return &enemies[i];
+        }
+    }
+    return NULL;
 }
 
 int Enemies_raycastPoint(float x, float y)

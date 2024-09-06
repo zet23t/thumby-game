@@ -7,5 +7,6 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
 int Character_raycastCircle(Character *character, int16_t px, int16_t py, int16_t radius, int16_t *outCenterX, int16_t *outCenterY, int16_t *outRadius);
 void Character_toBaseF(Character *character, float *x, float *y);
 void Character_fromBaseF(Character *character, float *x, float *y);
+void Character_drawKO(TE_Img *img, Character *character);
 
 #endif // __GAME_CHARACTER_H__

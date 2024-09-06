@@ -24,6 +24,7 @@
 #include "game_environment.h"
 #include "game_scenes.h"
 #include "game_assets.h"
+#include "game_particlesystem.h"
 #include "stdarg.h"
 
 uint32_t DB32Colors[] = {
@@ -44,10 +45,20 @@ void TE_Logf(const char *tag, const char *fmt, ...)
     printf("\n");
 }
 
+const char* formatFileRef(const char *file, int line)
+{
+    static char buffer[256];
+    sprintf(buffer, "%s:%d", file, line);
+    return buffer;
+}
+
 
 DLL_EXPORT void init()
 {
     TE_Logf(LOG_TAG_SYSTEM, "Initializing");
+
+    ParticleSystem_init();
+
     atlasImg = (TE_Img) {
         .p2width = atlas_p2width,
         .p2height = atlas_p2height,
@@ -75,6 +86,11 @@ DLL_EXPORT void init()
         .pivotX = 0,
         .pivotY = 8,
         .src = { .x = 16, .y = 96, .width = 3, .height = 16 },
+        .idleAnimationId = ANIMATION_STAFF_IDLE,
+        .attackAnimationId = ANIMATION_STAFF_ATTACK,
+        .hitAnimationId = ANIMATION_STAFF_ATTACK_HIT,
+        .cooldown = 0.25f,
+        .meleeRange = 7,
     };
 
     playerCharacter = (Character)
@@ -156,9 +172,19 @@ DLL_EXPORT void init()
     // // Environment_addTree(90,80, 12349080);
 }
 
+static TE_Img img;
+
+void TE_Debug_drawPixel(int x, int y, uint32_t color)
+{
+    TE_Img_setPixel(&img, x, y, color, (TE_ImgOpState) {
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+}
+
 DLL_EXPORT void update(RuntimeContext *ctx)
 {
-    TE_Img img = {
+    img = (TE_Img) {
         .p2width = 7,
         .p2height = 7,
         .data = ctx->screenData,
@@ -201,24 +227,46 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     
 
     Scene_update(ctx, &img);
-    Enemies_update(ctx, &img);
     Projectiles_update(projectiles, ctx, &img);
-
+    
+    TE_randSetSeed(ctx->frameCount * 1 + 392);
+    Enemies_update(ctx, &img);
     Player_update(&player, &playerCharacter, ctx, &img);
     
     Environment_update(ctx, &img);
+    ParticleSystem_update(ctx, &img);
     ScriptedAction_update(ctx, &img);
 
-    // GameAssets_drawAnimation(ANIMATION_HAHAHA_RIGHT, &img, ctx->time * 1000.0f, 64, 64, (BlitEx) {
+    // GameAssets_drawAnimation(ANIMATION_STAFF_HIT, &img, ctx->time * 1000.0f, 64, 64, 10, (BlitEx) {
+    //     .blendMode = TE_BLEND_ALPHAMASK,
+    //     .tintColor = 0xffffffff,
+    //     .state = {
+    //         .zCompareMode = Z_COMPARE_ALWAYS,
+    //         .zValue = 100,
+    //     }
+    // });
+
+    Menu_update(ctx, &img);
+
+    // logo rot test
+    // TE_Img_blitEx(&img, &atlasImg, 16,16,8,232,72,24, (BlitEx){
+    //     .flipX = 0,
+    //     .flipY = 0,
+    //     .rotate = ctx->frameCount / 30 % 4,
+    //     .tint = 0,
     //     .blendMode = TE_BLEND_ALPHAMASK,
     //     .tintColor = 0xffffffff,
     //     .state = {
     //         .zCompareMode = Z_COMPARE_ALWAYS,
     //         .zValue = 255,
     //     }
-    // },1);
+    // });
 
-    Menu_update(ctx, &img);
+    if (50 > Scene_getStep())
+    {
+        Scene_setStep(Scene_getStep() + 1);
+    }
+    // TE_Logf(LOG_TAG_SYSTEM, "Scene step: %d", Scene_getMaxStep());
 
     // TE_Font_drawText(&img, &myfont, 2, 2, -1, "Sherwood Forest", 0xffffffff, (TE_ImgOpState) {
     //     .zCompareMode = Z_COMPARE_LESS_EQUAL,

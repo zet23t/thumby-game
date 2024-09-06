@@ -1,5 +1,8 @@
 #include "game.h"
 #include "game_environment.h"
+#include "game_character.h"
+#include "game_assets.h"
+#include "TE_rand.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -33,6 +36,78 @@ void Character_fromBaseF(Character *character, float *x, float *y)
 {
     *x += 1.0f;
     *y -= 6.0f;
+}
+
+void Character_drawKO(TE_Img *img, Character *character)
+{
+    int16_t x = (int16_t) floorf(character->x) - 8;
+    int16_t y = (int16_t) floorf(character->y) - 3;
+    uint8_t charZ = (uint8_t) character->y + 10;
+    TE_Img_blitEx(img, &atlasImg, x, y, RECTARG(character->srcHeadBack), (BlitEx) {
+        .flipX = 0,
+        .flipY = 0,
+        .rotate = 3,
+        .tint = 0,
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tintColor = 0xffffffff,
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = charZ,
+        }
+    });
+    TE_Img_blitEx(img, &atlasImg, x - 2, y - 1, RECTARG(character->srcBodyBack), (BlitEx) {
+        .flipX = 0,
+        .flipY = 0,
+        .rotate = 3,
+        .tint = 0,
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tintColor = 0xffffffff,
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = charZ - 1,
+        }
+    });
+
+    TE_Img_blitEx(img, &atlasImg, x - 7, y +1, RECTARG(character->srcLeftFootBack), (BlitEx) {
+        .flipX = 0,
+        .flipY = 0,
+        .rotate = 3,
+        .tint = 0,
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tintColor = 0xffffffff,
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = charZ - 2,
+        }
+    });
+
+    TE_Img_blitEx(img, &atlasImg, x - 7, y +4, RECTARG(character->srcLeftFootBack), (BlitEx) {
+        .flipX = 0,
+        .flipY = 0,
+        .rotate = 3,
+        .tint = 0,
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tintColor = 0xffffffff,
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = charZ - 2,
+        }
+    });
+
+    TE_Img_blitEx(img, &atlasImg, x - 4, y, RECTARG(character->srcRightHand), (BlitEx) {
+        .flipX = 0,
+        .flipY = 0,
+        .rotate = 3,
+        .tint = 0,
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tintColor = 0xffffffff,
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = charZ - 1,
+        }
+    });
+
+
 }
 
 void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, float tx, float ty, int8_t dirX, int8_t dirY)
@@ -182,7 +257,7 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         .tintColor = 0xffffffff,
         .state = {
             .zCompareMode = Z_COMPARE_LESS,
-            .zValue = charZ + 7 + dirY,
+            .zValue = charZ + 7 + dirY * 2,
         }
     });
     TE_Img_blitEx(img, &atlasImg, lHandX, lHandY, RECTARG(character->srcRightHand), (BlitEx) {
@@ -194,7 +269,7 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         .tintColor = 0xffffffff,
         .state = {
             .zCompareMode = Z_COMPARE_LESS,
-            .zValue = charZ + 7 + dirY,
+            .zValue = charZ + 7 + dirY * 2,
         }
     });
 
@@ -212,20 +287,73 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
             flipX = !flipX;
             pivotX = item->src.width - pivotX;
         }
-        TE_Img_blitEx(img, &atlasImg, 
-            rHandX + dirX - pivotX, rHandY - item->pivotY, 
-            RECTARG(item->src), (BlitEx) {
-            .flipX = flipX,
-            .flipY = 0,
-            .rotate = 0,
-            .tint = 0,
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .tintColor = 0xffffffff,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS,
-                .zValue = charZ + 7 + dirY * 2,
+        uint8_t isDrawingAnimation = 0;
+        uint8_t selectedAnimationId = item->idleAnimationId;
+        
+        if (character->isStriking)
+        {
+            selectedAnimationId = item->attackAnimationId;
+        }
+        else if (character->isHitting)
+        {
+            selectedAnimationId = item->hitAnimationId;
+        }
+        if (selectedAnimationId)
+        {
+            character->runningAnimationTime += ctx->deltaTime;
+            uint32_t msTick = (uint32_t)(character->runningAnimationTime * 1000);
+
+            isDrawingAnimation = GameAssets_drawAnimation(selectedAnimationId, img,
+                msTick, rHandX - 4, rHandY + 1, 1,
+                (BlitEx) {
+                    .flipX = flipX,
+                    .flipY = 0,
+                    .rotate = 0,
+                    .tint = 0,
+                    .blendMode = TE_BLEND_ALPHAMASK,
+                    .tintColor = 0xffffffff,
+                    .state = {
+                        .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                        .zValue = charZ + 6 + dirY * 2,
+                    }
+                });
+            if (!isDrawingAnimation && (character->isStriking || character->isHitting))
+            {
+                character->isStriking = 0;
+                character->isHitting = 0;
+                character->runningAnimationTime = 0;
+
+                isDrawingAnimation = GameAssets_drawAnimation(item->idleAnimationId, img,
+                    msTick, rHandX - 4, rHandY + 1, 1,
+                    (BlitEx) {
+                        .flipX = flipX,
+                        .flipY = 0,
+                        .rotate = 0,
+                        .tint = 0,
+                        .blendMode = TE_BLEND_ALPHAMASK,
+                        .tintColor = 0xffffffff,
+                        .state = {
+                            .zCompareMode = Z_COMPARE_LESS,
+                            .zValue = charZ + 7 + dirY * 2,
+                        }
+                    });
             }
-        });
+        }
+        if (!isDrawingAnimation)
+            TE_Img_blitEx(img, &atlasImg, 
+                rHandX + dirX - pivotX, rHandY - item->pivotY, 
+                RECTARG(item->src), (BlitEx) {
+                .flipX = flipX,
+                .flipY = 0,
+                .rotate = 0,
+                .tint = 0,
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .tintColor = 0xffffffff,
+                .state = {
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = charZ + 7 + dirY * 2,
+                }
+            });
     }
 
     if (itemLeft != 0)

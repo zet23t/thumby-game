@@ -61,23 +61,6 @@ uint32_t TE_Img_getPixelEx(TE_Img *img, uint16_t ox, uint16_t oy, uint16_t x, ui
     {
         y = h - y - 1;
     }
-    if (options.rotate == 1)
-    {
-        uint16_t tmp = x;
-        x = y;
-        y = w - tmp - 1;
-    }
-    else if (options.rotate == 2)
-    {
-        x = w - x - 1;
-        y = h - y - 1;
-    }
-    else if (options.rotate == 3)
-    {
-        uint16_t tmp = x;
-        x = h - y - 1;
-        y = tmp;
-    }
 
     x += ox;
     y += oy;
@@ -383,11 +366,45 @@ uint32_t TE_Color_tint(uint32_t color, uint32_t tint)
 
 void TE_Img_blitEx(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_t srcX, uint16_t srcY, uint16_t width, uint16_t height, BlitEx options)
 {
-    for (uint16_t i = 0; i < width; i++)
+    uint16_t w = width;
+    uint16_t h = height;
+    if (options.rotate == 1)
     {
-        for (uint16_t j = 0; j < height; j++)
+        w = height;
+        h = width;
+    }
+    else if (options.rotate == 2)
+    {
+        w = width;
+        h = height;
+    }
+    else if (options.rotate == 3)
+    {
+        w = height;
+        h = width;
+    }
+    for (uint16_t i = 0; i < w; i++)
+    {
+        for (uint16_t j = 0; j < h; j++)
         {
-            uint32_t color = TE_Img_getPixelEx(src, srcX, srcY, i, j, width, height, options);
+            uint16_t px = i;
+            uint16_t py = j;
+            if (options.rotate == 1)
+            {
+                px = h - j;
+                py = i;
+            }
+            else if (options.rotate == 2)
+            {
+                px = w - i;
+                py = h - j;
+            }
+            else if (options.rotate == 3)
+            {
+                px = j;
+                py = w - i;
+            }
+            uint32_t color = TE_Img_getPixelEx(src, srcX, srcY, px, py, width, height, options);
             if (options.tint)
             {
                 color = TE_Color_tint(color, options.tintColor);

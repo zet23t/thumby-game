@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include "engine_main.h"
 #include "TE_Image.h"
+#include "TE_debug.h"
 
 
 typedef struct Player
@@ -24,6 +25,9 @@ typedef struct Item
     int8_t pivotY;
     int8_t idleAnimationId;
     int8_t attackAnimationId;
+    int8_t hitAnimationId;
+    uint8_t meleeRange:4;
+    float cooldown;
     TE_Rect src;
 } Item;
 
@@ -36,9 +40,12 @@ typedef struct Character
     float speed;
     float lifeTime;
     float shootCooldown;
+    float runningAnimationTime;
     int8_t dx, dy;
     int8_t dirX, dirY;
-    int8_t isAiming;
+    int8_t isAiming:1;
+    int8_t isStriking:1;
+    int8_t isHitting:1;
     TE_Rect srcHeadFront;
     TE_Rect srcHeadBack;
     TE_Rect srcBodyFront;
@@ -59,12 +66,30 @@ typedef struct Projectile
     uint8_t color;
 } Projectile;
 
+typedef struct Enemy Enemy;
+typedef void(*EnemyTookDamageCallback)(struct Enemy *enemy, float damage, float vx, float vy);
+typedef struct TookDamageCallbackData
+{
+    EnemyTookDamageCallback callback;
+    void *dataPointer;
+    union 
+    {
+        int32_t dataInt;
+        struct 
+        {
+            int16_t x, y;
+        } dataPoint;
+    };
+} TookDamageCallbackData;
+
+
 typedef struct Enemy
 {
     float health;
     float idleTime;
     uint8_t id;
     Character character;
+    TookDamageCallbackData damageCallbackData;
 } Enemy;
 
 #define MAX_ENEMYTYPES 8

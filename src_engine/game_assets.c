@@ -2,6 +2,8 @@
 #include "game.h"
 #include "fnt_medium.h"
 #include "fnt_myfont.h"
+#include "game_particlesystem.h"
+#include "TE_rand.h"
 
 typedef struct SpriteData
 {
@@ -22,8 +24,14 @@ static const SpriteData _sprites[] = {
     {161, 48, 4, 7, 2, 4},   // POLE_TOP
     {32, 128, 20, 12, 3, 0}, // ANIM_HAHAHA_R_F1
     {52, 128, 15, 10, 1, 0}, // ANIM_HAHAHA_R_F2
-    {68, 128, 9, 6, 0, 0},   // ANIM_HAHAHA_R_F3
+    {68, 128, 9, 7, 0, 0},   // ANIM_HAHAHA_R_F3
     {78, 128, 6, 4, 0, 0},   // ANIM_HAHAHA_R_F4
+    {80, 112, 18, 11, 3, 0}, // ANIM_HAHAHA_L_F1
+    {82, 123, 13, 13, 8, 0}, // ANIM_HAHAHA_L_F2
+    {98, 112, 13, 9, 7, 0},  // ANIM_HAHAHA_L_F3
+    {16, 96, 3, 16, 1, 8},   // ANIM_STAFF_HIT_F1
+    {20, 97, 11, 13, 5, 6},  // ANIM_STAFF_HIT_F2
+    {32, 96, 16, 3, 8, 1},   // ANIM_STAFF_HIT_F3
 };
 
 static SpriteData _getSpriteData(uint8_t index)
@@ -44,14 +52,14 @@ TE_Sprite GameAssets_getSprite(uint8_t index)
     };
 }
 
-static void DrawAnimation_HAHAHA_RIGHT(TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, BlitEx blitEx, int loopCount)
-{
 #define HAHA_FRAME_DURATION 500
+static int DrawAnimation_HAHAHA(TE_Img *dst, uint32_t msTick, uint8_t spriteId, int16_t x, int16_t y, BlitEx blitEx, int loopCount)
+{
     // for (int n=0; n<2; n++)
     // {
     msTick *= 2;
-    if (msTick > HAHA_FRAME_DURATION * 5 * loopCount)
-        return;
+    if (msTick >= HAHA_FRAME_DURATION * 5 * loopCount - 2)
+        return 0;
 
     int ftime = msTick % (HAHA_FRAME_DURATION * 5);
     if (ftime > HAHA_FRAME_DURATION * 2)
@@ -66,37 +74,64 @@ static void DrawAnimation_HAHAHA_RIGHT(TE_Img *dst, uint32_t msTick, int16_t x, 
     int animOffset = ftime > HAHA_FRAME_DURATION ? 1 : 0;
     if (fselect < HAHA_FRAME_DURATION / 2)
     {
-        TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_HAHAHA_R_F1 + animOffset), x, yoff, blitEx);
+        TE_Img_blitSprite(dst, GameAssets_getSprite(spriteId + animOffset), x, yoff, blitEx);
     }
     else
     {
-        TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_HAHAHA_R_F2 + animOffset), x + 2, yoff + 3, blitEx);
+        TE_Img_blitSprite(dst, GameAssets_getSprite(spriteId + 1 + animOffset), x + 2, yoff + 3, blitEx);
     }
-    // else if (fselect < HAHA_FRAME_DURATION * 3)
-    // {
-    //     TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_HAHAHA_R_F3), x + 16, y - 5, blitEx);
-    // }
-    // else if (fselect < HAHA_FRAME_DURATION * 4)
-    // {
-    //     TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_HAHAHA_R_F4), x + 20, y - 7, blitEx);
-    // }
-    //     if (msTick < HAHA_FRAME_DURATION * 3)
-    //         break;
-    //     msTick -= HAHA_FRAME_DURATION;
-    // }
+    return 1;
 }
 
-void GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx)
+#define STAFF_HIT_FRAME_DURATION 60
+static int DrawAnimation_STAFF_HIT(TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, int isHit, BlitEx blitEx)
+{
+    uint32_t frame = msTick / STAFF_HIT_FRAME_DURATION;
+    if (frame >= 6 * maxLoopCount)
+        return 0;
+    frame %= 6;
+    // TE_Debug_drawPixel(x, y, 0xffff00ff);
+    if (frame == 2 && isHit)
+    {
+        // no clue if should do something here
+    }
+    if (frame == 4 || frame == 3) frame = 2;
+    if (frame < 3)
+        TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_STAFF_HIT_F1 + frame), x, y, blitEx);
+    else
+    {
+        blitEx.flipX = 1;
+        blitEx.flipY = 1;
+        TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_STAFF_HIT_F2), x, y, blitEx);
+    }
+
+    return 1;
+}
+
+static int DrawAnimation_STAFF_IDLE(TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx)
+{
+    TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_STAFF_HIT_F1), x, y, blitEx);
+    return 1;
+}
+
+
+int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx)
 {
     switch (index)
     {
     case ANIMATION_HAHAHA_RIGHT:
-        DrawAnimation_HAHAHA_RIGHT(dst, msTick, x, y, blitEx, maxLoopCount);
+        return DrawAnimation_HAHAHA(dst, msTick, SPRITE_ANIM_HAHAHA_R_F1, x, y, blitEx, maxLoopCount);
+    case ANIMATION_HAHAHA_LEFT:
+        return DrawAnimation_HAHAHA(dst, msTick, SPRITE_ANIM_HAHAHA_L_F1, x, y, blitEx, maxLoopCount);
         break;
-
-    default:
-        break;
+    case ANIMATION_STAFF_ATTACK_HIT:
+        return DrawAnimation_STAFF_HIT(dst, msTick, x, y, maxLoopCount, 1, blitEx);
+    case ANIMATION_STAFF_ATTACK:
+        return DrawAnimation_STAFF_HIT(dst, msTick, x, y, maxLoopCount, 0, blitEx);
+    case ANIMATION_STAFF_IDLE:
+        return DrawAnimation_STAFF_IDLE(dst, msTick, x, y, maxLoopCount, blitEx);
     }
+    return 0;
 }
 
 static TE_Img mediumImg;

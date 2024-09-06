@@ -19,5 +19,7 @@ void Enemies_setItem(uint8_t id, int8_t leftItemIndex, int8_t rightItemIndex);
 int Enemies_getPosition(uint8_t id, float *outX, float *outY);
 void Enemies_setHealth(uint8_t id, float health);
 int Enemies_isAlive(uint8_t id);
+int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy);
+Enemy* Enemies_getEnemy(uint8_t id);
 
 #endif
