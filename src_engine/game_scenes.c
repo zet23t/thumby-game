@@ -404,9 +404,10 @@ ScriptedAction* ScriptedAction_addCustomCallback(uint8_t stepStart, uint8_t step
             action->customCallback.callback = callback;
             action->startPlotIndex = stepStart;
             action->endPlotIndex = stepStop;
-            return;
+            return action;
         }
     }
+    return NULL;
 }
 
 void ScriptedAction_addAnimationPlayback(uint8_t stepStart, uint8_t stepStop, uint8_t animationId, int16_t x, int16_t y, uint8_t z,
@@ -650,6 +651,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
         if (action.actionType == SCRIPTED_ACTION_TYPE_CUSTOM_CALLBACK)
         {
             action.customCallback.callback(ctx, screenData, &action);
+            scriptedActions.actions[i] = action;
             continue;
         }
 

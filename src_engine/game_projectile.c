@@ -45,7 +45,7 @@ void Projectiles_update(Projectile *projectile, RuntimeContext *ctx, TE_Img *img
                 enemies[hit].health -= 1.0f;
                 projectiles[i].lifeTime = 0.0f;
 
-                Enemy_takeDamage(&enemies[hit], 1.0f, projectiles[i].vx, projectiles[i].vy);
+                Enemy_takeDamage(&enemies[hit], 1.0f, projectiles[i].vx, projectiles[i].vy, ctx, img);
                 continue;
             }
 

@@ -159,16 +159,19 @@ void Enemies_update(RuntimeContext *ctx, TE_Img *img)
     }
 }
 
-int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy)
+int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy, RuntimeContext *ctx, TE_Img *screen)
 {
     enemy->health -= damage;
 
     float enemyX = enemy->character.x;
     float enemyY = enemy->character.y;
-    enemyX += TE_randRange(-1, 2) * 0.0f + srcVx * 0.05f;
-    enemyY += TE_randRange(-1, 2) * 0.0f + srcVy * 0.05f;
-    enemy->character.x = enemyX;
-    enemy->character.y = enemyY;
+    if (enemy->health > 0.0f)
+    {
+        enemyX += TE_randRange(-1, 2) * 0.0f + srcVx * 0.05f;
+        enemyY += TE_randRange(-1, 2) * 0.0f + srcVy * 0.05f;
+        enemy->character.x = enemyX;
+        enemy->character.y = enemyY;
+    }
 
     uint8_t charZ = (uint8_t) enemies->character.y + 14;
     for (int i=0;i<2;i++)
@@ -192,7 +195,7 @@ int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy)
     if (enemy->damageCallbackData.callback)
     {
         LOG("Calling took damage callback %p", enemy);
-        enemy->damageCallbackData.callback(enemy, damage, srcVx, srcVy);
+        enemy->damageCallbackData.callback(enemy, damage, srcVx, srcVy, ctx, screen);
     }
     return enemy->health > 0.0f;
 }

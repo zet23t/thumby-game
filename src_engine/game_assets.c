@@ -101,7 +101,7 @@ static int DrawAnimation_STAFF_HIT(TE_Img *dst, uint32_t msTick, int16_t x, int1
     else
     {
         blitEx.flipX = 1;
-        blitEx.flipY = 1;
+        blitEx.rotate = 1;
         TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_STAFF_HIT_F2), x, y, blitEx);
     }
 

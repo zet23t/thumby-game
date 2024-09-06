@@ -143,6 +143,8 @@ typedef struct ScriptedAction
                 Character *characterPointer;
                 Enemy *enemyPointer;
             };
+            uint8_t flag;
+            int16_t x, y;
         } customCallback;
     };
 } ScriptedAction;

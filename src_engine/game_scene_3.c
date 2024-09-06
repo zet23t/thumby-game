@@ -4,12 +4,14 @@
 #include "game_enemies.h"
 #include "game_environment.h"
 #include "game_assets.h"
+#include "game_particlesystem.h"
 #include "game.h"
 
+#include "TE_math.h"
 #include "TE_rand.h"
 #include <math.h>
 
-void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float vy);
+void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float vy, RuntimeContext *ctx, TE_Img *screen);
 
 void Scene_3_init()
 {
@@ -144,17 +146,68 @@ void Scene_3_init()
 void Scene_3_drawKOEnemy(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction *action)
 {
     Enemy *enemy = action->customCallback.enemyPointer;
-    Character_drawKO(screenData, &enemy->character);
+    float t = ctx->time - action->actionStartTime;
+    float x = action->customCallback.x;
+    float y = action->customCallback.y;
+
+    const float duration = 0.5f;
+    float progress = t / duration;
+    float zOffset = 0;
+    if (progress < 1.0f)
+    {
+        x = fLerp(x, enemy->character.targetX, progress);
+        y = fLerp(y, enemy->character.targetY, progress);
+        float fly = sinf(progress * 3.1415f);
+        y += -fly * 5.0f + progress * 5.0f;
+        zOffset = -fly * 3.0f;
+    }
+    else
+    {
+        x = enemy->character.targetX;
+        y = enemy->character.targetY;
+        y += 5.0f;
+        if (action->customCallback.flag == 0)
+        {
+            action->customCallback.flag = 1;
+            for (int i=0;i<10;i++)
+            {
+                float vx = enemy->character.targetX - action->customCallback.x;
+                float vy = enemy->character.targetY - action->customCallback.y;
+                vx *= 2.0f;
+                vy *= 2.0f;
+                vx+= TE_randRange(-30, 30);
+                vy+= TE_randRange(-30, 30);
+                int16_t px = TE_randRange(x - 5, x + 5);
+                int16_t py = TE_randRange(y +4, y + 8);
+                for (int j=0;j<4;j++)
+                    ParticleSystem_spawn(PARTICLE_TYPE_SIMPLE, px + j/2, py +  j%2, py + 20, 
+                        vx + j/2*6-3, vy + j%2*6-3, (ParticleTypeData){
+                        .simpleType = {
+                            .color = DB32Colors[DB32_TAN],
+                            .maxLife = TE_randRange(100,200)*0.01f,
+                            .accelY = -22.5f,
+                            .accelX = 0.0f,
+                            .drag = 4.5f,
+                            .size = 0,
+                        },
+                    });
+            }
+        }
+    }
+    
+    enemy->character.x = x;
+    enemy->character.y = y;
+    Character_drawKO(screenData, &enemy->character, zOffset);
 }
 
-void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float vy)
+void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float vy, RuntimeContext *ctx, TE_Img *screen)
 {
     LOG("Callback: Enemy took damage %f", damage);
     if (enemy->health <= 0.0f)
     {
         int *enemyAliveCount = (int*)enemy->damageCallbackData.dataPointer;
         (*enemyAliveCount)--;
-        LOG("Enemey eliminated, remaining: %d", *enemyAliveCount);
+        LOG("Enemy eliminated, remaining: %d", *enemyAliveCount);
         if (*enemyAliveCount == 0)
         {
             LOG("All enemies eliminated, proceeding to %d", enemy->damageCallbackData.dataInt);
@@ -162,6 +215,12 @@ void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float 
         }
         ScriptedAction* action = ScriptedAction_addCustomCallback(0, 0xff, Scene_3_drawKOEnemy);
         action->customCallback.dataPointer = enemy;
+        action->customCallback.x = enemy->character.x;
+        action->customCallback.y = enemy->character.y;
+        enemy->character.targetX = enemy->character.x + vx * 0.05f;
+        enemy->character.targetY = enemy->character.y + vy * 0.05f;
+        action->customCallback.flag = 0;
+        action->actionStartTime = ctx->time;
     }
 }
 

@@ -67,7 +67,7 @@ typedef struct Projectile
 } Projectile;
 
 typedef struct Enemy Enemy;
-typedef void(*EnemyTookDamageCallback)(struct Enemy *enemy, float damage, float vx, float vy);
+typedef void(*EnemyTookDamageCallback)( struct Enemy *enemy, float damge, float vx, float vy, RuntimeContext *ctx, TE_Img *screen);
 typedef struct TookDamageCallbackData
 {
     EnemyTookDamageCallback callback;

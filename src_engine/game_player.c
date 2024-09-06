@@ -197,7 +197,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
                 LOG("Hit %d %d %d", cx, cy, cr);
                 playerCharacter->isHitting = 1;
                 playerCharacter->isStriking = 0;
-                Enemy_takeDamage(&enemies[hitInfo], 1.0f, tdx * 128.0f, tdy * 128.0f);
+                Enemy_takeDamage(&enemies[hitInfo], 1.0f, tdx * 128.0f, tdy * 128.0f, ctx, img);
             }
         } 
         else

@@ -38,11 +38,11 @@ void Character_fromBaseF(Character *character, float *x, float *y)
     *y -= 6.0f;
 }
 
-void Character_drawKO(TE_Img *img, Character *character)
+void Character_drawKO(TE_Img *img, Character *character, uint8_t zOffset)
 {
-    int16_t x = (int16_t) floorf(character->x) - 8;
+    int16_t x = (int16_t) floorf(character->x) - 5;
     int16_t y = (int16_t) floorf(character->y) - 3;
-    uint8_t charZ = (uint8_t) character->y + 10;
+    uint8_t charZ = (uint8_t) character->y + 14 + zOffset;
     TE_Img_blitEx(img, &atlasImg, x, y, RECTARG(character->srcHeadBack), (BlitEx) {
         .flipX = 0,
         .flipY = 0,
