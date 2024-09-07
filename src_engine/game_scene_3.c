@@ -11,7 +11,25 @@
 #include "TE_rand.h"
 #include <math.h>
 
-void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float vy, RuntimeContext *ctx, TE_Img *screen);
+typedef struct Scene3_EnemyCrowd Scene3_EnemyCrowd;
+
+typedef struct Scene3_EnemyData
+{
+    Scene3_EnemyCrowd *crowd;
+    uint8_t flag;
+    float koLocationX;
+    float koLocationY;
+} Scene3_EnemyData;
+
+typedef struct Scene3_EnemyCrowd
+{
+    uint8_t aliveCount;
+    uint8_t nextStepOnDefeated;
+    int8_t selectedAttacker;
+    Scene3_EnemyData enemies[4];
+} Scene3_EnemyCrowd;
+
+void Scene_3_enemyCallback(struct Enemy *enemy, EnemyCallbackArg arg, RuntimeContext *ctx, TE_Img *screen);
 
 void Scene_3_init()
 {
@@ -124,16 +142,30 @@ void Scene_3_init()
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });
     step++;
 
-    static int enemyAliveCount = 4;
-    TookDamageCallbackData tookDamageCallbackData = {
-        .callback = &Scene_3_enemyTookDamage,
-        .dataInt = step + 2,
-        .dataPointer = &enemyAliveCount,
-    };
-    ScriptedAction_addSetEnemyCallback(step, step, 1, tookDamageCallbackData);
-    ScriptedAction_addSetEnemyCallback(step, step, 2, tookDamageCallbackData);
-    ScriptedAction_addSetEnemyCallback(step, step, 3, tookDamageCallbackData);
-    ScriptedAction_addSetEnemyCallback(step, step, 4, tookDamageCallbackData);
+    Scene3_EnemyCrowd *crowd = Scene_malloc(sizeof(Scene3_EnemyCrowd));
+    crowd->aliveCount = 4;
+    crowd->nextStepOnDefeated = step + 2;
+    crowd->enemies[0].crowd = crowd;
+    crowd->enemies[1].crowd = crowd;
+    crowd->enemies[2].crowd = crowd;
+    crowd->enemies[3].crowd = crowd;
+
+    ScriptedAction_addSetEnemyCallback(step, step, 1, (EnemyCallbackUserData) {
+        .callback = Scene_3_enemyCallback,
+        .dataPointer = &crowd->enemies[0],
+    });
+    ScriptedAction_addSetEnemyCallback(step, step, 2, (EnemyCallbackUserData) {
+        .callback = Scene_3_enemyCallback,
+        .dataPointer = &crowd->enemies[1],
+    });
+    ScriptedAction_addSetEnemyCallback(step, step, 3, (EnemyCallbackUserData) {
+        .callback = Scene_3_enemyCallback,
+        .dataPointer = &crowd->enemies[2],
+    });
+    ScriptedAction_addSetEnemyCallback(step, step, 4, (EnemyCallbackUserData) {
+        .callback = Scene_3_enemyCallback,
+        .dataPointer = &crowd->enemies[3],
+    });
     ScriptedAction_addJumpStep(step, step, step + 1);
     step++;
     // fight
@@ -200,18 +232,30 @@ void Scene_3_drawKOEnemy(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction
     Character_drawKO(screenData, &enemy->character, zOffset);
 }
 
-void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float vy, RuntimeContext *ctx, TE_Img *screen)
+static void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float vy, RuntimeContext *ctx, TE_Img *screen)
 {
-    LOG("Callback: Enemy took damage %f", damage);
+    Scene3_EnemyData *data = (Scene3_EnemyData*)enemy->userCallbackData.dataPointer;
+    LOG("Callback: Enemy took damage %f, aliveCount=%d, selectedAttacker=%d, %p", damage, data->crowd->aliveCount, data->crowd->selectedAttacker, Enemies_getEnemy(data->crowd->selectedAttacker));
+    int seekIncrement = TE_randRange(1, 11);
+    while (data->crowd->aliveCount > 1 && (data->crowd->selectedAttacker == enemy->id ||
+        !Enemies_getEnemy(data->crowd->selectedAttacker)))
+    {
+        data->crowd->selectedAttacker = (data->crowd->selectedAttacker + seekIncrement - 1) % 4 + 1;
+        if (seekIncrement > 1)
+        {
+            seekIncrement--;
+        }
+        LOG("Selected attacker %d took damage, selecting new: %d", enemy->id, data->crowd->selectedAttacker);
+    }
+
     if (enemy->health <= 0.0f)
     {
-        int *enemyAliveCount = (int*)enemy->damageCallbackData.dataPointer;
-        (*enemyAliveCount)--;
-        LOG("Enemy eliminated, remaining: %d", *enemyAliveCount);
-        if (*enemyAliveCount == 0)
+        data->crowd->aliveCount--;
+        LOG("Enemy eliminated, remaining: %d", data->crowd->aliveCount);
+        if (data->crowd->aliveCount == 0)
         {
-            LOG("All enemies eliminated, proceeding to %d", enemy->damageCallbackData.dataInt);
-            Scene_setStep(enemy->damageCallbackData.dataInt);
+            LOG("All enemies eliminated, proceeding to %d", data->crowd->nextStepOnDefeated);
+            Scene_setStep(data->crowd->nextStepOnDefeated);
         }
         ScriptedAction* action = ScriptedAction_addCustomCallback(0, 0xff, Scene_3_drawKOEnemy);
         action->customCallback.dataPointer = enemy;
@@ -221,6 +265,46 @@ void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float 
         enemy->character.targetY = enemy->character.y + vy * 0.05f;
         action->customCallback.flag = 0;
         action->actionStartTime = ctx->time;
+    }
+}
+
+static void Scene_3_updateEnemy(struct Enemy *enemy, RuntimeContext *ctx, TE_Img *screen)
+{
+    Scene3_EnemyData *data = (Scene3_EnemyData*)enemy->userCallbackData.dataPointer;
+    float playerDX = playerCharacter.x - enemy->character.x;
+    float playerDY = playerCharacter.y - enemy->character.y;
+    float playerDistance = sqrtf(playerDX * playerDX + playerDY * playerDY);
+
+    if (playerDistance > 0.0f)
+    {
+        float chosenDistance = 40.0f;
+        if (data->crowd->selectedAttacker == 0)
+        {
+            data->crowd->selectedAttacker = enemy->id;
+        }
+        if (data->crowd->selectedAttacker == enemy->id)
+        {
+            chosenDistance = 15.0f;
+            enemy->character.dirX = playerDX > 0 ? 1 : -1;
+            enemy->character.dirY = playerDY > 0 ? 1 : -1;
+            enemy->character.maskDir = 1;
+        }
+        else
+        {
+            enemy->character.maskDir = 0;
+        }
+        float nx = playerDX / playerDistance;
+        float ny = playerDY / playerDistance;
+        enemy->character.targetX = playerCharacter.x - nx * chosenDistance;
+        enemy->character.targetY = playerCharacter.y - ny * chosenDistance;
+    }
+}
+
+void Scene_3_enemyCallback(struct Enemy *enemy, EnemyCallbackArg arg, RuntimeContext *ctx, TE_Img *screen)
+{
+    switch (arg.type) {
+        case ENEMY_CALLBACK_TYPE_TOOK_DAMAGE: Scene_3_enemyTookDamage(enemy, arg.tookDamage.damage, arg.tookDamage.vx, arg.tookDamage.vy, ctx, screen); return;
+        case ENEMY_CALLBACK_TYPE_UPDATE: Scene_3_updateEnemy(enemy, ctx, screen); return;
     }
 }
 

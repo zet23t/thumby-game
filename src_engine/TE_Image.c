@@ -50,6 +50,14 @@ void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_Img
     }
 }
 
+uint32_t TE_Img_getPixel(TE_Img *img, uint16_t x, uint16_t y)
+{
+    if (x >= (1 << img->p2width) || y >= (1 << img->p2height))
+    {
+        return 0;
+    }
+    return img->data[(y << img->p2width) + x];
+}
 
 uint32_t TE_Img_getPixelEx(TE_Img *img, uint16_t ox, uint16_t oy, uint16_t x, uint16_t y, uint16_t w, uint16_t h, BlitEx options)
 {

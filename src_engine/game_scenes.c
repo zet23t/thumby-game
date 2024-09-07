@@ -7,7 +7,7 @@
 #include "TE_rand.h"
 #include <math.h>
 #include <stdio.h>
-
+#include <memory.h>
 
 int8_t _loadNextScene = -1;
 
@@ -269,7 +269,7 @@ void ScriptedAction_addJumpStep(uint8_t stepStart, uint8_t stepStop, uint8_t ste
     ScriptedAction_addProceedPlotCondition(stepStart, stepStop, stepTo, condition);
 }
 
-void ScriptedAction_addSetEnemyCallback(uint8_t stepStart, uint8_t stepStop, uint8_t id, TookDamageCallbackData callback)
+void ScriptedAction_addSetEnemyCallback(uint8_t stepStart, uint8_t stepStop, uint8_t id, EnemyCallbackUserData callback)
 {
     for (int i=0;i<MAX_SCRIPTED_ACTIONS;i++)
     {
@@ -547,7 +547,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
             Enemy* enemy = Enemies_getEnemy(action.setEnemyCallback.id);
             if (enemy) {
                 LOG("Setting enemy[%d] (%p) callback", action.setEnemyCallback.id, enemy);
-                enemy->damageCallbackData = action.setEnemyCallback.callback;
+                enemy->userCallbackData = action.setEnemyCallback.callback;
             }
             continue;
         }
@@ -1340,8 +1340,26 @@ static void NoSceneUpdate(RuntimeContext *ctx, TE_Img *screenData)
 
 static uint8_t _currentSceneId = 0;
 
+// a simple allocator for scene data to avoid dynamic memory allocation
+// does not allow freeing memory, is reset on scene change
+static uint8_t _sceneAllocatorData[2048];
+static uint16_t _sceneAllocatorOffset = 0;
+void* Scene_malloc(uint16_t size)
+{
+    if (_sceneAllocatorOffset + size > sizeof(_sceneAllocatorData))
+    {
+        LOG("Can not allocate %d bytes, out of memory", size);
+        return NULL;
+    }
+    void *ptr = &_sceneAllocatorData[_sceneAllocatorOffset];
+    _sceneAllocatorOffset += size;
+    return ptr;
+}
+
 void Scene_init(uint8_t sceneId)
 {
+    _sceneAllocatorOffset = 0;
+    memset(_sceneAllocatorData, 0, sizeof(_sceneAllocatorData));
     _currentSceneId = sceneId;
     TE_Logf("SCENE", "Init scene %d", sceneId);
     ParticleSystem_init();

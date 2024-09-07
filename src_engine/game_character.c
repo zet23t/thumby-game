@@ -139,8 +139,11 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     character->speed = len / ctx->deltaTime;
     character->x += dx * ctx->deltaTime * 16.0f;
     character->y += dy * ctx->deltaTime * 16.0f;
-    character->dirX = dx < -0.25f ? -1 : (dx > 0.25f ? 1 : character->dirX);
-    character->dirY = dy < -0.25f ? -1 : (dy > 0.25f ? 1 : character->dirY);
+    if (!character->maskDir)
+    {
+        character->dirX = dx < -0.25f ? -1 : (dx > 0.25f ? 1 : character->dirX);
+        character->dirY = dy < -0.25f ? -1 : (dy > 0.25f ? 1 : character->dirY);
+    }
 
     int16_t x = (int16_t) floorf(character->x);
     int16_t y = (int16_t) floorf(character->y);

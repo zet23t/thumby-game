@@ -38,12 +38,11 @@ void ParticleSystem_update(RuntimeContext *ctx, TE_Img *screen)
     for (int i = 0; i < _system.count; i++)
     {
         Particle p = _system.particles[i];
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
         p.life += dt;
         uint8_t despawn = 0;
         switch (p.type)
         {
+        case PARTICLE_TYPE_LEAF:
         case PARTICLE_TYPE_SIMPLE:
             if (p.life > p.typeData.simpleType.maxLife)
             {
@@ -51,12 +50,22 @@ void ParticleSystem_update(RuntimeContext *ctx, TE_Img *screen)
             }
             else
             {
+                uint32_t color = p.typeData.simpleType.color;
+                if (p.type == PARTICLE_TYPE_LEAF)
+                {
+                    p.vx += TE_randRange(-10, 11) * 0.5f;
+                    p.vy += TE_randRange(-10, 11) * 0.5f;
+                    p.typeData.simpleType.drag += ctx->deltaTime * 1.5f;
+                    color = (color & 0xffffff) | (int)(2 + (1.0f - p.life / p.typeData.simpleType.maxLife)) << 30;
+                }
                 p.vx += p.typeData.simpleType.accelX * dt;
                 p.vy += p.typeData.simpleType.accelY * dt;
                 p.vx *= 1.0f - p.typeData.simpleType.drag * dt;
                 p.vy *= 1.0f - p.typeData.simpleType.drag * dt;
                 uint8_t size = p.typeData.simpleType.size + 1;
-                TE_Img_fillRect(screen, p.x - (size >> 1), p.y - (size >> 1), size, size, p.typeData.simpleType.color, (TE_ImgOpState){
+                TE_Img_fillRect(screen, p.x - (size >> 1), p.y - (size >> 1), size, size, color, 
+                (TE_ImgOpState){
+                    .zAlphaBlend = (color >> 24) < 240,
                     .zValue = p.z,
                 });
                 
@@ -68,6 +77,8 @@ void ParticleSystem_update(RuntimeContext *ctx, TE_Img *screen)
         }
         if (!despawn)
         {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
             _system.particles[writeIndex++] = p;
         }
     }

@@ -43,6 +43,7 @@ typedef struct Character
     float runningAnimationTime;
     int8_t dx, dy;
     int8_t dirX, dirY;
+    int8_t maskDir:1;
     int8_t isAiming:1;
     int8_t isStriking:1;
     int8_t isHitting:1;
@@ -67,20 +68,23 @@ typedef struct Projectile
 } Projectile;
 
 typedef struct Enemy Enemy;
-typedef void(*EnemyTookDamageCallback)( struct Enemy *enemy, float damge, float vx, float vy, RuntimeContext *ctx, TE_Img *screen);
-typedef struct TookDamageCallbackData
-{
-    EnemyTookDamageCallback callback;
-    void *dataPointer;
-    union 
-    {
-        int32_t dataInt;
-        struct 
-        {
-            int16_t x, y;
-        } dataPoint;
+typedef struct EnemyCallbackArg {
+    uint8_t type;
+    union {
+        struct {
+            float damage, vx, vy;
+        } tookDamage;
     };
-} TookDamageCallbackData;
+} EnemyCallbackArg;
+
+#define ENEMY_CALLBACK_TYPE_TOOK_DAMAGE 1
+#define ENEMY_CALLBACK_TYPE_UPDATE 2
+typedef void(*EnemyCallbackFn)( struct Enemy *enemy, EnemyCallbackArg data, RuntimeContext *ctx, TE_Img *screen);
+typedef struct EnemyCallbackUserData
+{
+    EnemyCallbackFn callback;
+    void *dataPointer;
+} EnemyCallbackUserData;
 
 
 typedef struct Enemy
@@ -89,7 +93,7 @@ typedef struct Enemy
     float idleTime;
     uint8_t id;
     Character character;
-    TookDamageCallbackData damageCallbackData;
+    EnemyCallbackUserData userCallbackData;
 } Enemy;
 
 #define MAX_ENEMYTYPES 8

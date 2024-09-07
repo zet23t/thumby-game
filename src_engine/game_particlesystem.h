@@ -18,6 +18,7 @@ typedef union ParticleTypeData
 } ParticleTypeData;
 
 #define PARTICLE_TYPE_SIMPLE 0
+#define PARTICLE_TYPE_LEAF 1
 
 void ParticleSystem_init();
 void ParticleSystem_update(RuntimeContext *ctx, TE_Img *screen);

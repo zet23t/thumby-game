@@ -134,7 +134,7 @@ typedef struct ScriptedAction
         } animationPlayback;
         struct SetEnemyCallback {
             uint8_t id;
-            TookDamageCallbackData callback;
+            EnemyCallbackUserData callback;
         } setEnemyCallback;
         struct CustomActionCallback {
             void(*callback)(RuntimeContext *ctx, TE_Img *screenData, struct ScriptedAction *callbackData);
@@ -161,7 +161,9 @@ typedef struct ScriptedActions
 } ScriptedActions;
 
 
+void* Scene_malloc(uint16_t size);
 void Scene_init(uint8_t sceneId);
+void* Scene_malloc(uint16_t size);
 void Scene_setStep(uint8_t step);
 uint8_t Scene_getStep();
 uint8_t Scene_getMaxStep();
@@ -184,7 +186,7 @@ ScriptedAction* ScriptedAction_addCustomCallback(uint8_t stepStart, uint8_t step
 void ScriptedAction_addClearScreen(uint8_t stepStart, uint8_t stepStop, uint32_t color, uint8_t z);
 void ScriptedAction_addNPCSpawn(uint8_t stepStart, uint8_t stepStop, uint8_t npcId, uint8_t characterType, 
     int16_t x, int16_t y, int16_t targetX, int16_t targetY);
-void ScriptedAction_addSetEnemyCallback(uint8_t stepStart, uint8_t stepStop, uint8_t id, TookDamageCallbackData callback);
+void ScriptedAction_addSetEnemyCallback(uint8_t stepStart, uint8_t stepStop, uint8_t id, EnemyCallbackUserData callback);
 void ScriptedAction_addAnimationPlayback(uint8_t stepStart, uint8_t stepStop, uint8_t animationId, int16_t x, int16_t y, uint8_t z,
     float delay, float speed, uint8_t loop, uint32_t tintColor);
 void ScriptedAction_addJumpStep(uint8_t stepStart, uint8_t stepStop, uint8_t stepTo);

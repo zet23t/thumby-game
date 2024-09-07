@@ -13,7 +13,7 @@ void Enemies_init()
         enemies[i] = (Enemy) {
             .health = 0.0f,
             .character = characters[0],
-            .damageCallbackData.callback = NULL,
+            .userCallbackData.callback = NULL,
         };
     }
 }
@@ -78,6 +78,12 @@ void Enemies_update(RuntimeContext *ctx, TE_Img *img)
     {
         if (enemies[i].health > 0.0f)
         {
+            if (enemies[i].userCallbackData.callback)
+            {
+                enemies[i].userCallbackData.callback(&enemies[i], (EnemyCallbackArg){ 
+                    .type = ENEMY_CALLBACK_TYPE_UPDATE
+                }, ctx, img);
+            }
             float targetX = enemies[i].character.targetX;
             float targetY = enemies[i].character.targetY;
             float x = enemies[i].character.x;
@@ -192,10 +198,13 @@ int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy, Runti
             },
         });
     }
-    if (enemy->damageCallbackData.callback)
+    if (enemy->userCallbackData.callback)
     {
         LOG("Calling took damage callback %p", enemy);
-        enemy->damageCallbackData.callback(enemy, damage, srcVx, srcVy, ctx, screen);
+        enemy->userCallbackData.callback(enemy, (EnemyCallbackArg){ 
+            .type = ENEMY_CALLBACK_TYPE_TOOK_DAMAGE,
+            .tookDamage = {.damage = damage, .vx = srcVx, .vy = srcVy}
+        }, ctx, screen);
     }
     return enemy->health > 0.0f;
 }

@@ -3,6 +3,8 @@
 #include "atlas.h"
 #include "engine_main.h"
 #include "TE_rand.h"
+#include "TE_math.h"
+#include "game_particlesystem.h"
 #include <math.h>
 
 #define TREE_COLLIDE_RADIUS 3
@@ -145,6 +147,7 @@ static void DrawBush(TE_Img *img, int16_t bushX, int16_t bushY)
     });
 }
 
+static uint32_t _treeSeed = 1234;
 void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
 {
     treeX += 2;
@@ -232,6 +235,10 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
         }
         // TE_Img_line(img, node->x1, node->y1, node->x2, node->y2, DB32Colors[2]);
     }
+    
+    TE_Vector2_s16 leafdropPoints[32];
+    uint32_t leafdropColors[32];
+    int leafdropPointCount = 0;
 
     // drawing the leafs
     for (int td = 0; td < sizeof(instructions) / sizeof(TreeDrawInstruction); td++)
@@ -265,6 +272,12 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
                     }
                 });
 
+                if (leafdropPointCount < 32 && TE_rand() % 256 < 50)
+                {
+                    leafdropColors[leafdropPointCount] = DB32Colors[instruction->color];
+                    leafdropPoints[leafdropPointCount++] = (TE_Vector2_s16) { .x = x, .y = y };
+                }
+
                 if (!instruction->shadow)
                 {
                     continue;
@@ -289,6 +302,24 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
             }
         }
     }
+
+    uint32_t oldSeed = TE_randSetSeed(_treeSeed);
+    if (leafdropPointCount > 0 && TE_randRange(0, 300) < 1)
+    {
+        
+        int select = TE_rand() % leafdropPointCount;
+        TE_Vector2_s16 point = leafdropPoints[select];
+        uint32_t color = leafdropColors[select];
+        ParticleSystem_spawn(PARTICLE_TYPE_LEAF, point.x, point.y, point.y + 8, 0, 0, (ParticleTypeData){
+            .simpleType = {
+                .color = color,
+                .accelY = 40.0f,
+                .drag = 3.0f,
+                .maxLife = TE_randRange(10, 100) * 0.05f,
+            }
+        });
+    }
+    _treeSeed = TE_randSetSeed(oldSeed);
 }
 
 void Environment_init()
