@@ -182,6 +182,22 @@ void TE_Debug_drawPixel(int x, int y, uint32_t color)
     });
 }
 
+void TE_Debug_drawLine(int x1, int y1, int x2, int y2, uint32_t color)
+{
+    TE_Img_line(&img, x1, y1, x2, y2, color, (TE_ImgOpState) {
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+}
+
+void TE_Debug_drawLineCircle(int x, int y, int r, uint32_t color)
+{
+    TE_Img_lineCircle(&img, x, y, r, color, (TE_ImgOpState) {
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+}
+
 DLL_EXPORT void update(RuntimeContext *ctx)
 {
     img = (TE_Img) {

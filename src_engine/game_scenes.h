@@ -161,9 +161,8 @@ typedef struct ScriptedActions
 } ScriptedActions;
 
 
-void* Scene_malloc(uint16_t size);
+void* Scene_malloc(uint32_t size);
 void Scene_init(uint8_t sceneId);
-void* Scene_malloc(uint16_t size);
 void Scene_setStep(uint8_t step);
 uint8_t Scene_getStep();
 uint8_t Scene_getMaxStep();

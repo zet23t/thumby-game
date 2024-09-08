@@ -34,6 +34,7 @@ typedef struct Item
 typedef struct Character 
 {
     float x, y;
+    float prevX, prevY;
     float targetX, targetY;
     float walkDistance;
     float targetDistance;

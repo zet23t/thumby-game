@@ -1342,13 +1342,13 @@ static uint8_t _currentSceneId = 0;
 
 // a simple allocator for scene data to avoid dynamic memory allocation
 // does not allow freeing memory, is reset on scene change
-static uint8_t _sceneAllocatorData[2048];
-static uint16_t _sceneAllocatorOffset = 0;
-void* Scene_malloc(uint16_t size)
+static uint8_t _sceneAllocatorData[0x30000];
+static uint32_t _sceneAllocatorOffset = 0;
+void* Scene_malloc(uint32_t size)
 {
     if (_sceneAllocatorOffset + size > sizeof(_sceneAllocatorData))
     {
-        LOG("Can not allocate %d bytes, out of memory", size);
+        LOG("Can not allocate %d bytes, out of memory (%d)", size, sizeof(_sceneAllocatorData));
         return NULL;
     }
     void *ptr = &_sceneAllocatorData[_sceneAllocatorOffset];

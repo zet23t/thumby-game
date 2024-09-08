@@ -9,6 +9,8 @@
 
 #define TREE_COLLIDE_RADIUS 3
 
+static TE_SDFMap *_sdfMap = 0;
+
 typedef struct TreeDrawInstruction
 {
     int16_t x, scatterX;
@@ -324,6 +326,7 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
 
 void Environment_init()
 {
+    _sdfMap = 0;
     environmentScene.environmentObjectCount = 0;
 }
 
@@ -381,6 +384,17 @@ void Environment_addFlowerGroup(int16_t x, int16_t y, uint32_t seed, uint8_t cou
 
 float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_t *nearestY)
 {
+    if (_sdfMap)
+    {
+        TE_SDFCell cell = TE_SDFMap_getCell(_sdfMap, px, py);
+        float distance = sqrtf(cell.sqDistance);
+        float sign = cell.solid ? -1.0f : 1.0f;
+        *nearestX = px + cell.dx * sign;
+        *nearestY = py + cell.dy * sign;
+        // TE_Debug_drawLine(px, py, *nearestX, *nearestY, DB32Colors[7]);
+        return distance * sign;
+    }
+    
     uint8_t oldSeed = TE_randGetSeed();
     float minDist = 9999;
     for (int i=0;i<environmentScene.environmentObjectCount;i++)
@@ -427,6 +441,18 @@ float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_
 
 int Environment_raycastCircle(int16_t px, int16_t py, int16_t radius, int16_t *outX, int16_t *outY, int16_t *outRadius)
 {
+    if (_sdfMap)
+    {
+        TE_SDFCell cell = TE_SDFMap_getCell(_sdfMap, px, py);
+        float rad = sqrtf(cell.sqDistance);
+        float sign = cell.solid ? -1.0f : 1.0f;
+        *outX = px + cell.dx * sign;
+        *outY = py + cell.dy * sign;
+        *outRadius = rad * 0.5f - 1.0f;
+        // TE_Debug_drawLine(px, py, *outX, *outY, DB32Colors[7]);
+        // TE_Debug_drawLineCircle(px, py, radius, DB32Colors[9]);
+        return cell.solid || radius > rad ? 1 : -1;
+    }
     int dmin = radius + TREE_COLLIDE_RADIUS;
     int dmin2 = dmin * dmin;
     uint32_t oldSeed = TE_randGetSeed();
@@ -650,4 +676,34 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
     }
 
     TE_randSetSeed(oldSeed);
+}
+
+void Environment_updateSDFMap(TE_SDFMap *sdfMap)
+{
+    uint32_t oldSeed = TE_randGetSeed();
+    for (int i=0;i<environmentScene.environmentObjectCount;i++)
+    {
+        TE_randSetSeed(environmentScene.objects[i].seed);
+        int x = environmentScene.objects[i].x, y = environmentScene.objects[i].y;
+        if (environmentScene.objects[i].type == TYPE_TREE)
+        {
+            TE_SDFMap_addCircle(sdfMap, x, y, TREE_COLLIDE_RADIUS);
+        }
+        else if (environmentScene.objects[i].type == TYPE_TREEGROUP)
+        {
+            int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
+            int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
+            for (int j=0;j<treeGroupCount;j++)
+            {
+                int32_t posX, posY;
+                TE_randRadius(treeGroupScatterRadius, &posX, &posY);
+                TE_SDFMap_addCircle(sdfMap, x + posX, y + posY, TREE_COLLIDE_RADIUS);
+            }
+        }
+    }
+}
+
+void Environment_setSDFMap(TE_SDFMap *sdfMap)
+{
+    _sdfMap = sdfMap;
 }

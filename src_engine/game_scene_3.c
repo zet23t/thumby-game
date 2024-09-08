@@ -7,6 +7,7 @@
 #include "game_particlesystem.h"
 #include "game.h"
 
+#include "TE_sdfmap.h"
 #include "TE_math.h"
 #include "TE_rand.h"
 #include <math.h>
@@ -31,12 +32,21 @@ typedef struct Scene3_EnemyCrowd
 
 void Scene_3_enemyCallback(struct Enemy *enemy, EnemyCallbackArg arg, RuntimeContext *ctx, TE_Img *screen);
 
+void Scene_3_envDebugDraw(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction *action)
+{
+    TE_SDFMap *sdfMap = (TE_SDFMap*)action->customCallback.dataPointer;
+    if (ctx->inputB)
+        TE_SDFMap_drawDebug(sdfMap, ctx);
+}
+static TE_SDFMap *sdfMap = 0;
+
 void Scene_3_init()
 {
     Environment_addTreeGroup(20, 20, 18522, 4, 20);
     Environment_addTreeGroup(100, 30, 1852, 6, 25);
     Environment_addFlowerGroup(76,40, 232, 15, 20);
     Environment_addBushGroup(75,35, 1232, 5, 10);
+
 
     player.x = 160;
     playerCharacter.x = player.x;
@@ -138,7 +148,7 @@ void Scene_3_init()
     ScriptedAction_addSetItem(step, step, 3, 0, -ITEM_STAFF);
     ScriptedAction_addSetItem(step, step, 4, 0, ITEM_STAFF);
 
-    ScriptedAction_addSpeechBubble(step, step, "Great, the more the merrier!", 0, 4, 4, 70, 48, -4, -8);
+    ScriptedAction_addSpeechBubble(step, step, "Fine, let's have some fun first.", 0, 4, 4, 70, 48, -4, -8);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });
     step++;
 
@@ -173,6 +183,7 @@ void Scene_3_init()
     LOG("final Step: %d", step);
     ScriptedAction_addSpeechBubble(step, step, "Aaaand I am done here.", 0, 4, 4, 70, 48, -4, -8);
 
+
 }
 
 void Scene_3_drawKOEnemy(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction *action)
@@ -191,7 +202,7 @@ void Scene_3_drawKOEnemy(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction
         y = fLerp(y, enemy->character.targetY, progress);
         float fly = sinf(progress * 3.1415f);
         y += -fly * 5.0f + progress * 5.0f;
-        zOffset = -fly * 3.0f;
+        zOffset = fly * 3.0f;
     }
     else
     {
@@ -282,16 +293,16 @@ static void Scene_3_updateEnemy(struct Enemy *enemy, RuntimeContext *ctx, TE_Img
         {
             data->crowd->selectedAttacker = enemy->id;
         }
+        enemy->character.dirX = playerDX > 0 ? 1 : -1;
+        enemy->character.dirY = playerDY > 0 ? 1 : -1;
         if (data->crowd->selectedAttacker == enemy->id)
         {
             chosenDistance = 15.0f;
-            enemy->character.dirX = playerDX > 0 ? 1 : -1;
-            enemy->character.dirY = playerDY > 0 ? 1 : -1;
             enemy->character.maskDir = 1;
         }
         else
         {
-            enemy->character.maskDir = 0;
+            enemy->character.maskDir = enemy->character.targetDistance < 3.0f;
         }
         float nx = playerDX / playerDistance;
         float ny = playerDY / playerDistance;
@@ -310,6 +321,20 @@ void Scene_3_enemyCallback(struct Enemy *enemy, EnemyCallbackArg arg, RuntimeCon
 
 void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
 {
+    uint8_t initSDF = sdfMap == 0;
+    if (initSDF)
+    {
+        sdfMap = (TE_SDFMap*) Scene_malloc(sizeof(TE_SDFMap));
+        *sdfMap = (TE_SDFMap) {
+            .data = (TE_SDFCell*) Scene_malloc(128 * 128 * sizeof(TE_SDFCell)),
+            .width = 128,
+            .height = 128,
+        };
+        Environment_updateSDFMap(sdfMap);
+        Environment_setSDFMap(sdfMap);
+        ScriptedAction_addCustomCallback(0, 0xff, Scene_3_envDebugDraw)->customCallback.dataPointer = sdfMap;
+    }
+
     // river
     int16_t flowOffset1 = (int16_t)(ctx->time * 11.0f);
     int16_t flowOffset2 = (int16_t)(ctx->time * 14.5f);
@@ -359,6 +384,8 @@ void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
                 .zValue = 0,
             }
         });
+
+        if (initSDF) TE_SDFMap_setRect(sdfMap, x - width / 2 - 2, y, width + 31, 1, 1);
 
         // flowing water
         TE_Img_blitEx(screenData, &atlasImg, x - width / 2, y, 112, y%32, 16, 1, (BlitEx){
@@ -447,6 +474,10 @@ void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
                 .zValue = 3,
             }
         });
+        if (initSDF)
+        {
+            TE_SDFMap_setRect(sdfMap, x, y, 1, 12, 0);
+        }
         int bridgeHeightLeft = p - 5;
         int bridgeHeightRight = bridgeXEnd - x - 7;
         int bridgeHeight = bridgeHeightLeft < bridgeHeightRight ? bridgeHeightLeft : bridgeHeightRight;
@@ -462,16 +493,17 @@ void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
                 .zValue = 1,
             });
         }
+        // poles
         if (p % 13 == 5)
         {
-            TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_POLE_TOP), x + 2, y + 1, (BlitEx){
+            TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_POLE_TOP), x + 2, y, (BlitEx){
                 .blendMode = TE_BLEND_ALPHAMASK,
                 .state = {
                     .zCompareMode = Z_COMPARE_LESS_EQUAL,
                     .zValue = 2,
                 }
             });
-            TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_POLE_TOP), x, y + 14, (BlitEx){
+            TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_POLE_TOP), x, y + 13, (BlitEx){
                 .blendMode = TE_BLEND_ALPHAMASK,
                 .state = {
                     .zCompareMode = Z_COMPARE_LESS_EQUAL,
@@ -479,7 +511,22 @@ void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
                 }
             });
         }
+        // guardrail
+        TE_Img_blitEx(screenData, &atlasImg, x, y-6, 162 + xoffset, 56, 1, 4, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = y + 10,
+            }
+        });
+        TE_Img_blitEx(screenData, &atlasImg, x, y+8, 162 + xoffset, 56, 1, 4, (BlitEx){
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = y + 20,
+            }
+        });
     }
 
-    
+    if (initSDF) TE_SDFMap_compute(sdfMap);
 }

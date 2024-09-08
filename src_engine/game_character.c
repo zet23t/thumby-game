@@ -112,6 +112,12 @@ void Character_drawKO(TE_Img *img, Character *character, uint8_t zOffset)
 
 void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, float tx, float ty, int8_t dirX, int8_t dirY)
 {
+    int baseR = 4;
+    float prevX = character->prevX;
+    float prevY = character->prevY;
+    
+    character->prevX = character->x;
+    character->prevY = character->y;
     float dx = tx - character->x;
     float dy = ty - character->y;
     // TE_Img_line(img, (int16_t) character->x, (int16_t) character->y, (int16_t) tx, (int16_t) ty, DB32Colors[9], (TE_ImgOpState) {
@@ -137,19 +143,37 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     character->lifeTime += ctx->deltaTime;
     character->walkDistance += len;
     character->speed = len / ctx->deltaTime;
-    character->x += dx * ctx->deltaTime * 16.0f;
-    character->y += dy * ctx->deltaTime * 16.0f;
+    float stepSize = ctx->deltaTime * 16.0f;
+    float nextX = character->x + dx * stepSize;
+    float nextY = character->y + dy * stepSize;
+    int16_t tnx, tny;
+    int16_t nextBaseX = nextX - 1;
+    int16_t nextBaseY = nextY + 6;
+    // trying to stabilize movement when colliding by looking if the next step is already
+    // colliding with the environment
+    float sdf = Environment_calcSDFValue(nextBaseX, nextBaseY, &tnx, &tny);
+    if (sdf < baseR / 2)
+    {
+        // LOG("SDF %.2f %.2f %.2f %d %d", sdf, nextX, nextY, tnx, tny);
+        int16_t tndx = tnx - nextBaseX;
+        int16_t tndy = tny - nextBaseY;
+        // TE_Debug_drawLine(nextX, nextY, tnx, tny, 0xff0000ff);
+        nextX = nextX - tndx * 0.5f;
+        nextY = nextY - tndy * 0.5f;
+    }
+    
+    character->x = nextX;
+    character->y = nextY;
     if (!character->maskDir)
     {
         character->dirX = dx < -0.25f ? -1 : (dx > 0.25f ? 1 : character->dirX);
         character->dirY = dy < -0.25f ? -1 : (dy > 0.25f ? 1 : character->dirY);
     }
 
-    int16_t x = (int16_t) floorf(character->x);
-    int16_t y = (int16_t) floorf(character->y);
+    int16_t x = (int16_t) floorf(character->x * .5f + prevX * 0.5f + .5f);
+    int16_t y = (int16_t) floorf(character->y * .5f + prevY * 0.5f + .5f);
     int baseX = x - 1;
     int baseY = y + 6;
-    int baseR = 4;
     uint8_t charZ = (uint8_t) character->y + 12;
 
     int16_t collideCenterX, collideCenterY, collideRadius;
@@ -168,9 +192,17 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         if (len > 0.0f && len < baseR + collideRadius)
         {
             float push = (baseR + collideRadius - len);
-            // printf("push %f %f %d %d\n", push, len, baseR, collideRadius);
-            character->x -= dx / len * push;
-            character->y -= dy / len * push;
+            // LOG("Push %.2f-%.2f", push, stepSize * 1.5f);
+            // if (push <= stepSize * 2.5f)
+            // {
+            //     character->x = prevX;
+            //     character->y = prevY;
+            // }
+            // else
+            // {
+            character->x = character->x - dx / len * push;
+            character->y = character->y - dy / len * push;
+            // }
         }
         // TE_Img_lineCircle(img, baseX, baseY, 4, DB32Colors[9], (TE_ImgOpState) {
         //             .zCompareMode = Z_COMPARE_LESS,

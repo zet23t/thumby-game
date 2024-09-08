@@ -129,11 +129,11 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
             range = item->meleeRange * 1.5f;
         }
 
-        int16_t x1 = (int)player->x, y1 = (int)player->y + 5;
-        int16_t x2 = (int)player->x + sdx * range - sdy * range * 0.5f * (1.0f - percent);
-        int16_t y2 = (int)player->y + sdy * range + sdx * range * 0.5f * (1.0f - percent) + 5;
-        int16_t x3 = (int)player->x + sdx * range + sdy * range * 0.5f * (1.0f - percent);
-        int16_t y3 = (int)player->y + sdy * range - sdx * range * 0.5f * (1.0f - percent) + 5;
+        int16_t x1 = (int)playerCharacter->x, y1 = (int)playerCharacter->y + 5;
+        int16_t x2 = (int)playerCharacter->x + sdx * range - sdy * range * 0.5f * (1.0f - percent);
+        int16_t y2 = (int)playerCharacter->y + sdy * range + sdx * range * 0.5f * (1.0f - percent) + 5;
+        int16_t x3 = (int)playerCharacter->x + sdx * range + sdy * range * 0.5f * (1.0f - percent);
+        int16_t y3 = (int)playerCharacter->y + sdy * range - sdx * range * 0.5f * (1.0f - percent) + 5;
 
         if (percent < 1.0f)
         {
@@ -189,8 +189,12 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         if (item->meleeRange > 0)
         {
             int16_t cx, cy, cr;
-            int16_t hitX = (int16_t)(player->x + tdx * item->meleeRange);
-            int16_t hitY = (int16_t)(player->y + tdy * item->meleeRange);
+            float baseX = player->x, baseY = player->y;
+            Character_toBaseF(playerCharacter, &baseX, &baseY);
+            int16_t hitX = (int16_t)(baseX + tdx * item->meleeRange);
+            int16_t hitY = (int16_t)(baseY + tdy * item->meleeRange);
+            TE_Debug_drawPixel(hitX, hitY, 0xffffffff);
+            LOG("%d %d %d", hitX, hitY, item->meleeRange);
             int hitInfo = Characters_raycastCircle(playerCharacter, hitX, hitY, item->meleeRange, &cx, &cy, &cr) - 1;
             if (hitInfo>=0)
             {

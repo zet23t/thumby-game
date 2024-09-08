@@ -279,11 +279,19 @@ int lineRectClip(int16_t rectX, int16_t rectY, int16_t rectW, int16_t rectH, int
 
     if (*x2 < rectX)
     {
+        if (*x2 == *x1)
+        {
+            return 0;
+        }
         *y2 += (*y2 - *y1) * (rectX - *x2) / (*x2 - *x1);
         *x2 = rectX;
     }
     if (*x2 >= rectX + rectW)
     {
+        if (*x2 == *x1)
+        {
+            return 0;
+        }
         *y2 += (*y2 - *y1) * (rectX + rectW - *x1) / (*x2 - *x1);
         *x2 = rectX + rectW;
     }
@@ -310,12 +318,20 @@ int lineRectClip(int16_t rectX, int16_t rectY, int16_t rectW, int16_t rectH, int
 
     if (*y2 < rectY)
     {
+        if (*y2 == *y1)
+        {
+            return 0;
+        }
         *x2 += (*x2 - *x1) * (rectY - *y2) / (*y2 - *y1);
         *y2 = rectY;
     }
 
     if (*y2 >= rectY + rectH)
     {
+        if (*y2 == *y1)
+        {
+            return 0;
+        }
         *x2 += (*x2 - *x1) * (rectY + rectH - *y1) / (*y2 - *y1);
         *y2 = rectY + rectH;
     }
