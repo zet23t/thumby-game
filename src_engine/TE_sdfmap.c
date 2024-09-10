@@ -69,6 +69,7 @@ void TE_SDFMap_drawDebug(TE_SDFMap *map, RuntimeContext *ctx)
     {
         TE_Debug_drawLine(cursorX, cursorY, cursorX + cursorCell.dx, cursorY + cursorCell.dy, 0xff00ff00);
     }
+    TE_Debug_drawText(2, 2, TE_StrFmt("(%d %d)", cursorX, cursorY), 0xffffffff);
 }
 
 void TE_SDFMap_compute(TE_SDFMap *map)

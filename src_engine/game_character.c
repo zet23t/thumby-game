@@ -5,6 +5,7 @@
 #include "TE_rand.h"
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #define RECTARG(r) r.x, r.y, r.width, r.height
 
@@ -141,25 +142,30 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         len = 1.0f;
     }
     character->lifeTime += ctx->deltaTime;
-    character->walkDistance += len;
-    character->speed = len / ctx->deltaTime;
     float stepSize = ctx->deltaTime * 16.0f;
     float nextX = character->x + dx * stepSize;
     float nextY = character->y + dy * stepSize;
     int16_t tnx, tny;
-    int16_t nextBaseX = nextX - 1;
-    int16_t nextBaseY = nextY + 6;
+    int16_t nextBaseX = (nextX + .5f) - 1;
+    int16_t nextBaseY = (nextY + .5f) + 6;
     // trying to stabilize movement when colliding by looking if the next step is already
     // colliding with the environment
     float sdf = Environment_calcSDFValue(nextBaseX, nextBaseY, &tnx, &tny);
-    if (sdf < baseR / 2)
+    if (sdf < baseR)
     {
-        // LOG("SDF %.2f %.2f %.2f %d %d", sdf, nextX, nextY, tnx, tny);
+        character->speed = 0.0f;
         int16_t tndx = tnx - nextBaseX;
         int16_t tndy = tny - nextBaseY;
-        // TE_Debug_drawLine(nextX, nextY, tnx, tny, 0xff0000ff);
-        nextX = nextX - tndx * 0.5f;
-        nextY = nextY - tndy * 0.5f;
+        float tndlen = sqrtf(tndx * tndx + tndy * tndy);
+        if (tndlen > 0.0f)
+        {
+            float ndx = tndx / tndlen;
+            float ndy = tndy / tndlen;
+            float push = (baseR - sdf - 0.f);
+            // TE_Debug_drawLine(nextX, nextY, tnx, tny, 0xff0000ff);
+            nextX = nextX - ndx * push;
+            nextY = nextY - ndy * push;
+        }
     }
     
     character->x = nextX;
@@ -170,8 +176,8 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         character->dirY = dy < -0.25f ? -1 : (dy > 0.25f ? 1 : character->dirY);
     }
 
-    int16_t x = (int16_t) floorf(character->x * .5f + prevX * 0.5f + .5f);
-    int16_t y = (int16_t) floorf(character->y * .5f + prevY * 0.5f + .5f);
+    int16_t x = (int16_t) floorf(character->x + .5f);
+    int16_t y = (int16_t) floorf(character->y + .5f);
     int baseX = x - 1;
     int baseY = y + 6;
     uint8_t charZ = (uint8_t) character->y + 12;
@@ -210,16 +216,26 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         //         });
     }
 
+    float actualDx = character->x - character->prevX;
+    float actualDy = character->y - character->prevY;
+    float actualLen = sqrtf(actualDx * actualDx + actualDy * actualDy);
+
+    character->walkDistance += actualLen;
+    character->speed = character->speed * .75f + (actualLen / ctx->deltaTime * 0.25f);
+    // TE_Debug_drawText(nextBaseX, nextBaseY, TE_StrFmt("%.0f", character->speed), 0xff0000ff);
+
+
     uint8_t walkPhase = 0;
     uint8_t walkPhase1 = 0;
     uint8_t walkPhase2 = 0;
-    if (character->speed > 0.0f)
+    if (character->speed > 15.0f)
     {
         walkPhase = (int)(character->lifeTime * 10) % 2;
         walkPhase1 = (int)(character->lifeTime * 10 + 2.5f) % 2;
         walkPhase2 = (int)(character->lifeTime * 5 + .5f) % 2;
     }
 
+    // Drawing character
     TE_Rect srcHead = character->dirY < 0 ? character->srcHeadBack : character->srcHeadFront;
     TE_Img_blitEx(img, &atlasImg, x - 8, y - 6, RECTARG(srcHead), (BlitEx) {
         .flipX = character->dirX < 0,

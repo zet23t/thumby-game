@@ -391,6 +391,10 @@ float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_
         float sign = cell.solid ? -1.0f : 1.0f;
         *nearestX = px + cell.dx * sign;
         *nearestY = py + cell.dy * sign;
+        if (!cell.passed)
+        {
+            return 32;
+        }
         // TE_Debug_drawLine(px, py, *nearestX, *nearestY, DB32Colors[7]);
         return distance * sign;
     }

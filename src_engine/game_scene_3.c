@@ -286,7 +286,16 @@ static void Scene_3_updateEnemy(struct Enemy *enemy, RuntimeContext *ctx, TE_Img
     float playerDY = playerCharacter.y - enemy->character.y;
     float playerDistance = sqrtf(playerDX * playerDX + playerDY * playerDY);
 
-    if (playerDistance > 0.0f)
+    if (enemy->id == 2 && data->crowd->aliveCount > 1) {
+        // guard
+        enemy->character.targetX = 50;
+        enemy->character.targetY = 70;
+        if (data->crowd->selectedAttacker == enemy->id)
+        {
+            data->crowd->selectedAttacker = 0;
+        }
+    }
+    else if (playerDistance > 0.0f)
     {
         float chosenDistance = 40.0f;
         if (data->crowd->selectedAttacker == 0)
@@ -304,10 +313,34 @@ static void Scene_3_updateEnemy(struct Enemy *enemy, RuntimeContext *ctx, TE_Img
         {
             enemy->character.maskDir = enemy->character.targetDistance < 3.0f;
         }
-        float nx = playerDX / playerDistance;
-        float ny = playerDY / playerDistance;
-        enemy->character.targetX = playerCharacter.x - nx * chosenDistance;
-        enemy->character.targetY = playerCharacter.y - ny * chosenDistance;
+
+        for (int i = 0; i < 8; i++)
+        {
+            float nx = playerDX / playerDistance;
+            float ny = playerDY / playerDistance;
+            enemy->character.targetX = playerCharacter.x - nx * chosenDistance;
+            enemy->character.targetY = playerCharacter.y - ny * chosenDistance;
+            int16_t cx, cy;
+            float cdist = Environment_calcSDFValue(enemy->character.targetX, enemy->character.targetY, &cx, &cy);
+            if (enemy->character.targetX > 120.0f || enemy->character.targetX < 8.0f || enemy->character.targetY > 120.0f || enemy->character.targetY < 8.0f)
+            {
+                cdist = 0;
+            }
+            if (cdist > 5.0f || i == 7)
+            {
+                break;
+            }
+            // Let each NPC move in another direction & hope for the best
+            float avoidNX = enemy->id & 1 ? -ny : ny;
+            float avoidNY = enemy->id & 1 ? nx : -nx;
+            
+            enemy->character.targetX += avoidNX * 8.0f;
+            enemy->character.targetY += avoidNY * 8.0f;
+            // update player distance & direction
+            playerDX = playerCharacter.x - enemy->character.targetX;
+            playerDY = playerCharacter.y - enemy->character.targetY;
+            playerDistance = sqrtf(playerDX * playerDX + playerDY * playerDY);
+        }
     }
 }
 
@@ -385,7 +418,7 @@ void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
             }
         });
 
-        if (initSDF) TE_SDFMap_setRect(sdfMap, x - width / 2 - 2, y, width + 31, 1, 1);
+        if (initSDF) TE_SDFMap_setRect(sdfMap, x - width / 2 - 2, y, width + 38, 1, 1);
 
         // flowing water
         TE_Img_blitEx(screenData, &atlasImg, x - width / 2, y, 112, y%32, 16, 1, (BlitEx){
@@ -476,7 +509,7 @@ void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
         });
         if (initSDF)
         {
-            TE_SDFMap_setRect(sdfMap, x, y, 1, 12, 0);
+            TE_SDFMap_setRect(sdfMap, x, y, 3, 12, 0);
         }
         int bridgeHeightLeft = p - 5;
         int bridgeHeightRight = bridgeXEnd - x - 7;
@@ -507,7 +540,7 @@ void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
                 .blendMode = TE_BLEND_ALPHAMASK,
                 .state = {
                     .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                    .zValue = 4,
+                    .zValue = y + 23,
                 }
             });
         }
@@ -523,7 +556,7 @@ void Scene_3_update(RuntimeContext *ctx, TE_Img *screenData)
             .blendMode = TE_BLEND_ALPHAMASK,
             .state = {
                 .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = y + 20,
+                .zValue = y + 25,
             }
         });
     }

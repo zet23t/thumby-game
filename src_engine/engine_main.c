@@ -35,6 +35,16 @@ uint32_t DB32Colors[] = {
     0xFF36535E, 0xFF48687D, 0xFF3C7EA0, 0xFFC7C3C2, 0xFFE0E0E0,
 };
 
+char* TE_StrFmt(const char *format, ...)
+{
+    static char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsprintf(buffer, format, args);
+    va_end(args);
+    return buffer;
+}
+
 void TE_Logf(const char *tag, const char *fmt, ...)
 {
     printf("[%s] ", tag);
@@ -198,6 +208,17 @@ void TE_Debug_drawLineCircle(int x, int y, int r, uint32_t color)
     });
 }
 
+
+TE_Img tinyImg;
+TE_Font tinyfont;
+
+void TE_Debug_drawText(int x, int y, const char *text, uint32_t color)
+{
+    TE_Font_drawText(&img, &tinyfont, x, y, -1, text, color, (TE_ImgOpState) {
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+}
 DLL_EXPORT void update(RuntimeContext *ctx)
 {
     img = (TE_Img) {
@@ -206,13 +227,13 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         .data = ctx->screenData,
     };
     
-    TE_Img tinyImg = {
+    tinyImg = (TE_Img) {
         .p2width = fnt_tiny_p2width,
         .p2height = fnt_tiny_p2height,
         .data = (uint32_t*) fnt_tiny_data,
     };
 
-    TE_Font tinyfont = {
+    tinyfont = (TE_Font) {
         .atlas = &tinyImg,
         .glyphCount = fnt_tiny_glyph_count,
         .glyphValues = fnt_tiny_glyphs_values,

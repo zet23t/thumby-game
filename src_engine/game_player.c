@@ -2,6 +2,7 @@
 #include "game_character.h"
 #include "game_projectile.h"
 #include "game_enemies.h"
+#include "game_assets.h"
 #include "TE_Image.h"
 #include <inttypes.h>
 #include <math.h>
@@ -230,10 +231,8 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     player->x = playerCharacter->x * .15f + player->x * .85f;
     player->y = playerCharacter->y * .15f + player->y * .85f;
 
-
     if (player->drawBar)
     {
-
         TE_Img_fillRect(img, 0, 0, 128, 12, DB32Colors[1], (TE_ImgOpState) {
             .zCompareMode = Z_COMPARE_ALWAYS,
             .zValue = 255,
@@ -276,6 +275,26 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
             }
         });
     }
+
+    // attack mini game
+    int16_t uiX = floorf(playerCharacter->x + .5f);
+    int16_t uiY = floorf(playerCharacter->y + .5f) - 10;
+    TE_Sprite battleBar = GameAssets_getSprite(SPRITE_UI_BATTLE_BAR);
+    TE_Img_blitSprite(img, battleBar, 
+        uiX, uiY, (BlitEx) {
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .state = {
+            .zValue = 200,
+        }
+    });
+    int battleBarInnerWidth = battleBar.src.width - 2;
+    int attackAim = abs((int)(ctx->time * 10.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
+    TE_Img_blitSprite(img, GameAssets_getSprite(SPRITE_UI_SWORD), uiX + attackAim - battleBar.pivotX, uiY + 3, (BlitEx) {
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .state = {
+            .zValue = 200,
+        }
+    });
 }
 
 void Player_setInputEnabled(uint8_t enabled)

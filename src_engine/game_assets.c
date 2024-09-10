@@ -32,6 +32,9 @@ static const SpriteData _sprites[] = {
     {16, 96, 3, 16, 1, 8},   // ANIM_STAFF_HIT_F1
     {20, 97, 11, 13, 5, 6},  // ANIM_STAFF_HIT_F2
     {32, 96, 16, 3, 8, 1},   // ANIM_STAFF_HIT_F3
+    {112, 168, 7, 11, 3, 11},  // UI_SHIELD
+    {119, 168, 7, 11, 3, 11},  // UI_SWORD
+    {112, 179, 13, 5, 6, 0},   // UI_BATTLE_BAR
 };
 
 static SpriteData _getSpriteData(uint8_t index)
