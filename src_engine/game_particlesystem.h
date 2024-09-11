@@ -15,10 +15,19 @@ typedef union ParticleTypeData
         float accelX, accelY;
         float drag;
     } simpleType;
+    struct
+    {
+        uint32_t color;
+        uint8_t spriteId;
+        float maxLife;
+        float accelX, accelY;
+        float drag;
+    } spriteType;
 } ParticleTypeData;
 
 #define PARTICLE_TYPE_SIMPLE 0
 #define PARTICLE_TYPE_LEAF 1
+#define PARTICLE_TYPE_SPRITE 2
 
 void ParticleSystem_init();
 void ParticleSystem_update(RuntimeContext *ctx, TE_Img *screen);

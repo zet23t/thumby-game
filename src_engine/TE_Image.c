@@ -83,7 +83,19 @@ uint32_t TE_Img_getPixelEx(TE_Img *img, uint16_t ox, uint16_t oy, uint16_t x, ui
 
 void TE_Img_blitSprite(TE_Img *img, TE_Sprite sprite, int16_t x, int16_t y, BlitEx options)
 {
-    TE_Img_blitEx(img, sprite.img, x - sprite.pivotX, y - sprite.pivotY, sprite.src.x, sprite.src.y, sprite.src.width, sprite.src.height, options);
+    if (options.flipX) x = x + (sprite.pivotX * 2 - sprite.src.width);
+    if (options.flipY) y = y + (sprite.pivotY * 2 - sprite.src.height);
+    if (options.rotate == 0)
+    {
+        x = x - sprite.pivotX;
+        y = y - sprite.pivotY;
+    }
+    else if (options.rotate == 1)
+    {
+        x = x - sprite.pivotY;
+        y = y - sprite.pivotX;
+    }
+    TE_Img_blitEx(img, sprite.img, x, y, sprite.src.x, sprite.src.y, sprite.src.width, sprite.src.height, options);
 }
 
 
@@ -415,18 +427,18 @@ void TE_Img_blitEx(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_t srcX
             uint16_t py = j;
             if (options.rotate == 1)
             {
-                px = h - j;
+                px = h - j - 1;
                 py = i;
             }
             else if (options.rotate == 2)
             {
-                px = w - i;
-                py = h - j;
+                px = w - i - 1;
+                py = h - j - 1;
             }
             else if (options.rotate == 3)
             {
                 px = j;
-                py = w - i;
+                py = w - i - 1;
             }
             uint32_t color = TE_Img_getPixelEx(src, srcX, srcY, px, py, width, height, options);
             if (options.tint)

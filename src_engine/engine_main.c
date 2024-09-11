@@ -97,6 +97,7 @@ DLL_EXPORT void init()
         .pivotY = 8,
         .src = { .x = 16, .y = 96, .width = 3, .height = 16 },
         .idleAnimationId = ANIMATION_STAFF_IDLE,
+        .aimAnimationId = ANIMATION_STAFF_AIM,
         .attackAnimationId = ANIMATION_STAFF_ATTACK,
         .hitAnimationId = ANIMATION_STAFF_ATTACK_HIT,
         .cooldown = 0.25f,

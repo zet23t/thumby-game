@@ -32,9 +32,15 @@ static const SpriteData _sprites[] = {
     {16, 96, 3, 16, 1, 8},   // ANIM_STAFF_HIT_F1
     {20, 97, 11, 13, 5, 6},  // ANIM_STAFF_HIT_F2
     {32, 96, 16, 3, 8, 1},   // ANIM_STAFF_HIT_F3
-    {112, 168, 7, 11, 3, 11},  // UI_SHIELD
-    {119, 168, 7, 11, 3, 11},  // UI_SWORD
-    {112, 179, 13, 5, 6, 0},   // UI_BATTLE_BAR
+    {112, 168, 7, 11, 3, 11}, // UI_SHIELD
+    {119, 168, 7, 11, 3, 11}, // UI_SWORD
+    {112, 179, 13, 5, 6, 0},  // UI_BATTLE_BAR
+    {40, 179, 25, 10, 12, 5}, // TEXT_CRIT
+    {65, 179, 26, 10, 13, 5}, // TEXT_MISS
+    {56, 138, 28, 18, 5, 7}, // TEXT_OUCH
+    {84, 138, 21, 13, 10, 6}, // TEXT_OW
+    {84, 151, 20, 14, 10, 7}, // TEXT_OOF
+    {56, 161, 25, 18, 12, 9}, // TEXT_BANG
 };
 
 static SpriteData _getSpriteData(uint8_t index)
@@ -117,6 +123,13 @@ static int DrawAnimation_STAFF_IDLE(TE_Img *dst, uint32_t msTick, int16_t x, int
     return 1;
 }
 
+static int DrawAnimation_STAFF_AIM(TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx)
+{
+    blitEx.rotate = 1;
+    TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_ANIM_STAFF_HIT_F1), x, y, blitEx);
+    return 1;
+}
+
 
 int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx)
 {
@@ -127,6 +140,8 @@ int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_
     case ANIMATION_HAHAHA_LEFT:
         return DrawAnimation_HAHAHA(dst, msTick, SPRITE_ANIM_HAHAHA_L_F1, x, y, blitEx, maxLoopCount);
         break;
+    case ANIMATION_STAFF_AIM:
+        return DrawAnimation_STAFF_AIM(dst, msTick, x, y, maxLoopCount, blitEx);
     case ANIMATION_STAFF_ATTACK_HIT:
         return DrawAnimation_STAFF_HIT(dst, msTick, x, y, maxLoopCount, 1, blitEx);
     case ANIMATION_STAFF_ATTACK:

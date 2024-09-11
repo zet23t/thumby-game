@@ -341,6 +341,10 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         uint8_t isDrawingAnimation = 0;
         uint8_t selectedAnimationId = item->idleAnimationId;
         
+        if (character->isAiming)
+        {
+            selectedAnimationId = item->aimAnimationId;
+        }
         if (character->isStriking)
         {
             selectedAnimationId = item->attackAnimationId;

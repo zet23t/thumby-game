@@ -42,6 +42,24 @@ void ParticleSystem_update(RuntimeContext *ctx, TE_Img *screen)
         uint8_t despawn = 0;
         switch (p.type)
         {
+        case PARTICLE_TYPE_SPRITE:
+                if (p.life > p.typeData.spriteType.maxLife)
+                {
+                    despawn = 1;
+                }
+                else
+                {
+                    uint32_t color =  (int)((1.0f - p.life / p.typeData.spriteType.maxLife)*128.0f) << 25 | 0xffffff;
+                    TE_Sprite sprite = GameAssets_getSprite(p.typeData.spriteType.spriteId);
+                    TE_Img_blitSprite(screen, sprite, p.x, p.y, (BlitEx){
+                        .blendMode = TE_BLEND_ALPHAMASK,
+                        .tint = 1,
+                        .tintColor = color,
+                        .state.zValue = p.z,
+                        .state.zAlphaBlend = 1,
+                    });
+                }
+                break;
         case PARTICLE_TYPE_LEAF:
         case PARTICLE_TYPE_SIMPLE:
             if (p.life > p.typeData.simpleType.maxLife)

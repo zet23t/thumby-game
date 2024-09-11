@@ -251,6 +251,7 @@ static void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx,
     while (data->crowd->aliveCount > 1 && (data->crowd->selectedAttacker == enemy->id ||
         !Enemies_getEnemy(data->crowd->selectedAttacker)))
     {
+        player.defenseActionStep[0] = 0.0f;
         data->crowd->selectedAttacker = (data->crowd->selectedAttacker + seekIncrement - 1) % 4 + 1;
         if (seekIncrement > 1)
         {
@@ -308,6 +309,14 @@ static void Scene_3_updateEnemy(struct Enemy *enemy, RuntimeContext *ctx, TE_Img
         {
             chosenDistance = 15.0f;
             enemy->character.maskDir = 1;
+            if (playerDistance < 18.0f)
+            {
+                player.defenseActionStep[0]+=ctx->deltaTime;
+            }
+            else
+            {
+                player.defenseActionStep[0] = 0.0f;
+            }
         }
         else
         {

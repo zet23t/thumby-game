@@ -15,7 +15,12 @@ typedef struct Player
     int dirX, dirY;
     int health;
     int maxHealth;
-    uint8_t drawBar;
+    uint8_t drawBar:1;
+    uint8_t attackQuality:2;
+    uint8_t defenseQuality:2;
+    float defenseActionStep[4];
+    float aimTimer;
+    float defTimer;
 } Player;
 
 
@@ -24,6 +29,7 @@ typedef struct Item
     int8_t pivotX;
     int8_t pivotY;
     int8_t idleAnimationId;
+    int8_t aimAnimationId;
     int8_t attackAnimationId;
     int8_t hitAnimationId;
     uint8_t meleeRange:4;

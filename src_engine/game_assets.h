@@ -23,6 +23,12 @@
 #define SPRITE_UI_SHIELD 17
 #define SPRITE_UI_SWORD 18
 #define SPRITE_UI_BATTLE_BAR 19
+#define SPRITE_TEXT_CRIT 20
+#define SPRITE_TEXT_MISS 21
+#define SPRITE_TEXT_OUCH 22
+#define SPRITE_TEXT_OW 23
+#define SPRITE_TEXT_OOF 24
+#define SPRITE_TEXT_BANG 25
 
 #define FONT_MEDIUM 0
 #define FONT_LARGE 1
@@ -32,6 +38,7 @@
 #define ANIMATION_STAFF_ATTACK 3
 #define ANIMATION_STAFF_IDLE 4
 #define ANIMATION_STAFF_ATTACK_HIT 5
+#define ANIMATION_STAFF_AIM 6
 
 TE_Sprite GameAssets_getSprite(uint8_t index);
 TE_Font GameAssets_getFont(uint8_t index);

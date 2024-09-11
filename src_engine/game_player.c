@@ -3,7 +3,9 @@
 #include "game_projectile.h"
 #include "game_enemies.h"
 #include "game_assets.h"
+#include "game_particlesystem.h"
 #include "TE_Image.h"
+#include "TE_rand.h"
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
@@ -194,15 +196,47 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
             Character_toBaseF(playerCharacter, &baseX, &baseY);
             int16_t hitX = (int16_t)(baseX + tdx * item->meleeRange);
             int16_t hitY = (int16_t)(baseY + tdy * item->meleeRange);
-            TE_Debug_drawPixel(hitX, hitY, 0xffffffff);
+            // TE_Debug_drawPixel(hitX, hitY, 0xffffffff);
             LOG("%d %d %d", hitX, hitY, item->meleeRange);
             int hitInfo = Characters_raycastCircle(playerCharacter, hitX, hitY, item->meleeRange, &cx, &cy, &cr) - 1;
-            if (hitInfo>=0)
+            if (player->attackQuality == 0)
             {
-                LOG("Hit %d %d %d", cx, cy, cr);
+                ParticleSystem_spawn(PARTICLE_TYPE_SPRITE, hitX, hitY, 150, 0.0f, -15.0f, (ParticleTypeData){
+                    .spriteType = {
+                        .spriteId = SPRITE_TEXT_MISS,
+                        .maxLife = 0.35f,
+                        .color = 0xffffffff,
+                    }
+                });
+            }
+            if (player->attackQuality == 2)
+            {
+                ParticleSystem_spawn(PARTICLE_TYPE_SPRITE, hitX, hitY, 150, 0.0f, -15.0f, (ParticleTypeData){
+                    .spriteType = {
+                        .spriteId = SPRITE_TEXT_CRIT,
+                        .maxLife = 0.35f,
+                        .color = 0xffffffff,
+                    }
+                });
+            }
+            if (hitInfo>=0 && player->attackQuality > 0)
+            {
+                LOG("Hit %d %d %d %d", cx, cy, cr, TE_randGetSeed());
                 playerCharacter->isHitting = 1;
                 playerCharacter->isStriking = 0;
-                Enemy_takeDamage(&enemies[hitInfo], 1.0f, tdx * 128.0f, tdy * 128.0f, ctx, img);
+                float damage = player->attackQuality == 2 ? 1.5f : 1.0f;
+                Enemy_takeDamage(&enemies[hitInfo], damage, tdx * 128.0f, tdy * 128.0f, ctx, img);
+
+                ParticleSystem_spawn(PARTICLE_TYPE_SPRITE, 
+                    cx + tdx * 15.0f, 
+                    cy + tdy * 15.0f, 
+                    120, tdx * 15.0f, tdy * 15.0f, (ParticleTypeData){
+                    .spriteType = {
+                        .spriteId = TE_randRange(SPRITE_TEXT_OUCH, SPRITE_TEXT_OOF + 1),
+                        .maxLife = 0.5f * damage,
+                        .color = 0xffffffff,
+                    }
+                });
             }
         } 
         else
@@ -276,9 +310,21 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         });
     }
 
-    // attack mini game
-    int16_t uiX = floorf(playerCharacter->x + .5f);
-    int16_t uiY = floorf(playerCharacter->y + .5f) - 10;
+    // attack & defense mini game
+    uint8_t isAiming = playerCharacter->isAiming;
+    uint8_t isDefending = player->defenseActionStep[0] > 0.0f;
+    if (!isAiming)
+    {
+        player->aimTimer = 0;
+    }
+    if (!isDefending)
+    {
+        player->defTimer = 0;
+    }
+    if (!isAiming && !isDefending) return;
+
+    int16_t uiX = floorf(playerCharacter->x + .5f) - 2;
+    int16_t uiY = floorf(playerCharacter->y + .5f) + 13;
     TE_Sprite battleBar = GameAssets_getSprite(SPRITE_UI_BATTLE_BAR);
     TE_Img_blitSprite(img, battleBar, 
         uiX, uiY, (BlitEx) {
@@ -288,13 +334,46 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         }
     });
     int battleBarInnerWidth = battleBar.src.width - 2;
-    int attackAim = abs((int)(ctx->time * 10.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
-    TE_Img_blitSprite(img, GameAssets_getSprite(SPRITE_UI_SWORD), uiX + attackAim - battleBar.pivotX, uiY + 3, (BlitEx) {
-        .blendMode = TE_BLEND_ALPHAMASK,
-        .state = {
-            .zValue = 200,
+
+    if (isAiming)
+    {
+        player->aimTimer += ctx->deltaTime;
+        int attackAim = abs((int)(player->aimTimer * 10.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
+        if (attackAim >= battleBarInnerWidth - 1)
+        {
+            player->attackQuality = 2;
         }
-    });
+        else if (attackAim > battleBarInnerWidth - 4)
+        {
+            player->attackQuality = 1;
+        }
+        else
+        {
+            player->attackQuality = 0;
+        }
+        uint32_t color = playerCharacter->shootCooldown < 0.0f ? 0x440000ff : 0xffffffff;
+        TE_Img_blitSprite(img, GameAssets_getSprite(SPRITE_UI_SWORD), uiX + attackAim - battleBar.pivotX, uiY + 3, (BlitEx) {
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .flipY = 1,
+            .tint = 1,
+            .tintColor = color,
+            .state = {
+                .zValue = 200,
+                .zAlphaBlend = 1,
+            }
+        });
+    }
+
+    if (isDefending)
+    {
+        int defenseAim = abs((int)(player->defenseActionStep[0] * 7.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
+        TE_Img_blitSprite(img, GameAssets_getSprite(SPRITE_UI_SHIELD), uiX + defenseAim - battleBar.pivotX, uiY + 3, (BlitEx) {
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zValue = 200,
+            }
+        });
+    }
 }
 
 void Player_setInputEnabled(uint8_t enabled)
