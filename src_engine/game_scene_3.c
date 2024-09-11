@@ -312,10 +312,29 @@ static void Scene_3_updateEnemy(struct Enemy *enemy, RuntimeContext *ctx, TE_Img
             if (playerDistance < 18.0f)
             {
                 player.defenseActionStep[0]+=ctx->deltaTime;
+                if (player.defenseActionStep[0] > 1.75f)
+                {
+                    if (enemy->character.isAiming)
+                    {
+                        enemy->character.isAiming = 0;
+                        enemy->character.isStriking = 1;
+                        enemy->character.runningAnimationTime = 0.0f;
+                    }
+                    if (!enemy->character.isStriking)
+                    {
+                        // strike is done
+                        data->crowd->selectedAttacker = 0;
+                    }
+                }
+                else if (player.defenseActionStep[0] > 0.25f)
+                {
+                    enemy->character.isAiming = 1;
+                }
             }
             else
             {
                 player.defenseActionStep[0] = 0.0f;
+                enemy->character.isAiming = 0;
             }
         }
         else
