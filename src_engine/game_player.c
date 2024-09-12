@@ -108,6 +108,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
 
     Item *item = &items[_playerWeaponIndex > 0 ? _playerWeaponIndex - 1 : 0];
     float coolDown = item->cooldown;
+
     if (ctx->inputA && _playerWeaponIndex)
     {
         playerCharacter->isAiming = 1;
@@ -321,6 +322,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     {
         player->defTimer = 0;
     }
+    
     if (!isAiming && !isDefending) return;
 
     int16_t uiX = floorf(playerCharacter->x + .5f) - 2;
@@ -367,6 +369,18 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     if (isDefending)
     {
         int defenseAim = abs((int)(player->defenseActionStep[0] * 7.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
+        if (defenseAim >= battleBarInnerWidth - 1)
+        {
+            player->defenseQuality = 2;
+        }
+        else if (defenseAim > battleBarInnerWidth - 4)
+        {
+            player->defenseQuality = 1;
+        }
+        else
+        {
+            player->defenseQuality = 0;
+        }
         TE_Img_blitSprite(img, GameAssets_getSprite(SPRITE_UI_SHIELD), uiX + defenseAim - battleBar.pivotX, uiY + 3, (BlitEx) {
             .blendMode = TE_BLEND_ALPHAMASK,
             .state = {

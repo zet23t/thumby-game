@@ -18,6 +18,7 @@ typedef struct Player
     uint8_t drawBar:1;
     uint8_t attackQuality:2;
     uint8_t defenseQuality:2;
+    uint8_t defenseQualityResult:2;
     float defenseActionStep[4];
     float aimTimer;
     float defTimer;

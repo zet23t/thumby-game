@@ -312,6 +312,15 @@ static void Scene_3_updateEnemy(struct Enemy *enemy, RuntimeContext *ctx, TE_Img
             if (playerDistance < 18.0f)
             {
                 player.defenseActionStep[0]+=ctx->deltaTime;
+                if (!ctx->inputA && ctx->prevInputA && player.defenseQuality > 0)
+                {
+                    data->crowd->selectedAttacker = 0;
+                    enemy->character.isAiming = 0;
+                    enemy->character.isStriking = 0;
+                    enemy->character.runningAnimationTime = 0.0f;
+                    player.defenseActionStep[0] = 0.0f;
+                    return;
+                }
                 if (player.defenseActionStep[0] > 1.75f)
                 {
                     if (enemy->character.isAiming)
