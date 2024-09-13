@@ -1,6 +1,7 @@
 #include "engine_main.h"
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
 #ifdef _WIN32
 #define DLL_EXPORT __declspec(dllexport)
@@ -62,6 +63,35 @@ const char* formatFileRef(const char *file, int line)
     return buffer;
 }
 
+typedef struct Avg32F
+{
+    float values[32];
+    uint8_t index;
+} Avg32F;
+
+void Avg32F_fill(Avg32F *avg, float value)
+{
+    for (int i=0;i<32;i++)
+    {
+        avg->values[i] = value;
+    }
+}
+
+void Avg32F_push(Avg32F *avg, float value)
+{
+    avg->values[avg->index] = value;
+    avg->index = (avg->index + 1) % 32;
+}
+
+float Avg32F_get(Avg32F *avg)
+{
+    float sum = 0;
+    for (int i=0;i<32;i++)
+    {
+        sum += avg->values[i];
+    }
+    return sum / 32.0f;
+}
 
 DLL_EXPORT void init()
 {
@@ -220,8 +250,22 @@ void TE_Debug_drawText(int x, int y, const char *text, uint32_t color)
         .zValue = 255,
     });
 }
+uint8_t activeSceneId;
+
 DLL_EXPORT void update(RuntimeContext *ctx)
 {
+    TE_FrameStats prevStats = ctx->frameStats;
+    TE_FrameStats imgStats = TE_Img_resetStats();
+
+    ctx->frameStats = (TE_FrameStats) {0};
+    if (ctx->inputShoulderLeft && !ctx->prevInputShoulderLeft)
+    {
+        Scene_init((Scene_getCurrentSceneId() - 1)%8);
+    }
+    if (ctx->inputShoulderRight && !ctx->prevInputShoulderRight)
+    {
+        Scene_init((Scene_getCurrentSceneId() + 1)%8);
+    }
     img = (TE_Img) {
         .p2width = 7,
         .p2height = 7,
@@ -263,17 +307,21 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         });
     }
     
+    uint32_t start = ctx->getUTime();
 
-    Scene_update(ctx, &img);
-    Projectiles_update(projectiles, ctx, &img);
+    BENCH(Scene_update(ctx, &img), scene)
+    BENCH(Projectiles_update(projectiles, ctx, &img), projectiles)
     
     TE_randSetSeed(ctx->frameCount * 1 + 392);
-    Enemies_update(ctx, &img);
-    Player_update(&player, &playerCharacter, ctx, &img);
+    BENCH(Enemies_update(ctx, &img), enemies)
+    BENCH(Player_update(&player, &playerCharacter, ctx, &img), player)
     
-    Environment_update(ctx, &img);
-    ParticleSystem_update(ctx, &img);
-    ScriptedAction_update(ctx, &img);
+    BENCH(Environment_update(ctx, &img), environment)
+    BENCH(ParticleSystem_update(ctx, &img), particles)
+    BENCH(ScriptedAction_update(ctx, &img), script)
+    BENCH(Menu_update(ctx, &img), menu)
+
+    uint32_t end = ctx->getUTime();
 
     // GameAssets_drawAnimation(ANIMATION_STAFF_HIT, &img, ctx->time * 1000.0f, 64, 64, 10, (BlitEx) {
     //     .blendMode = TE_BLEND_ALPHAMASK,
@@ -284,7 +332,6 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     //     }
     // });
 
-    Menu_update(ctx, &img);
 
     // logo rot test
     // TE_Img_blitEx(&img, &atlasImg, 16,16,8,232,72,24, (BlitEx){
@@ -311,14 +358,66 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     //     .zValue = 100,
     // });
 
-    int fps = (int)roundl(1.0f / ctx->deltaTime);
-    if (fps > 25)
+    uint16_t fps = (uint16_t)roundl(1.0f / ctx->deltaTime);
+    static uint16_t recentFPS[32];
+    static uint8_t recentFPSIndex = 0;
+    recentFPS[recentFPSIndex] = fps;
+    recentFPSIndex = (recentFPSIndex + 1) % 32;
+
+    uint16_t avgFPS = 0;
+    for (int i=0;i<32;i++)
     {
-        return;
+        avgFPS += recentFPS[i];
     }
+    avgFPS /= 32;
+    // if (fps > 25)
+    // {
+    //     return;
+    // }
     char text[64];
-    sprintf(text, "FPS: %d", fps);
-    TE_Font_drawText(&img, &tinyfont, 2, 112, -1, text, 0xffffffff, (TE_ImgOpState) {
+    const char *benchNames[] = {
+        "scene",
+        "projectiles",
+        "environment",
+        "particles",
+        "enemies",
+        "player",
+        "script",
+        "menu",
+    };
+    static uint8_t displayBenchIndex = 0;
+    static Avg32F avgDuration;
+    int dir = 0;
+    if (ctx->inputB && !ctx->prevInputRight && ctx->inputRight)
+    {
+        dir = 1;
+    }
+    if (ctx->inputB && !ctx->prevInputLeft && ctx->inputLeft)
+    {
+        dir = -1;
+    }
+
+    if (dir)
+    {
+        displayBenchIndex = (displayBenchIndex + 9 + dir) % 9;
+        if (displayBenchIndex < 8)
+            Avg32F_fill(&avgDuration, ctx->frameStats.updateTimes[displayBenchIndex] / 1000.0f);
+    }
+
+    if (displayBenchIndex == 8)
+    {
+        sprintf(text, "FPS: %d|%d|%dk|%d", avgFPS, imgStats.blitCount, imgStats.blitPixelCount>>10, imgStats.blitXCount);
+    }
+    else
+    {
+        float durationMS = ctx->frameStats.updateTimes[displayBenchIndex] / 1000.0f;
+        Avg32F_push(&avgDuration, durationMS);
+        float durationAvg = Avg32F_get(&avgDuration);
+        sprintf(text, "FPS: %d; %s %.2f", avgFPS, benchNames[displayBenchIndex], durationAvg);
+    }
+
+    TE_Font medFont = GameAssets_getFont(FONT_MEDIUM);
+    TE_Font_drawText(&img, &medFont, 1, 115, -1, text, 0xffffffff, (TE_ImgOpState) {
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,
     });

@@ -369,7 +369,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
 
     if (isDefending)
     {
-        int defenseAim = abs((int)(player->defenseActionStep[0] * 7.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
+        int defenseAim = absi((int)(player->defenseActionStep[0] * 7.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
         if (defenseAim >= battleBarInnerWidth - 1)
         {
             player->defenseQuality = 2;

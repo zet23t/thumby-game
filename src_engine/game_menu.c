@@ -143,7 +143,7 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
     });
 
     // barrels
-    TE_Img_drawPatch9(img, &atlasImg, menuX-5, menuY-2, menuWidth+8, 12, 80, 103, 6, 4, (BlitEx) {
+    TE_Img_drawPatch9(img, &atlasImg, menuX-5, menuY-2, menuWidth+8, 12, 80, 100, 6, 4, (BlitEx) {
         .flipX = 0,
         .flipY = 0,
         .rotate = 0,
@@ -156,7 +156,7 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
         }
     });
 
-    TE_Img_drawPatch9(img, &atlasImg, menuX-5, menuY-7+menuHeight, menuWidth+8, 12, 80, 103, 6, 4, (BlitEx) {
+    TE_Img_drawPatch9(img, &atlasImg, menuX-5, menuY-7+menuHeight, menuWidth+8, 12, 80, 100, 6, 4, (BlitEx) {
         .flipX = 0,
         .flipY = 0,
         .rotate = 0,

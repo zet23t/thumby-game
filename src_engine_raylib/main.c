@@ -171,6 +171,12 @@ void copyScreenShot()
     remove("screenshot.png");
 }
 
+uint32_t getUTime(void)
+{
+    return (uint32_t) (GetTime() * 1000000.0f);
+}
+
+
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 int main(void)
@@ -186,6 +192,7 @@ int main(void)
     buildCoreDLL(1);
 
     RuntimeContext ctx = {0};
+    ctx.getUTime = getUTime;
     int isPaused = 0;
     int step = 0;
 
@@ -284,6 +291,7 @@ int main(void)
             update(&ctx);
             UpdateTexture(texture, ctx.screenData);
         }
+        
         DrawTextureEx(texture, offset, 0.0f, scale, WHITE);
 
         EndDrawing();

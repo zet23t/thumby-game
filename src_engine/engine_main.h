@@ -3,9 +3,32 @@
 
 #include <inttypes.h>
 
+typedef struct TE_FrameStats
+{
+    uint32_t blitCount;
+    uint32_t blitXCount;
+    uint32_t blitPixelCount;
+    union {
+        uint32_t updateTimes[8];
+        struct {
+            uint32_t scene;
+            uint32_t projectiles;
+            uint32_t environment;
+            uint32_t particles;
+            uint32_t enemies;
+            uint32_t player;
+            uint32_t script;
+            uint32_t menu;
+        } updateTime;
+    };
+} TE_FrameStats;
+
+#define BENCH(call, name) ctx->frameStats.updateTime.name = ctx->getUTime(); call; ctx->frameStats.updateTime.name = ctx->getUTime() - ctx->frameStats.updateTime.name;
+
 typedef struct RuntimeContext
 {
     uint32_t screenData[128*128];
+    TE_FrameStats frameStats;
     union {
         uint8_t flags;
         struct {
@@ -53,6 +76,8 @@ typedef struct RuntimeContext
     uint32_t frameCount;
     float time;
     float deltaTime;
+
+    uint32_t(*getUTime)(void);
 } RuntimeContext;
 
 extern uint32_t DB32Colors[];

@@ -62,6 +62,9 @@ typedef struct BlitEx
     TE_ImgOpState state;
 } BlitEx;
 
+#include "game.h"
+TE_FrameStats TE_Img_resetStats();
+
 void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_ImgOpState state);
 uint32_t TE_Img_getPixel(TE_Img *img, uint16_t x, uint16_t y);
 void TE_Img_fillTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint32_t color, TE_ImgOpState state);

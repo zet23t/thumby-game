@@ -1,5 +1,52 @@
 #include "TE_Image.h"
 
+static TE_FrameStats frameStats;
+
+TE_FrameStats TE_Img_resetStats()
+{
+    TE_FrameStats stats = frameStats;
+    frameStats = (TE_FrameStats){0};
+    return stats;
+}
+
+#define TE_Img_setPixelUnchecked(img, x, y, color, state) \
+{ \
+    uint32_t *pixel = &img->data[(y << img->p2width) + x]; \
+    uint8_t zDst = *pixel >> 24; \
+    if ((state.zCompareMode == Z_COMPARE_ALWAYS) || \
+        (state.zCompareMode == Z_COMPARE_EQUAL && zDst == state.zValue) || \
+        (state.zCompareMode == Z_COMPARE_LESS && zDst < state.zValue) || \
+        (state.zCompareMode == Z_COMPARE_GREATER && zDst > state.zValue) || \
+        (state.zCompareMode == Z_COMPARE_LESS_EQUAL && zDst <= state.zValue) || \
+        (state.zCompareMode == Z_COMPARE_GREATER_EQUAL && zDst >= state.zValue) || \
+        (state.zCompareMode == Z_COMPARE_NOT_EQUAL && zDst != state.zValue) \
+    ) \
+    { \
+        if (state.zAlphaBlend && (color & 0xFF000000) < 0xfe000000) \
+        { \
+            uint32_t a = color >> 24; \
+            uint32_t r = (color & 0xFF) * a >> 8; \
+            uint32_t g = ((color >> 8) & 0xFF) * a >> 8; \
+            uint32_t b = ((color >> 16) & 0xFF) * a >> 8; \
+            uint32_t colorDst = *pixel; \
+            uint32_t aDst = colorDst & 0xff000000; \
+            uint32_t rDst = (colorDst & 0xFF) * (255 - a) >> 8; \
+            uint32_t gDst = ((colorDst >> 8) & 0xFF) * (255 - a) >> 8; \
+            uint32_t bDst = ((colorDst >> 16) & 0xFF) * (255 - a) >> 8; \
+            color = r + rDst | ((g + gDst) << 8) | ((b + bDst) << 16) | aDst; \
+        } \
+        if (state.zNoWrite) \
+        { \
+            color = (color & 0xffffff) | (zDst << 24); \
+        } \
+        else \
+        { \
+            color = (color & 0xffffff) | (state.zValue << 24); \
+        } \
+        *pixel = color; \
+    } \
+}
+
 void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_ImgOpState state)
 {
     if (x >= (1 << img->p2width) || y >= (1 << img->p2height))
@@ -14,40 +61,7 @@ void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_Img
         }
     }
 
-    uint32_t *pixel = &img->data[(y << img->p2width) + x];
-    uint8_t zDst = *pixel >> 24;
-    if ((state.zCompareMode == Z_COMPARE_ALWAYS) ||
-        (state.zCompareMode == Z_COMPARE_EQUAL && zDst == state.zValue) ||
-        (state.zCompareMode == Z_COMPARE_LESS && zDst < state.zValue) ||
-        (state.zCompareMode == Z_COMPARE_GREATER && zDst > state.zValue) ||
-        (state.zCompareMode == Z_COMPARE_LESS_EQUAL && zDst <= state.zValue) ||
-        (state.zCompareMode == Z_COMPARE_GREATER_EQUAL && zDst >= state.zValue) ||
-        (state.zCompareMode == Z_COMPARE_NOT_EQUAL && zDst != state.zValue)
-    )
-    {
-        if (state.zAlphaBlend && (color & 0xFF000000) < 0xfe000000)
-        {
-            uint32_t a = color >> 24;
-            uint32_t r = (color & 0xFF) * a >> 8;
-            uint32_t g = ((color >> 8) & 0xFF) * a >> 8;
-            uint32_t b = ((color >> 16) & 0xFF) * a >> 8;
-            uint32_t colorDst = *pixel;
-            uint32_t aDst = colorDst & 0xff000000;
-            uint32_t rDst = (colorDst & 0xFF) * (255 - a) >> 8;
-            uint32_t gDst = ((colorDst >> 8) & 0xFF) * (255 - a) >> 8;
-            uint32_t bDst = ((colorDst >> 16) & 0xFF) * (255 - a) >> 8;
-            color = r + rDst | ((g + gDst) << 8) | ((b + bDst) << 16) | aDst;
-        }
-        if (state.zNoWrite)
-        {
-            color = (color & 0xffffff) | (zDst << 24);
-        }
-        else
-        {
-            color = (color & 0xffffff) | (state.zValue << 24);
-        }
-        *pixel = color;
-    }
+    TE_Img_setPixelUnchecked(img, x, y, color, state);
 }
 
 uint32_t TE_Img_getPixel(TE_Img *img, uint16_t x, uint16_t y)
@@ -400,8 +414,130 @@ uint32_t TE_Color_tint(uint32_t color, uint32_t tint)
     return r | (g << 8) | (b << 16) | (a << 24);
 }
 
+static void TE_Img_rawBlitExTransformNone(TE_Img *img, TE_Img *src, int16_t x, int16_t y, int16_t srcX, int16_t srcY, int16_t width, int16_t height, BlitEx options)
+{
+    uint16_t imgWidth = 1 << img->p2width;
+    uint16_t imgHeight = 1 << img->p2height;
+    uint16_t srcWidth = 1 << src->p2width;
+    uint16_t srcHeight = 1 << src->p2height;
+    if (x < 0)
+    {
+        srcX -= x;
+        width += x;
+        x = 0;
+    }
+    if (y < 0)
+    {
+        srcY -= y;
+        height += y;
+        y = 0;
+    }
+    if (srcX < 0)
+    {
+        x -= srcX;
+        width += srcX;
+        srcX = 0;
+    }
+    if (srcY < 0)
+    {
+        y -= srcY;
+        height += srcY;
+        srcY = 0;
+    }
+    if (x + width > imgWidth)
+    {
+        width = imgWidth - x;
+    }
+    if (y + height > imgHeight)
+    {
+        height = imgHeight - y;
+    }
+    if (srcX + width > srcWidth)
+    {
+        width = srcWidth - srcX;
+    }
+    if (srcY + height > srcHeight)
+    {
+        height = srcHeight - srcY;
+    }
+
+    if (options.state.scissorWidth > 0 || options.state.scissorHeight > 0)
+    {
+        if (x < options.state.scissorX)
+        {
+            srcX += options.state.scissorX - x;
+            width -= options.state.scissorX - x;
+            x = options.state.scissorX;
+        }
+        if (y < options.state.scissorY)
+        {
+            srcY += options.state.scissorY - y;
+            height -= options.state.scissorY - y;
+            y = options.state.scissorY;
+        }
+        if (x + width > options.state.scissorX + options.state.scissorWidth)
+        {
+            width = options.state.scissorX + options.state.scissorWidth - x;
+        }
+        if (y + height > options.state.scissorY + options.state.scissorHeight)
+        {
+            height = options.state.scissorY + options.state.scissorHeight - y;
+        }
+    }
+
+    if (options.tint && options.tintColor != 0xffffffff)
+    {
+        for (uint16_t i = 0, dstX = x, u = srcX; i < width; i++, dstX++, u++)
+        {
+            for (uint16_t j = 0, dstY = y, v = srcY; j < height; j++, dstY++, v++)
+            {
+                uint32_t color = src->data[v << src->p2width | u];
+                color = TE_Color_tint(color, options.tintColor);
+
+                if (options.blendMode == TE_BLEND_ALPHAMASK)
+                {
+                    if ((color & 0xFF000000) == 0)
+                    {
+                        continue;
+                    }
+                }
+
+                TE_Img_setPixelUnchecked(img, dstX, dstY, color, options.state);
+            }
+        }
+    }
+    else
+    {
+        for (uint16_t i = 0, dstX = x, u = srcX; i < width; i++, dstX++, u++)
+        {
+            for (uint16_t j = 0, dstY = y, v = srcY; j < height; j++, dstY++, v++)
+            {
+                uint32_t color = src->data[v << src->p2width | u];
+
+                if (options.blendMode == TE_BLEND_ALPHAMASK)
+                {
+                    if ((color & 0xFF000000) == 0)
+                    {
+                        continue;
+                    }
+                }
+
+                TE_Img_setPixelUnchecked(img, dstX, dstY, color, options.state);
+            }
+        }
+    }
+}
+
 void TE_Img_blitEx(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_t srcX, uint16_t srcY, uint16_t width, uint16_t height, BlitEx options)
 {
+    frameStats.blitCount++;
+    frameStats.blitPixelCount+= width * height;
+    if (options.rotate == 0 && !options.flipX && !options.flipY)
+    {
+        TE_Img_rawBlitExTransformNone(img, src, x, y, srcX, srcY, width, height, options);
+        return;
+    }
+    frameStats.blitXCount++;
     uint16_t w = width;
     uint16_t h = height;
     if (options.rotate == 1)
