@@ -167,7 +167,7 @@ DLL_EXPORT void init()
     TE_Logf(LOG_TAG_SYSTEM, "sizeof(items) = %d; sizeof(characters) = %d", 
         sizeof(items), sizeof(characters));
 
-    Scene_init(3);
+    Scene_init(1);
     // Environment_addTree(30,50, 12343050);
     // // Environment_addTree(35,50, 12343550);
     // // Environment_addTree(25,30, 12342530);
@@ -300,10 +300,10 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     //     }
     // });
 
-    if (50 > Scene_getStep())
-    {
-        Scene_setStep(Scene_getStep() + 1);
-    }
+    // if (50 > Scene_getStep())
+    // {
+    //     Scene_setStep(Scene_getStep() + 1);
+    // }
     // TE_Logf(LOG_TAG_SYSTEM, "Scene step: %d", Scene_getMaxStep());
 
     // TE_Font_drawText(&img, &myfont, 2, 2, -1, "Sherwood Forest", 0xffffffff, (TE_ImgOpState) {

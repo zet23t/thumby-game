@@ -6,6 +6,7 @@
 #include "game_particlesystem.h"
 #include "TE_Image.h"
 #include "TE_rand.h"
+#include "TE_math.h"
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
@@ -340,7 +341,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     if (isAiming)
     {
         player->aimTimer += ctx->deltaTime;
-        int attackAim = abs((int)(player->aimTimer * 10.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
+        int attackAim = absi((int)(player->aimTimer * 10.0f) % battleBarInnerWidth * 2 - battleBarInnerWidth);
         if (attackAim >= battleBarInnerWidth - 1)
         {
             player->attackQuality = 2;

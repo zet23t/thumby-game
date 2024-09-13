@@ -63,11 +63,11 @@ typedef struct ScriptedAction
         } speechBubble;
         struct PlayerControlsData {
             uint8_t enabled;
-        };
+        } playerControlsData;
         struct ProceedPlotConditionData {
             uint8_t setPlotIndex;
             Condition condition;
-        };
+        } proceedPlotCondition;
         struct SetNPCTargetData {
             uint8_t id;
             int16_t x;
@@ -84,7 +84,7 @@ typedef struct ScriptedAction
         struct SetFlagsData {
             uint32_t setFlags;
             uint32_t mask;
-        };
+        } setFlags;
         struct SetNPCHealthData {
             uint8_t id;
             float health;

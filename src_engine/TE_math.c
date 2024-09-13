@@ -31,3 +31,8 @@ float fTweenElasticOut(float t)
                ? 1.0f
                : powf(2.0f, -10.0f * t) * sinf((t * 5.0f - 0.75f) * c4) + 1.0f;
 }
+
+int absi(int a)
+{
+    return a < 0 ? -a : a;
+}

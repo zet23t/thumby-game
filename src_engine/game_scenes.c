@@ -151,7 +151,7 @@ void ScriptedAction_addPlayerControlsEnabled(uint8_t stepStart, uint8_t stepStop
         if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
         {
             scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_PLAYER_CONTROLS_ENABLED;
-            scriptedActions.actions[i].enabled = enabled;
+            scriptedActions.actions[i].playerControlsData.enabled = enabled;
             scriptedActions.actions[i].startPlotIndex = stepStart;
             scriptedActions.actions[i].endPlotIndex = stepStop;
             return;
@@ -217,8 +217,8 @@ void ScriptedAction_addProceedPlotCondition(uint8_t stepStart, uint8_t stepStop,
         if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
         {
             scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_PROCEED_PLOT_CONDITION;
-            scriptedActions.actions[i].setPlotIndex = setPlotIndex;
-            scriptedActions.actions[i].condition = condition;
+            scriptedActions.actions[i].proceedPlotCondition.setPlotIndex = setPlotIndex;
+            scriptedActions.actions[i].proceedPlotCondition.condition = condition;
             scriptedActions.actions[i].startPlotIndex = stepStart;
             scriptedActions.actions[i].endPlotIndex = stepStop;
             return;
@@ -233,8 +233,8 @@ void ScriptedAction_addSetFlags(uint8_t stepStart, uint8_t stepStop, uint32_t se
         if (scriptedActions.actions[i].actionType == SCRIPTED_ACTION_TYPE_NONE)
         {
             scriptedActions.actions[i].actionType = SCRIPTED_ACTION_TYPE_SET_FLAGS;
-            scriptedActions.actions[i].setFlags = setFlags;
-            scriptedActions.actions[i].mask = mask;
+            scriptedActions.actions[i].setFlags.setFlags = setFlags;
+            scriptedActions.actions[i].setFlags.mask = mask;
             scriptedActions.actions[i].startPlotIndex = stepStart;
             scriptedActions.actions[i].endPlotIndex = stepStop;
             return;
@@ -486,16 +486,16 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 
         if (action.actionType == SCRIPTED_ACTION_TYPE_SET_PLAYER_CONTROLS_ENABLED)
         {
-            Player_setInputEnabled(action.enabled);
+            Player_setInputEnabled(action.playerControlsData.enabled);
             continue;
         }
 
         if (action.actionType == SCRIPTED_ACTION_TYPE_PROCEED_PLOT_CONDITION)
         {
-            if (Condition_update(&action.condition, ctx, screenData, ctx->time - scriptedActions.plotIndexStartTime))
+            if (Condition_update(&action.proceedPlotCondition.condition, ctx, screenData, ctx->time - scriptedActions.plotIndexStartTime))
             {
-                TE_Logf("SCRIPTED_ACTION", "Condition met, proceeding plot to %d", action.setPlotIndex);
-                nextPlotIndex = action.setPlotIndex;
+                TE_Logf("SCRIPTED_ACTION", "Condition met, proceeding plot to %d", action.proceedPlotCondition.setPlotIndex);
+                nextPlotIndex = action.proceedPlotCondition.setPlotIndex;
             }
             continue;
         }
@@ -532,7 +532,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 
         if (action.actionType == SCRIPTED_ACTION_TYPE_SET_FLAGS)
         {
-            nextFlags = (nextFlags & ~action.mask) | action.setFlags;
+            nextFlags = (nextFlags & ~action.setFlags.mask) | action.setFlags.setFlags;
             continue;
         }
 

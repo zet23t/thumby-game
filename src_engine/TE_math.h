@@ -27,5 +27,6 @@ float fLerpClamped(float a, float b, float t);
 float fMoveTowards(float current, float target, float maxDelta);
 
 float fTweenElasticOut(float t);
+int absi(int a);
 
 #endif
