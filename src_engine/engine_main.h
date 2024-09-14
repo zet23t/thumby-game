@@ -8,6 +8,9 @@ typedef struct TE_FrameStats
     uint32_t blitCount;
     uint32_t blitXCount;
     uint32_t blitPixelCount;
+#ifdef PLATFORM_DESKTOP
+    uint32_t overdrawCount[128*128];
+#endif
     union {
         uint32_t updateTimes[8];
         struct {

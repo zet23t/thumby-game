@@ -63,6 +63,7 @@ typedef struct BlitEx
 } BlitEx;
 
 #include "game.h"
+TE_FrameStats TE_Img_getStats();
 TE_FrameStats TE_Img_resetStats();
 
 void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_ImgOpState state);

@@ -1,3 +1,7 @@
+#ifndef PLATFORM_DESKTOP
+#define PLATFORM_DESKTOP
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +11,7 @@
 
 #include <gen_assets.c>
 #include <engine_main.h>
-
+#include <raymath.h>
 void *getUpdateFunction(void *lib);
 void *getInitFunction(void *lib);
 void *loadLibrary(const char *libName);
@@ -133,7 +137,7 @@ void buildCoreDLL(int forceRebuild)
         // Compile if the object file doesn't exist or the source file is newer
         if (buildAll || objExists != 0 || srcStat.st_mtime > objStat.st_mtime) {
             ThreadArgs *args = (ThreadArgs *)malloc(sizeof(ThreadArgs));
-            sprintf(args->command, "gcc -c -g -o %s %s -Isrc_engine -I_src_gen", coreObjFiles[i], coreSrcFiles[i]);
+            sprintf(args->command, "gcc -DPLATFORM_DESKTOP -c -g -o %s %s -Isrc_engine -I_src_gen", coreObjFiles[i], coreSrcFiles[i]);
             printf("Scheduled building core object: %s\n", args->command);
             pthread_create(&threads[usedThreads++], NULL, compileFile, args);
             // printf("Building core object: %s\n", coreCommand);
@@ -150,7 +154,7 @@ void buildCoreDLL(int forceRebuild)
     }
     free(threads);
 
-    sprintf(coreCommand, "gcc -shared -g -o %s %s", coreDLL, objfiles);
+    sprintf(coreCommand, "gcc -DPLATFORM_DESKTOP -shared -g -o %s %s", coreDLL, objfiles);
     printf("Building core DLL: %s\n", coreCommand);
     system(coreCommand);
 
@@ -184,8 +188,10 @@ int main(void)
     // Initialization
     int screenWidth = 128 * 2;
     int screenHeight = 128 * 2;
-
+    int isExtended = 0;
+    
     InitWindow(screenWidth, screenHeight, "Thumby color engine simulator");
+    printf("sizeof(RuntimeContext) = %d\n", sizeof(RuntimeContext));
 
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
@@ -210,11 +216,20 @@ int main(void)
     };
 
     Texture2D texture = LoadTextureFromImage(img);
+    Image imgOverdraw = {
+        .width = 128,
+        .height = 128,
+        .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
+        .data = ctx.frameStats.overdrawCount,
+        .mipmaps = 1,
+    };
+    Texture2D overdrawTexture = LoadTextureFromImage(imgOverdraw);
 
     int loadSkip = 0;
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
+
         if (IsKeyPressed(KEY_P)) {
             isPaused = !isPaused;
         }
@@ -250,11 +265,19 @@ int main(void)
         if (IsKeyPressed(KEY_FOUR)) winW = 128 * 4, winH = 128 * 4;
         if (IsKeyPressed(KEY_FIVE)) winW = 128 * 5, winH = 128 * 5;
         if (IsKeyPressed(KEY_SIX)) winW = 128 * 6, winH = 128 * 6;
+        
+        if (IsKeyPressed(KEY_X)) 
+        {
+            isExtended = !isExtended;
+            winW = isExtended ? screenWidth * 2 : screenWidth / 2;
+        }
+
         if (winW > 0)
         {
             Vector2 winPos = GetWindowPosition();
             int x = (int) winPos.x;
             int y = (int) winPos.y;
+            winH = winW;
             SetWindowPosition(x + (screenWidth - winW) / 2, y + (screenHeight - winH) / 2);
             screenWidth = winW, screenHeight = winH;
             SetWindowSize(winW, winH);
@@ -262,13 +285,19 @@ int main(void)
         // Update
         //----------------------------------------------------------------------------------
         BeginDrawing();
-        rlDisableColorBlend();
 
         ClearBackground(GRAY);
         int screenWidth = GetScreenWidth();
         int screenHeight = GetScreenHeight();
-        float scale = min(screenWidth / 128.0f, screenHeight / 128.0f);
-        Vector2 offset = (Vector2){(screenWidth - 128 * scale) / 2, (screenHeight - 128 * scale) / 2};
+        float offsetWidth = screenWidth;
+        float offsetHeight = screenHeight;
+        if (isExtended)
+        {
+            offsetWidth = screenWidth / 2;
+            offsetHeight = screenHeight / 2;
+        }
+        float scale = min(offsetWidth / 128.0f, offsetHeight / 128.0f);
+        Vector2 offset = (Vector2){(offsetWidth - 128 * scale) / 2, (offsetHeight - 128 * scale) / 2};
 
         if ((!isPaused || step) && loadSkip-- <= 0)
         {
@@ -288,11 +317,38 @@ int main(void)
             ctx.time += GetFrameTime();
             ctx.deltaTime = GetFrameTime();
 
+            memset(ctx.frameStats.overdrawCount, 0, sizeof(ctx.frameStats.overdrawCount));
             update(&ctx);
-            UpdateTexture(texture, ctx.screenData);
+            uint32_t maxOverdraw = 0;
+            for (int i = 0; i < 128 * 128; i++)
+            {
+                maxOverdraw = max(maxOverdraw, ctx.frameStats.overdrawCount[i]);
+            }
+
+            for (int i = 0; i < 128 * 128; i++)
+            {
+                float overdraw = (float)ctx.frameStats.overdrawCount[i] / maxOverdraw * 2.0f;
+                Color c = overdraw <= 1.0f ?
+                    (Color){(uint8_t)((1.0f - overdraw) * 255), (uint8_t)((overdraw) * 255), 0, 255} :
+                    (Color){0, (uint8_t)(1.0f-(overdraw - 1.0f) * 255), (uint8_t)(((overdraw - 1.0f)) * 255), 255};
+                ctx.frameStats.overdrawCount[i] = c.a << 24 | c.r << 16 | c.g << 8 | c.b;
+            }
+            uint32_t screenData[128 * 128];
+            for (int i = 0; i < 128 * 128; i++)
+            {
+                uint32_t c = ctx.screenData[i];
+                screenData[i] = c | 0xFF000000;
+            }
+            UpdateTexture(texture, screenData);
+            UpdateTexture(overdrawTexture, ctx.frameStats.overdrawCount);
+            if (isExtended)
+                DrawText(TextFormat("FPS: %d, maxOverdraw=%d", GetFPS(), maxOverdraw), 10, 10 + screenHeight / 2, 20, BLACK);
         }
         
+        rlDisableColorBlend();
         DrawTextureEx(texture, offset, 0.0f, scale, WHITE);
+        DrawTextureEx(overdrawTexture, (Vector2){offset.x + 128 * scale, offset.y}, 0.0f, scale, WHITE);
+        rlEnableColorBlend();
 
         EndDrawing();
 

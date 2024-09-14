@@ -119,7 +119,7 @@ static void DrawBush(TE_Img *img, int16_t bushX, int16_t bushY)
         TE_Img_blitEx(img, &atlasImg, TE_randRange(x-3,x+3), TE_randRange(y-3,y), TE_randRange(0,2)*8, TE_randRange(0,2)*8 + srcYOffset, 8, 8, (BlitEx) {
             .flipX = 0,
             .flipY = 0,
-            .rotate = TE_randRange(0, 4),
+            // .rotate = TE_randRange(0, 4),
             .tint = 1,
             .blendMode = TE_BLEND_ALPHAMASK,
             .tintColor = color,
@@ -188,11 +188,11 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
     }
 
     TreeDrawInstruction instructions[] = {
-        { .count = 5, .zValue = 4 + treeY, .compareMode = Z_COMPARE_LESS, .color = 1, .x = 0, .y = -2, .scatterX = 4, .scatterY = 3, .probability = 230, .shadow = 1 },
-        { .count = 5, .zValue = 8 + treeY, .compareMode = Z_COMPARE_LESS, .color = 14, .x = -1, .y = -3, .scatterX = 5, .scatterY = 4, .probability = 150, .shadow = 1 },
-        { .count = 4, .zValue = 10 + treeY, .compareMode = Z_COMPARE_LESS, .color = 12, .x = -2, .y = -3, .scatterX = 4, .scatterY = 4, .probability = 180, .shadow = 1 },
+        { .count = 3, .zValue = 4 + treeY, .compareMode = Z_COMPARE_LESS, .color = 1, .x = 0, .y = -2, .scatterX = 4, .scatterY = 3, .probability = 230, .shadow = 1 },
+        { .count = 2, .zValue = 8 + treeY, .compareMode = Z_COMPARE_LESS, .color = 14, .x = -1, .y = -3, .scatterX = 5, .scatterY = 4, .probability = 150, .shadow = 0 },
+        { .count = 3, .zValue = 10 + treeY, .compareMode = Z_COMPARE_LESS, .color = 12, .x = -2, .y = -3, .scatterX = 4, .scatterY = 4, .probability = 180, .shadow = 0 },
         { .count = 2, .zValue = 12 + treeY, .compareMode = Z_COMPARE_LESS, .color = 30, .x = -2, .y = -4, .scatterX = 3, .scatterY = 3, .probability = 160 },
-        { .count = 2, .zValue = 12 + treeY, .compareMode = Z_COMPARE_EQUAL, .color = 8, .x = -4, .y = -6, .scatterX = 5, .scatterY = 5, .srcYOffset = 16, .probability = 135 },
+        { .count = 3, .zValue = 12 + treeY, .compareMode = Z_COMPARE_EQUAL, .color = 8, .x = -4, .y = -6, .scatterX = 5, .scatterY = 5, .srcYOffset = 16, .probability = 135 },
     };
 
     int climbHeight = 0;
@@ -223,14 +223,19 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
                         }
                     });
                 
-                int dx = x - treeX;
+                // Trunk shadow
                 int dy = y - treeY;
-                int shadowX =(dx - dy) / 4 + treeX - 1;
-                int shadowY = -dy / 8 + treeY - 2;
-                TE_Img_line(img, shadowX, shadowY, shadowX + 6, shadowY, DB32Colors[14], (TE_ImgOpState) {
-                    .zCompareMode = Z_COMPARE_EQUAL,
-                    .zValue = 0,
-                });
+                if (dy % 8 == 0)
+                {
+                    int dx = x - treeX;
+                    int shadowX =(dx - dy) / 4 + treeX - 1;
+                    int shadowY = -dy / 8 + treeY - 2;
+                    TE_Img_fillRect(img, shadowX, shadowY, 8, 1, DB32Colors[14], (TE_ImgOpState) {
+                        .zCompareMode = Z_COMPARE_EQUAL,
+                        .zValue = 0,
+                    });
+                }
+
                 if (climbHeight < 15) climbHeight++;
                 else climbHeight -= 4;
             }
@@ -264,7 +269,7 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
                 TE_Img_blitEx(img, &atlasImg, x, y, TE_randRange(0,2)*8, TE_randRange(0,2)*8 + instruction->srcYOffset, 8, 8, (BlitEx) {
                     .flipX = 0,
                     .flipY = 0,
-                    .rotate = TE_randRange(0, 4),
+                    // .rotate = TE_randRange(0, 4),
                     .tint = 1,
                     .blendMode = TE_BLEND_ALPHAMASK,
                     .tintColor = DB32Colors[instruction->color],
@@ -292,7 +297,7 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
                 TE_Img_blitEx(img, &atlasImg, shadowX, shadowY, TE_randRange(0,2)*8, TE_randRange(0,2)*8 + instruction->srcYOffset, 8, 8, (BlitEx) {
                     .flipX = 0,
                     .flipY = 0,
-                    .rotate = TE_randRange(0, 4),
+                    // .rotate = TE_randRange(0, 4),
                     .tint = 1,
                     .blendMode = TE_BLEND_ALPHAMASK,
                     .tintColor = DB32Colors[14],

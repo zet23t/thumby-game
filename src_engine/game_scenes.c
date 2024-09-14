@@ -706,7 +706,7 @@ static void (*_sceneUpdateFn)(RuntimeContext *ctx, TE_Img *screenData);
 static void DrawTextBlock(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, const char *text)
 {
     TE_Font font = GameAssets_getFont(0);
-    TE_Img_fillRect(screenData, x, y, width, height, DB32Colors[21], (TE_ImgOpState){
+    TE_Img_fillRect(screenData, x+1, y+1, width-2, height-2, DB32Colors[21], (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,
     });

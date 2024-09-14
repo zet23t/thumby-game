@@ -95,7 +95,7 @@ float Avg32F_get(Avg32F *avg)
 
 DLL_EXPORT void init()
 {
-    TE_Logf(LOG_TAG_SYSTEM, "Initializing");
+    TE_Logf(LOG_TAG_SYSTEM, "Initializing, sizeof(RuntimeContext) = %d", sizeof(RuntimeContext));
 
     ParticleSystem_init();
 
@@ -422,4 +422,12 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         .zValue = 255,
     });
 
+    #ifdef PLATFORM_DESKTOP
+    ctx->frameStats = TE_Img_getStats();
+    uint32_t maxOverdraw = 0;
+    for (int i=0;i<128*128;i++)
+    {
+        maxOverdraw = ctx->frameStats.overdrawCount[i] > maxOverdraw ? ctx->frameStats.overdrawCount[i] : maxOverdraw;
+    }
+    #endif
 }

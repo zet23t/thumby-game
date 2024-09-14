@@ -2,6 +2,10 @@
 
 static TE_FrameStats frameStats;
 
+TE_FrameStats TE_Img_getStats()
+{
+    return frameStats;
+}
 TE_FrameStats TE_Img_resetStats()
 {
     TE_FrameStats stats = frameStats;
@@ -9,7 +13,7 @@ TE_FrameStats TE_Img_resetStats()
     return stats;
 }
 
-#define TE_Img_setPixelUnchecked(img, x, y, color, state) \
+#define TE_Img_setPixelUncheckedRaw(img, x, y, color, state) \
 { \
     uint32_t *pixel = &img->data[(y << img->p2width) + x]; \
     uint8_t zDst = *pixel >> 24; \
@@ -46,6 +50,12 @@ TE_FrameStats TE_Img_resetStats()
         *pixel = color; \
     } \
 }
+
+#ifdef PLATFORM_DESKTOP
+#define TE_Img_setPixelUnchecked(img, x, y, color, state) { frameStats.overdrawCount[(x) + (y) * 128]++; TE_Img_setPixelUncheckedRaw(img, x, y, color, state) }
+#else
+#define TE_Img_setPixelUnchecked(img, x, y, color, state) TE_Img_setPixelUncheckedRaw(img, x, y, color, state) 
+#endif
 
 void TE_Img_setPixel(TE_Img *img, uint16_t x, uint16_t y, uint32_t color, TE_ImgOpState state)
 {
@@ -667,12 +677,19 @@ void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, 
 
     x2 = x2 >= (1 << img->p2width) ? (1 << img->p2width) : x2;
     y2 = y2 >= (1 << img->p2height) ? (1 << img->p2height) : y2;
+    if (state.scissorWidth > 0 || state.scissorHeight > 0)
+    {
+        x1 = x1 < state.scissorX ? state.scissorX : x1;
+        y1 = y1 < state.scissorY ? state.scissorY : y1;
+        x2 = x2 > state.scissorX + state.scissorWidth ? state.scissorX + state.scissorWidth : x2;
+        y2 = y2 > state.scissorY + state.scissorHeight ? state.scissorY + state.scissorHeight : y2;
+    }
 
     for (uint16_t i = y1; i < y2; i++)
     {
         for (uint16_t j = x1; j < x2; j++)
         {
-            TE_Img_setPixel(img, j, i, color, state);
+            TE_Img_setPixelUnchecked(img, j, i, color, state);
         }
     }
 }

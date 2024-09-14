@@ -7,7 +7,7 @@
 
 void buildRaylibBackend()
 {
-    system("gcc -g -o raylib_backend src_engine_raylib/main.c src_engine_raylib/loader.c -Isrc_build -Isrc_engine -I_src_gen -Iraylib/src -Lraylib/src -lraylib -lopengl32 -lgdi32 -lwinmm");
+    system("gcc -DPLATFORM_DESKTOP -g -o raylib_backend src_engine_raylib/main.c src_engine_raylib/loader.c -Isrc_build -Isrc_engine -I_src_gen -Iraylib/src -Lraylib/src -lraylib -lopengl32 -lgdi32 -lwinmm");
 }
 
 int main(int argc, char const *argv[])
