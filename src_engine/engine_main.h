@@ -12,7 +12,7 @@ typedef struct TE_FrameStats
     uint32_t overdrawCount[128*128];
 #endif
     union {
-        uint32_t updateTimes[8];
+        uint32_t updateTimes[9];
         struct {
             uint32_t scene;
             uint32_t projectiles;
@@ -22,6 +22,7 @@ typedef struct TE_FrameStats
             uint32_t player;
             uint32_t script;
             uint32_t menu;
+            uint32_t total;
         } updateTime;
     };
 } TE_FrameStats;

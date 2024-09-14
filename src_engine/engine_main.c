@@ -320,8 +320,8 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     BENCH(ParticleSystem_update(ctx, &img), particles)
     BENCH(ScriptedAction_update(ctx, &img), script)
     BENCH(Menu_update(ctx, &img), menu)
-
     uint32_t end = ctx->getUTime();
+    ctx->frameStats.updateTime.total = end - start;
 
     // GameAssets_drawAnimation(ANIMATION_STAFF_HIT, &img, ctx->time * 1000.0f, 64, 64, 10, (BlitEx) {
     //     .blendMode = TE_BLEND_ALPHAMASK,
@@ -384,8 +384,9 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         "player",
         "script",
         "menu",
+        "total",
     };
-    static uint8_t displayBenchIndex = 0;
+    static uint8_t displayBenchIndex = 8;
     static Avg32F avgDuration;
     int dir = 0;
     if (ctx->inputB && !ctx->prevInputRight && ctx->inputRight)
@@ -399,12 +400,12 @@ DLL_EXPORT void update(RuntimeContext *ctx)
 
     if (dir)
     {
-        displayBenchIndex = (displayBenchIndex + 9 + dir) % 9;
-        if (displayBenchIndex < 8)
+        displayBenchIndex = (displayBenchIndex + 10 + dir) % 10;
+        if (displayBenchIndex < 9)
             Avg32F_fill(&avgDuration, ctx->frameStats.updateTimes[displayBenchIndex] / 1000.0f);
     }
 
-    if (displayBenchIndex == 8)
+    if (displayBenchIndex == 9)
     {
         sprintf(text, "FPS: %d|%d|%dk|%d", avgFPS, imgStats.blitCount, imgStats.blitPixelCount>>10, imgStats.blitXCount);
     }
