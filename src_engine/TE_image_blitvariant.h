@@ -29,7 +29,7 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
     uint32_t srcP2width = src->p2width;
     uint32_t *dstData = img->data;
     uint32_t dstP2width = img->p2width;
-    uint8_t zValue = state.zValue;
+    uint32_t zValue = state.zValue << 24;
 
     for (uint16_t j = 0, dstY = y, v = srcY; j < height; j++, dstY++, v++)
     {
@@ -61,7 +61,7 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
             // TE_Img_setPixelUnchecked(img, dstX, dstY, color, options.state);
             {
                 uint32_t *pixel = &dstData[dstIndex];
-                uint8_t zDst = *pixel >> 24;
+                uint32_t zDst = *pixel & 0xFF000000;
 // #ifdef VARIANT_Z_COMPARE_ALWAYS
 #ifdef VARIANT_Z_COMPARE_EQUAL
                 if (zDst == zValue) 
@@ -90,23 +90,18 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
                         uint32_t g = ((color >> 8) & 0xFF) * a >> 8;
                         uint32_t b = ((color >> 16) & 0xFF) * a >> 8;
                         uint32_t colorDst = *pixel;
-                        uint32_t aDst = colorDst & 0xff000000;
                         uint32_t rDst = (colorDst & 0xFF) * (255 - a) >> 8;
                         uint32_t gDst = ((colorDst >> 8) & 0xFF) * (255 - a) >> 8;
                         uint32_t bDst = ((colorDst >> 16) & 0xFF) * (255 - a) >> 8;
-                        color = r + rDst | ((g + gDst) << 8) | ((b + bDst) << 16) | aDst;
+                        color = r + rDst | ((g + gDst) << 8) | ((b + bDst) << 16);
                     }
 #endif
 
-                    if (state.zNoWrite)
-                    {
-                        color = (color & 0xffffff) | (zDst << 24);
-                    }
-                    else
-                    {
-                        color = (color & 0xffffff) | (state.zValue << 24);
-                    }
-                    *pixel = color;
+#ifdef VARIANT_Z_NO_WRITE
+                    *pixel = (color & 0xffffff) | zDst;
+#else
+                    *pixel = (color & 0xffffff) | zValue;
+#endif
                 }
             }
         }
@@ -123,3 +118,5 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
 #undef VARIANT_Z_COMPARE_LESS_EQUAL
 #undef VARIANT_Z_COMPARE_GREATER_EQUAL
 #undef VARIANT_Z_COMPARE_NOT_EQUAL
+#undef VARIANT_ALPHA_BLEND
+#undef VARIANT_Z_NO_WRITE

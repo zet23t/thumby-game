@@ -596,6 +596,208 @@ uint32_t TE_Color_tint(uint32_t color, uint32_t tint)
 #define VARIANT_ALPHAMASK
 #include "TE_image_blitvariant.h"
 
+// branch for zNoWrite
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_zCompareAlways
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_ALWAYS
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_zEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_EQUAL
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_zLess
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_LESS
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_zGreater
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_GREATER
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_zLessEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_LESS_EQUAL
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_zGreaterEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_GREATER_EQUAL
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_zNotEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_NOT_EQUAL
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+//
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_blend_zCompareAlways
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_ALWAYS
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_blend_zEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_EQUAL
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_blend_zLess
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_LESS
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_blend_zGreater
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_GREATER
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_blend_zLessEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_LESS_EQUAL
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_blend_zGreaterEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_GREATER_EQUAL
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_amask_blend_zNotEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_NOT_EQUAL
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+
+
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_zCompareAlways
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_ALWAYS
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_zEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_EQUAL
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_zLess
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_LESS
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_zGreater
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_GREATER
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_zLessEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_LESS_EQUAL
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_zGreaterEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_GREATER_EQUAL
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_zNotEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_Z_COMPARE_NOT_EQUAL
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_blend_zCompareAlways
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_Z_COMPARE_ALWAYS
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_blend_zEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_Z_COMPARE_EQUAL
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_blend_zLess
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_Z_COMPARE_LESS
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_blend_zGreater
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_Z_COMPARE_GREATER
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_blend_zLessEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_Z_COMPARE_LESS_EQUAL
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_blend_zGreaterEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_Z_COMPARE_GREATER_EQUAL
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
+#define VARIANT_NAME _TE_Img_blitVariant_noZWrite_tint_amask_blend_zNotEqual
+#define VARIANT_Z_NO_WRITE
+#define VARIANT_ALPHA_BLEND
+#define VARIANT_Z_COMPARE_NOT_EQUAL
+#define VARIANT_TINT
+#define VARIANT_ALPHAMASK
+#include "TE_image_blitvariant.h"
+
 
 static void TE_Img_rawBlitExTransformNone(TE_Img *img, TE_Img *src, int16_t x, int16_t y, int16_t srcX, int16_t srcY, int16_t width, int16_t height, BlitEx options)
 {
@@ -688,11 +890,25 @@ static void TE_Img_rawBlitExTransformNone(TE_Img *img, TE_Img *src, int16_t x, i
     {
         if (options.state.zAlphaBlend)
         {
-            BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_tint_amask_blend)
+            if (options.state.zNoWrite)
+            {
+                BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_noZWrite_tint_amask_blend)
+            }
+            else
+            {
+                BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_tint_amask_blend)
+            }
         }
         else
         {
-            BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_tint_amask)
+            if (options.state.zNoWrite)
+            {
+                BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_noZWrite_tint_amask)
+            }
+            else
+            {
+                BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_tint_amask)
+            }
         }
         // _TE_Img_blitVariant_tint_amask(img, src, x, y, srcX, srcY, width, height, options);
     }
@@ -700,11 +916,25 @@ static void TE_Img_rawBlitExTransformNone(TE_Img *img, TE_Img *src, int16_t x, i
     {
         if (options.state.zAlphaBlend)
         {
-            BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_amask_blend)
+            if (options.state.zNoWrite)
+            {
+                BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_noZWrite_amask_blend)
+            }
+            else
+            {
+                BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_amask_blend)
+            }
         }
         else
         {
-            BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_amask)
+            if (options.state.zNoWrite)
+            {
+                BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_noZWrite_amask)
+            }
+            else
+            {
+                BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_amask)
+            }
         }
         // for (uint16_t i = 0, dstX = x, u = srcX; i < width; i++, dstX++, u++)
         // {
