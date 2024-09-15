@@ -1,5 +1,6 @@
 #include "game_assets.h"
 #include "game.h"
+#include "fnt_tiny.h"
 #include "fnt_medium.h"
 #include "fnt_myfont.h"
 #include "game_particlesystem.h"
@@ -152,6 +153,7 @@ int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_
     return 0;
 }
 
+static TE_Img tinyImg;
 static TE_Img mediumImg;
 static TE_Img myfontImg;
 
@@ -159,6 +161,23 @@ TE_Font GameAssets_getFont(uint8_t index)
 {
     switch (index)
     {
+    case FONT_TINY:
+    {
+        tinyImg = (TE_Img){
+            .p2width = fnt_tiny_p2width,
+            .p2height = fnt_tiny_p2height,
+            .data = (uint32_t *)fnt_tiny_data,
+        };
+        return (TE_Font){
+            .atlas = &tinyImg,
+            .glyphCount = fnt_tiny_glyph_count,
+            .glyphValues = fnt_tiny_glyphs_values,
+            .rectXs = fnt_tiny_glyphs_rects_x,
+            .rectYs = fnt_tiny_glyphs_rects_y,
+            .rectWidths = fnt_tiny_glyphs_rects_width,
+            .rectHeights = fnt_tiny_glyphs_rects_height,
+        };
+    }
     case FONT_LARGE:
     {
         myfontImg = (TE_Img){

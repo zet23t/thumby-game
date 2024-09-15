@@ -32,6 +32,7 @@
 
 #define FONT_MEDIUM 0
 #define FONT_LARGE 1
+#define FONT_TINY 2
 
 #define ANIMATION_HAHAHA_RIGHT 1
 #define ANIMATION_HAHAHA_LEFT 2

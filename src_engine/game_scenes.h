@@ -6,6 +6,7 @@
 #include "TE_Image.h"
 #include "game.h"
 
+#define SCENE_0_TESTING 0
 #define SCENE_1_PULLING_THE_CART 1
 #define SCENE_2_ARRIVING_AT_HOME 2
 #define SCENE_3_CHASING_THE_LOOT 3

@@ -936,23 +936,6 @@ static void TE_Img_rawBlitExTransformNone(TE_Img *img, TE_Img *src, int16_t x, i
                 BLIT_DEPTH_COMPARE_VARIANTS(_TE_Img_blitVariant_amask)
             }
         }
-        // for (uint16_t i = 0, dstX = x, u = srcX; i < width; i++, dstX++, u++)
-        // {
-        //     for (uint16_t j = 0, dstY = y, v = srcY; j < height; j++, dstY++, v++)
-        //     {
-        //         uint32_t color = src->data[v << src->p2width | u];
-
-        //         if (options.blendMode == TE_BLEND_ALPHAMASK)
-        //         {
-        //             if ((color & 0xFF000000) == 0)
-        //             {
-        //                 continue;
-        //             }
-        //         }
-
-        //         TE_Img_setPixelUnchecked(img, dstX, dstY, color, options.state);
-        //     }
-        // }
     }
 }
 
@@ -1026,7 +1009,8 @@ void TE_Img_blitEx(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_t srcX
 void TE_Img_clear(TE_Img *img, uint32_t color, uint8_t z)
 {
     color = (color & 0xffffff) | (z << 24);
-    for (uint32_t i = 0; i < (1 << img->p2width) * (1 << img->p2height); i++)
+    uint32_t range = (1 << img->p2width) * (1 << img->p2height);
+    for (uint32_t i = 0; i < range; i++)
     {
         img->data[i] = color;
     }

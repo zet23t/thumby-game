@@ -1323,9 +1323,11 @@ static void Scene_2_update(RuntimeContext *ctx, TE_Img *screenData)
 
 }
 
+#include "game_scene_0_testing.h"
 #include "game_scene_3.h"
 
 static const Scene scenes[] = {
+    { .id = SCENE_0_TESTING, .initFn = Scene_0_init, .updateFn = Scene_0_update },
     { .id = SCENE_1_PULLING_THE_CART, .initFn = Scene_1_init, .updateFn = Scene_1_update },
     { .id = SCENE_2_ARRIVING_AT_HOME, .initFn = Scene_2_init, .updateFn = Scene_2_update },
     { .id = SCENE_3_CHASING_THE_LOOT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
@@ -1338,7 +1340,7 @@ static void NoSceneUpdate(RuntimeContext *ctx, TE_Img *screenData)
     DrawTextBlock(screenData, 10, 10, 108, 30, "No scene loaded");
 }
 
-static uint8_t _currentSceneId = 0;
+static uint8_t _currentSceneId = 0xff;
 
 // a simple allocator for scene data to avoid dynamic memory allocation
 // does not allow freeing memory, is reset on scene change

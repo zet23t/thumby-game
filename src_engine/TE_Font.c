@@ -28,6 +28,14 @@ int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t sp
     int width = 0;
     while (*text)
     {
+        if (*text == '\r') continue;
+        if (*text == '\n')
+        {
+            y += font->rectHeights[0];
+            text++;
+            width = 0;
+            continue;
+        }
         width += TE_Font_drawChar(img, font, x + width, y, *text, color, state) + spacing;
         text++;
     }
