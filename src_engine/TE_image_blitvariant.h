@@ -83,7 +83,7 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
 #endif
                 {
 #ifdef VARIANT_ALPHA_BLEND
-                    if (color & 0xFF000000 < 0xfe000000)
+                    if ((color >> 24) < 0xfe)
                     {
                         uint32_t a = color >> 24;
                         uint32_t r = (color & 0xFF) * a >> 8;

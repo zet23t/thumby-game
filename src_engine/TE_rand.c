@@ -21,8 +21,9 @@ void TE_addEntropy(uint32_t entropy)
 
 uint32_t TE_rand()
 {
-    TE_seed = TE_seed * 1103515245 + 12345;
-    return (TE_seed / 65536) % 32768;
+    TE_seed = TE_seed * 1103515245 + 0x21fc921;
+    uint32_t r = (TE_seed >> 4) & 0x7fffffff;
+    return r;
 }
 
 int32_t TE_randRange(int32_t min, int32_t max)

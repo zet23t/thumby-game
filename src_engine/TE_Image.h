@@ -56,10 +56,11 @@ typedef struct BlitEx
     uint8_t flipY : 1;
     uint8_t rotate : 2;
     uint8_t tint : 1;
-    uint8_t blendMode : 3;
+    uint8_t absZ : 1; // used for prefab instancing to ignore z offsetting
+    uint8_t blendMode : 2;
 
-    uint32_t tintColor;
     TE_ImgOpState state;
+    uint32_t tintColor;
 } BlitEx;
 
 #include "game.h"

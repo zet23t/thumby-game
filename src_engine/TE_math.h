@@ -11,6 +11,11 @@ typedef struct TE_Vector2_u8
     uint8_t x, y;
 } TE_Vector2_u8;
 
+typedef struct TE_Vector2_s8
+{
+    int8_t x, y;
+} TE_Vector2_s8;
+
 typedef struct TE_Vector2_s16
 {
     int16_t x, y;

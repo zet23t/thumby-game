@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include <string.h>
 
 #ifdef _WIN32
 #define DLL_EXPORT __declspec(dllexport)
@@ -26,6 +27,7 @@
 #include "game_scenes.h"
 #include "game_assets.h"
 #include "game_particlesystem.h"
+#include "game_renderobjects.h"
 #include "stdarg.h"
 
 uint32_t DB32Colors[] = {
@@ -46,14 +48,21 @@ char* TE_StrFmt(const char *format, ...)
     return buffer;
 }
 
+static void (*ctxLog)(const char *text);
+
 void TE_Logf(const char *tag, const char *fmt, ...)
 {
-    printf("[%s] ", tag);
+    char buffer[256];
+    sprintf(buffer, "[%s] ", tag);
     va_list args;
     va_start(args, fmt);
-    vprintf(fmt, args);
+    vsprintf(buffer + strlen(buffer), fmt, args);
     va_end(args);
-    printf("\n");
+    printf("%s\n", buffer);
+    if (ctxLog)
+    {
+        ctxLog(buffer);
+    }
 }
 
 const char* formatFileRef(const char *file, int line)
@@ -93,9 +102,13 @@ float Avg32F_get(Avg32F *avg)
     return sum / 32.0f;
 }
 
-DLL_EXPORT void init()
+DLL_EXPORT void init(RuntimeContext *ctx)
 {
+    ctxLog = ctx->log;
     TE_Logf(LOG_TAG_SYSTEM, "Initializing, sizeof(RuntimeContext) = %d", sizeof(RuntimeContext));
+    TE_Logf(LOG_TAG_SYSTEM, "sizeof(TE_Img) = %d; sizeof(TE_ImgOpState) = %d", sizeof(TE_Img), sizeof(TE_ImgOpState));
+    TE_Logf(LOG_TAG_SYSTEM, "sizeof(RenderObjectSprite) = %d;", sizeof(RenderObjectSprite));
+    TE_Logf(LOG_TAG_SYSTEM, "sizeof(TE_Font) = %d;", sizeof(TE_Font));
 
     ParticleSystem_init();
 
@@ -197,7 +210,9 @@ DLL_EXPORT void init()
     TE_Logf(LOG_TAG_SYSTEM, "sizeof(items) = %d; sizeof(characters) = %d", 
         sizeof(items), sizeof(characters));
 
-    Scene_init(1);
+    GameRuntimeContextState *state = (GameRuntimeContextState*)ctx->projectData;
+    Scene_init(state->isInitiailized ? state->currentScene : 1);
+    Scene_setStep(state->currentStep);
     // Environment_addTree(30,50, 12343050);
     // // Environment_addTree(35,50, 12343550);
     // // Environment_addTree(25,30, 12342530);
@@ -311,7 +326,7 @@ DLL_EXPORT void update(RuntimeContext *ctx)
 
     BENCH(Scene_update(ctx, &img), scene)
     BENCH(Projectiles_update(projectiles, ctx, &img), projectiles)
-    
+    BENCH(RenderObject_update(ctx, &img), renderObjects)
     TE_randSetSeed(ctx->frameCount * 1 + 392);
     BENCH(Enemies_update(ctx, &img), enemies)
     BENCH(Player_update(&player, &playerCharacter, ctx, &img), player)
@@ -384,9 +399,10 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         "player",
         "script",
         "menu",
+        "renderO",
         "total",
     };
-    static uint8_t displayBenchIndex = 8;
+    static uint8_t displayBenchIndex = 9;
     static Avg32F avgDuration;
     int dir = 0;
     if (ctx->inputB && !ctx->prevInputRight && ctx->inputRight)
@@ -400,12 +416,12 @@ DLL_EXPORT void update(RuntimeContext *ctx)
 
     if (dir)
     {
-        displayBenchIndex = (displayBenchIndex + 10 + dir) % 10;
-        if (displayBenchIndex < 9)
+        displayBenchIndex = (displayBenchIndex + 11 + dir) % 11;
+        if (displayBenchIndex < 10)
             Avg32F_fill(&avgDuration, ctx->frameStats.updateTimes[displayBenchIndex] / 1000.0f);
     }
 
-    if (displayBenchIndex == 9)
+    if (displayBenchIndex == 10)
     {
         sprintf(text, "FPS: %d|%d|%dk|%d", avgFPS, imgStats.blitCount, imgStats.blitPixelCount>>10, imgStats.blitXCount);
     }
@@ -422,6 +438,11 @@ DLL_EXPORT void update(RuntimeContext *ctx)
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,
     });
+
+    GameRuntimeContextState *state = (GameRuntimeContextState*)ctx->projectData;
+    state->isInitiailized = 1;
+    state->currentScene = Scene_getCurrentSceneId();
+    state->currentStep = Scene_getStep();
 
     #ifdef PLATFORM_DESKTOP
     ctx->frameStats = TE_Img_getStats();

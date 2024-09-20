@@ -20,8 +20,33 @@ int copyBitmapIntoClipboard(void* hwnd, const uint8_t *bitmapData, size_t sizeT)
 
 void *coreLib;
 typedef void (*UpdateFunc)(void *);
-typedef void (*InitFunc)(void);
+typedef void (*InitFunc)(void *);
 UpdateFunc update;
+
+static char consoleBuffer[0x10000];
+void consoleLog(const char *str)
+{
+    int blen = strlen(consoleBuffer);
+    int slen = strlen(str);
+    if (blen + slen >= sizeof(consoleBuffer) - 1)
+    {
+        // find first linebreak and move memory after it to the start
+        char *linebreak = strchr(consoleBuffer + slen, '\n');
+        if (linebreak)
+        {
+            int len = strlen(linebreak);
+            memmove(consoleBuffer, linebreak, len);
+            consoleBuffer[len] = '\0';
+        }
+        else
+        {
+            consoleBuffer[0] = '\0';
+        }
+    }
+
+    strcat(consoleBuffer, str);
+    strcat(consoleBuffer, "\n");
+}
 
 char* strReplaceDirSeps(char *str)
 {
@@ -47,7 +72,7 @@ void *compileFile(void *args) {
     return NULL;
 }
 
-void buildCoreDLL(int forceRebuild)
+void buildCoreDLL(int forceRebuild, RuntimeContext *ctx)
 {
     if (coreLib)
         unloadLibrary(coreLib);
@@ -65,6 +90,7 @@ void buildCoreDLL(int forceRebuild)
     FilePathList list = LoadDirectoryFiles("src_engine");
     int cFileCount = 0;
     int buildAll = forceRebuild;
+    printf("Checking for header changes, forceRebuild=%d\n", forceRebuild);
     for (int i = 0; i < list.count; i++)
     {
         if (strcmp(GetFileExtension(list.paths[i]), ".h") == 0)
@@ -72,14 +98,19 @@ void buildCoreDLL(int forceRebuild)
             struct stat srcStat, objStat;
             int srcExists = stat(list.paths[i], &srcStat);
             char objFile[256];
+            char cFile[256];
+            sprintf(cFile, "src_engine/%s.c", GetFileNameWithoutExt(list.paths[i]));
             sprintf(objFile, "_obj/%s.o", GetFileNameWithoutExt(list.paths[i]));
             strReplaceDirSeps(objFile + 5);
+            strReplaceDirSeps(cFile);
+            int cExists = stat(cFile, &srcStat);
+            if (cExists) continue;
             int objExists = stat(objFile, &objStat);
 
             // Compile if the object file doesn't exist or the source file is newer
             if (objExists != 0 || srcStat.st_mtime > objStat.st_mtime)
             {
-                printf("Header change detected, rebuilding all: %s\n", list.paths[i]);
+                printf("Header change detected, rebuilding all: %s (%d %d)\n", list.paths[i], cExists, objExists);
                 buildAll = 1;
                 break;
             }
@@ -163,7 +194,7 @@ void buildCoreDLL(int forceRebuild)
     update = getUpdateFunction(coreLib);
     InitFunc init = getInitFunction(coreLib);
     if (init != NULL)
-        init();
+        init(ctx);
 }
 
 
@@ -178,6 +209,13 @@ void copyScreenShot()
 uint32_t getUTime(void)
 {
     return (uint32_t) (GetTime() * 1000000.0f);
+}
+
+void copyFilesToDir(const char *srcDir, const char *dstDir)
+{
+    char command[256];
+    sprintf(command, "xcopy /Y /E /I %s %s", srcDir, dstDir);
+    system(command);
 }
 
 
@@ -195,9 +233,10 @@ int main(void)
 
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
-    buildCoreDLL(1);
-
     RuntimeContext ctx = {0};
+    ctx.log = consoleLog;
+    buildCoreDLL(1, &ctx);
+
     ctx.getUTime = getUTime;
     int isPaused = 0;
     int step = 0;
@@ -225,11 +264,17 @@ int main(void)
     };
     Texture2D overdrawTexture = LoadTextureFromImage(imgOverdraw);
 
+    Font myMonoFont = LoadFont("assets/fnt_mymono.png");
+
     int loadSkip = 0;
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
-
+        if (IsKeyPressed(KEY_F10))
+        {
+            // copy source to pico2 build dir
+            copyFilesToDir("src_engine", "C:\\devel\\rapico2\\test\\blink\\game");
+        }
         if (IsKeyPressed(KEY_P)) {
             isPaused = !isPaused;
         }
@@ -252,7 +297,7 @@ int main(void)
         if (IsKeyPressed(KEY_R))
         {
             float t = GetTime();
-            buildCoreDLL(IsKeyDown(KEY_LEFT_CONTROL));
+            buildCoreDLL(IsKeyDown(KEY_LEFT_CONTROL), &ctx);
             printf("Rebuilt core DLL in %f seconds\n", GetTime() - t);
             loadSkip = 2;
             ctx.time = 0.0f;
@@ -341,8 +386,27 @@ int main(void)
             }
             UpdateTexture(texture, screenData);
             UpdateTexture(overdrawTexture, ctx.frameStats.overdrawCount);
-            if (isExtended)
-                DrawText(TextFormat("FPS: %d, maxOverdraw=%d", GetFPS(), maxOverdraw), 10, 10 + screenHeight / 2, 20, BLACK);
+            if (isExtended) {
+                SetTextLineSpacing(-2);
+                const float spacing = -1.0f;
+                DrawTextEx(myMonoFont, TextFormat("FPS: %d, maxOverdraw=%d", GetFPS(), maxOverdraw), 
+                    (Vector2){ 10, 10 + screenHeight / 2}, myMonoFont.baseSize, spacing, WHITE);
+                // print last 10 log lines
+                char *endOfLog = &consoleBuffer[strlen(consoleBuffer)];
+                char *lastLine = endOfLog;
+                int line = 10;
+                while (line >= 0 && lastLine > consoleBuffer)
+                {
+                    lastLine--;
+                    if (*lastLine == '\n')
+                    {
+                        line--;
+                    }
+                }
+                if (*lastLine == '\n')
+                    lastLine++;
+                DrawTextEx(myMonoFont, lastLine, (Vector2){ 10, 28 + screenHeight / 2}, myMonoFont.baseSize, spacing, WHITE);
+            }
         }
         
         rlDisableColorBlend();

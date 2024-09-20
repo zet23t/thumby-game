@@ -4,6 +4,7 @@
 #include "game_assets.h"
 #include "game_environment.h"
 #include "game_particlesystem.h"
+#include "game_renderobjects.h"
 #include "TE_rand.h"
 #include <math.h>
 #include <stdio.h>
@@ -693,14 +694,6 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
     TE_randSetSeed(oldSeed);
 }
 
-
-typedef struct Scene
-{
-    uint8_t id;
-    void (*initFn)();
-    void (*updateFn)(RuntimeContext *ctx, TE_Img *screenData);
-} Scene;
-
 static void (*_sceneUpdateFn)(RuntimeContext *ctx, TE_Img *screenData);
 
 static void DrawTextBlock(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, const char *text)
@@ -1348,6 +1341,7 @@ static uint8_t _sceneAllocatorData[0x30000];
 static uint32_t _sceneAllocatorOffset = 0;
 void* Scene_malloc(uint32_t size)
 {
+    if (size == 0) return 0;
     if (_sceneAllocatorOffset + size > sizeof(_sceneAllocatorData))
     {
         LOG("Can not allocate %d bytes, out of memory (%d)", size, sizeof(_sceneAllocatorData));
@@ -1358,12 +1352,18 @@ void* Scene_malloc(uint32_t size)
     return ptr;
 }
 
+uint32_t Scene_getAllocatedSize()
+{
+    return _sceneAllocatorOffset;
+}
+
 void Scene_init(uint8_t sceneId)
 {
     _sceneAllocatorOffset = 0;
     memset(_sceneAllocatorData, 0, sizeof(_sceneAllocatorData));
     _currentSceneId = sceneId;
     TE_Logf("SCENE", "Init scene %d", sceneId);
+    RenderObject_init(0);
     ParticleSystem_init();
     Enemies_init();
     Player_setInputEnabled(1);

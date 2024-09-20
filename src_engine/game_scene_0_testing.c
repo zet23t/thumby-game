@@ -5,6 +5,7 @@
 #include "game_environment.h"
 #include "game_assets.h"
 #include "game_particlesystem.h"
+#include "game_renderobjects.h"
 #include "game.h"
 
 #include "TE_sdfmap.h"
@@ -16,6 +17,7 @@
 #include <stdlib.h>
 
 static int8_t _scene0Mode = 0;
+static int8_t _scene0ModeSelect = 0;
 
 void Scene_0_init()
 {
@@ -29,6 +31,8 @@ void Scene_0_init()
     player.x = 256;
     player.y = 256;
     Environment_init();
+
+    RenderObject_init(0x2000);
 }
 
 static int _getFibonacciInt(int n)
@@ -150,28 +154,90 @@ static uint32_t _testFloat3(RuntimeContext *ctx, TE_Img *screen)
     return end - start;
 }
 
-void Scene_0_update(RuntimeContext *ctx, TE_Img *screen)
+static uint32_t _testRands(RuntimeContext *ctx, TE_Img *screen)
 {
-    TE_Img_clear(screen, 0, 0);
-    int tests = 4;
+    static int counter = 0;
+    counter++;
+    int n = 100000;
+    TE_randSetSeed(1);
+    uint32_t sum = 0;
+    uint32_t start = ctx->getUTime();
+    for (int i = 0; i < n; i++)
+    {
+        sum += TE_randRange(-1234, 1234);
+    }
+    uint32_t end = ctx->getUTime();
+    TE_Font font = GameAssets_getFont(FONT_TINY);
+    char buffer[64];
+    snprintf(buffer, 64, "sum(%d) =\n %d", n, sum);
+    TE_Font_drawText(screen, &font, 2, 20, 1, buffer, 0xFFFFFFFF, (TE_ImgOpState){0});
 
-    if (ctx->inputLeft && !ctx->prevInputLeft)
+    for (int y= 48; y < 96;y++)
+    for (int x=0;x<(counter/8)%128;x++)
     {
-        _scene0Mode--;
-        if (_scene0Mode < 0)
-        {
-            _scene0Mode = tests;
-        }
-        LOG("Scene 0 mode: %d", _scene0Mode);
+        TE_Img_setPixel(screen, x, y, 0xFF|TE_rand(), (TE_ImgOpState){0});
     }
-    if (ctx->inputRight && !ctx->prevInputRight)
+    return end - start;
+}
+
+void Scene_0_drawinit(RuntimeContext *ctx, TE_Img *screen)
+{
+    RenderObject_clear();
+    RenderPrefab *prefab = RenderPrefab_create((RenderObjectCounts){
+        .spriteMaxCount=1, 
+        .atlasBlitMaxCount=1, 
+        .atlasBlitSkewXMaxCount=1, 
+        .atlasBlitSkewYMaxCount=1, 
+        .prefabInstanceMaxCount=32
+    });
+    // RenderPrefab_addSprite(prefab, (RenderObjectSprite){
+    //     .spriteIndex = SPRITE_ANIM_STAFF_HIT_F1,
+    //     .x = 32,
+    //     .y = 32,
+    //     .blitEx = (BlitEx){.flipX=0, .flipY=0, .rotate=0, .state=(TE_ImgOpState){.zValue=0}}
+    // });
+
+    for (int row=0; row < 6; row++)
     {
-        _scene0Mode++;
-        if (_scene0Mode > tests)
-        {
-            _scene0Mode = 0;
-        }
+        int8_t y = row * 32 + 16;
+        RenderPrefab_addPrefabInstance(prefab, (RenderObjectPrefabInstance){
+            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randRange(1,8)),
+            .offsetX = 16,
+            .offsetY = y,
+            .offsetZ = 0
+        });
+        RenderPrefab_addPrefabInstance(prefab, (RenderObjectPrefabInstance){
+            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randRange(1,8)),
+            .offsetX = 48,
+            .offsetY = y,
+            .offsetZ = 0
+        });
+        RenderPrefab_addPrefabInstance(prefab, (RenderObjectPrefabInstance){
+            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randRange(1,8)),
+            .offsetX = 72,
+            .offsetY = y,
+            .offsetZ = 0
+        });
+        RenderPrefab_addPrefabInstance(prefab, (RenderObjectPrefabInstance){
+            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randRange(1,8)),
+            .offsetX = 96,
+            .offsetY = y,
+            .offsetZ = 0
+        });
     }
+
+    RenderObject_setMain(prefab);
+}
+void Scene_0_draw(RuntimeContext *ctx, TE_Img *screen)
+{
+    // TE_Debug_drawLineCircle(16, 32, 8, 0xFF00FF00);
+    // TE_Debug_drawLineCircle(48, 32, 8, 0xFF00FF00);
+    // TE_Debug_drawLineCircle(72, 32, 8, 0xFF00FF00);
+}
+
+void Scene_0_bench(RuntimeContext *ctx, TE_Img *screen)
+{
+    RenderObject_clear();
 
     const char *modeName = "None";
     uint32_t elapsed = 0;
@@ -200,8 +266,79 @@ void Scene_0_update(RuntimeContext *ctx, TE_Img *screen)
         elapsed = _testFloat3(ctx, screen);
         modeName = "TestFloat3";
     }
+    if (_scene0Mode == 5)
+    {
+        elapsed = _testRands(ctx, screen);
+        modeName = "TestRands";
+    }
     char buffer[64];
     snprintf(buffer, 64, "%s %.2fms", modeName, (float)elapsed / 1000.0f);
     TE_Font font = GameAssets_getFont(FONT_MEDIUM);
     TE_Font_drawText(screen, &font, 2, 2, 1, buffer, 0xFFFFFFFF, (TE_ImgOpState){0});
+}
+
+void Scene_0_update(RuntimeContext *ctx, TE_Img *screen)
+{
+    if (_scene0ModeSelect == 0) TE_Img_clear(screen, 0, 0);
+    int tests = 5;
+    GameRuntimeContextState *state = (GameRuntimeContextState*)ctx->projectData;
+    int8_t nextSelect = state->currentConfigA;
+
+    if (ctx->inputUp && !ctx->prevInputUp)
+    {
+        nextSelect--;
+        if (nextSelect < 0)
+        {
+            nextSelect = 1;
+        }
+    }
+    if (ctx->inputDown && !ctx->prevInputDown)
+    {
+        nextSelect++;
+        if (nextSelect > 1)
+        {
+            nextSelect = 0;
+        }
+    }
+    if (nextSelect != _scene0ModeSelect)
+    {
+        _scene0ModeSelect = nextSelect;
+        if (_scene0ModeSelect == 1)
+        {
+            Scene_0_drawinit(ctx, screen);
+        }
+        LOG("Scene 0 mode select: %d", _scene0ModeSelect);
+    }
+
+    state->currentConfigA = _scene0ModeSelect;
+    _scene0Mode = state->currentConfigB;
+
+    if (ctx->inputLeft && !ctx->prevInputLeft)
+    {
+        _scene0Mode--;
+        if (_scene0Mode < 0)
+        {
+            _scene0Mode = tests;
+        }
+        LOG("Scene 0 mode: %d", _scene0Mode);
+    }
+    if (ctx->inputRight && !ctx->prevInputRight)
+    {
+        _scene0Mode++;
+        if (_scene0Mode > tests)
+        {
+            _scene0Mode = 0;
+        }
+    }
+
+    state->currentConfigB = _scene0Mode;
+
+    if (_scene0ModeSelect == 0)
+    {
+        Scene_0_bench(ctx, screen);
+    }
+    if (_scene0ModeSelect == 1)
+    {
+        Scene_0_draw(ctx, screen); 
+    }
 }

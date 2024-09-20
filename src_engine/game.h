@@ -6,6 +6,13 @@
 #include "TE_Image.h"
 #include "TE_debug.h"
 
+typedef struct GameRuntimeContextState 
+{
+    uint8_t isInitiailized;
+    uint8_t currentScene;
+    uint8_t currentStep;
+    uint8_t currentConfigA, currentConfigB;
+} GameRuntimeContextState;
 
 typedef struct Player
 {

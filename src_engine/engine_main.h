@@ -12,7 +12,7 @@ typedef struct TE_FrameStats
     uint32_t overdrawCount[128*128];
 #endif
     union {
-        uint32_t updateTimes[9];
+        uint32_t updateTimes[10];
         struct {
             uint32_t scene;
             uint32_t projectiles;
@@ -22,6 +22,7 @@ typedef struct TE_FrameStats
             uint32_t player;
             uint32_t script;
             uint32_t menu;
+            uint32_t renderObjects;
             uint32_t total;
         } updateTime;
     };
@@ -42,6 +43,7 @@ typedef struct RuntimeContext
         };
     };
     float rumbleIntensity;
+    uint8_t projectData[16];
 
     union {
         uint32_t inputState;
@@ -82,6 +84,7 @@ typedef struct RuntimeContext
     float deltaTime;
 
     uint32_t(*getUTime)(void);
+    void(*log)(const char *text);
 } RuntimeContext;
 
 extern uint32_t DB32Colors[];

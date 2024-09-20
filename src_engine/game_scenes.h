@@ -161,8 +161,17 @@ typedef struct ScriptedActions
     float plotIndexStartTime;
 } ScriptedActions;
 
+typedef struct Scene
+{
+    uint8_t id;
+    void (*initFn)();
+    void (*updateFn)(RuntimeContext *ctx, TE_Img *screenData);
+} Scene;
 
+// allocates memory with scene lifetime. Can not be freed. Memory space is zeroed.
 void* Scene_malloc(uint32_t size);
+uint32_t Scene_getAllocatedSize();
+
 void Scene_init(uint8_t sceneId);
 void Scene_setStep(uint8_t step);
 uint8_t Scene_getStep();
