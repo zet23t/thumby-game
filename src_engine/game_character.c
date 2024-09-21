@@ -114,8 +114,8 @@ void Character_drawKO(TE_Img *img, Character *character, uint8_t zOffset)
 void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, float tx, float ty, int8_t dirX, int8_t dirY)
 {
     int baseR = 4;
-    float prevX = character->prevX;
-    float prevY = character->prevY;
+    // float prevX = character->prevX;
+    // float prevY = character->prevY;
     
     character->prevX = character->x;
     character->prevY = character->y;
@@ -125,8 +125,8 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     //             .zCompareMode = Z_COMPARE_LESS,
     //             .zValue = (uint8_t) character->y + 8,
     //         });
-    int8_t signX = dx < 0.0f ? -1 : (dx > 0.0f ? 1 : 0);
-    int8_t signY = dy < 0.0f ? -1 : (dy > 0.0f ? 1 : 0);
+    // int8_t signX = dx < 0.0f ? -1 : (dx > 0.0f ? 1 : 0);
+    // int8_t signY = dy < 0.0f ? -1 : (dy > 0.0f ? 1 : 0);
     float len = sqrtf(dx * dx + dy * dy);
     character->targetDistance = len;
     if (len < 1.25f)

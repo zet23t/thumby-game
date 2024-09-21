@@ -1,3 +1,6 @@
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "game_menu.h"
 #include "game.h"
 #include "TE_Font.h"
@@ -5,6 +8,7 @@
 #include "fnt_tiny.h"
 #include "fnt_medium.h"
 #include "TE_math.h"
+#include "game_renderobjects.h"
 
 typedef struct GameMenu
 {
@@ -34,11 +38,11 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
     {
         return;
     }
-    TE_Img myFontImg = {
-        .p2width = fnt_myfont_p2width,
-        .p2height = fnt_myfont_p2height,
-        .data = (uint32_t*) fnt_myfont_data,
-    };
+    // TE_Img myFontImg = {
+    //     .p2width = fnt_myfont_p2width,
+    //     .p2height = fnt_myfont_p2height,
+    //     .data = (uint32_t*) fnt_myfont_data,
+    // };
     
     TE_Img tinyImg = {
         .p2width = fnt_tiny_p2width,
@@ -52,15 +56,15 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
         .data = (uint32_t*) fnt_medium_data,
     };
 
-    TE_Font myfont = {
-        .atlas = &myFontImg,
-        .glyphCount = fnt_myfont_glyph_count,
-        .glyphValues = fnt_myfont_glyphs_values,
-        .rectXs = fnt_myfont_glyphs_rects_x,
-        .rectYs = fnt_myfont_glyphs_rects_y,
-        .rectWidths = fnt_myfont_glyphs_rects_width,
-        .rectHeights = fnt_myfont_glyphs_rects_height,
-    };
+    // TE_Font myfont = {
+    //     .atlas = &myFontImg,
+    //     .glyphCount = fnt_myfont_glyph_count,
+    //     .glyphValues = fnt_myfont_glyphs_values,
+    //     .rectXs = fnt_myfont_glyphs_rects_x,
+    //     .rectYs = fnt_myfont_glyphs_rects_y,
+    //     .rectWidths = fnt_myfont_glyphs_rects_width,
+    //     .rectHeights = fnt_myfont_glyphs_rects_height,
+    // };
 
     TE_Font tinyfont = {
         .atlas = &tinyImg,
@@ -131,8 +135,11 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
         .scissorHeight = clipHeight,
     });
 
-    TE_Font_drawTextBox(img, &mediumfont, menuX + 4, menuY + 18, 127-(menuX + 4)*2 - 2, 64, -1, -4, 
-        "You found the menu that does nothing for now. Come back later!", alignX, alignY, 0xffffffff, (TE_ImgOpState)
+    char info[128];
+    sprintf(info, "RenderObjectSprite: %d RuntimeContext: %d", (int) sizeof(RenderObjectSprite), (int) sizeof(RuntimeContext));
+
+    TE_Font_drawTextBox(img, &tinyfont, menuX + 4, menuY + 18, 127-(menuX + 4)*2 - 2, 64, -1, -4, 
+        info, alignX, alignY, 0xffffffff, (TE_ImgOpState)
     {
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 255,

@@ -8,10 +8,15 @@
 #include <raylib.h>
 #include <rlgl.h>
 #include <pthread.h>
+#include <setjmp.h>
 
 #include <gen_assets.c>
 #include <engine_main.h>
 #include <raymath.h>
+#include <math.h>
+
+static jmp_buf panicJmpBuf;
+
 void *getUpdateFunction(void *lib);
 void *getInitFunction(void *lib);
 void *loadLibrary(const char *libName);
@@ -22,6 +27,7 @@ void *coreLib;
 typedef void (*UpdateFunc)(void *);
 typedef void (*InitFunc)(void *);
 UpdateFunc update;
+static const char *_isPanicked = NULL;
 
 static char consoleBuffer[0x10000];
 void consoleLog(const char *str)
@@ -168,7 +174,7 @@ void buildCoreDLL(int forceRebuild, RuntimeContext *ctx)
         // Compile if the object file doesn't exist or the source file is newer
         if (buildAll || objExists != 0 || srcStat.st_mtime > objStat.st_mtime) {
             ThreadArgs *args = (ThreadArgs *)malloc(sizeof(ThreadArgs));
-            sprintf(args->command, "gcc -DPLATFORM_DESKTOP -c -g -o %s %s -Isrc_engine -I_src_gen", coreObjFiles[i], coreSrcFiles[i]);
+            sprintf(args->command, "gcc -Wall -Wextra -Wincompatible-pointer-types -Wno-unused-parameter -DPLATFORM_DESKTOP -c -g -o %s %s -Isrc_engine -I_src_gen", coreObjFiles[i], coreSrcFiles[i]);
             printf("Scheduled building core object: %s\n", args->command);
             pthread_create(&threads[usedThreads++], NULL, compileFile, args);
             // printf("Building core object: %s\n", coreCommand);
@@ -185,16 +191,23 @@ void buildCoreDLL(int forceRebuild, RuntimeContext *ctx)
     }
     free(threads);
 
-    sprintf(coreCommand, "gcc -DPLATFORM_DESKTOP -shared -g -o %s %s", coreDLL, objfiles);
+    sprintf(coreCommand, "gcc -Wall -Wextra -Wincompatible-pointer-types -Wno-unused-parameter -DPLATFORM_DESKTOP -shared -g -o %s %s", coreDLL, objfiles);
     printf("Building core DLL: %s\n", coreCommand);
     system(coreCommand);
 
     // Load the DLL and get the update function
     coreLib = loadLibrary("core.dll");
     update = getUpdateFunction(coreLib);
+    
+    _isPanicked = NULL;
+    
     InitFunc init = getInitFunction(coreLib);
-    if (init != NULL)
+    if (init != NULL && setjmp(panicJmpBuf) == 0)
         init(ctx);
+    else
+    {
+        printf("Panic in init function\n");
+    }
 }
 
 
@@ -218,6 +231,92 @@ void copyFilesToDir(const char *srcDir, const char *dstDir)
     system(command);
 }
 
+void _DLLPanic(const char *msg)
+{
+    printf("PANIC: %s\n", msg);
+    _isPanicked = msg;
+    longjmp(panicJmpBuf, 1);
+    printf("This should not print\n");
+}
+
+uint32_t max_uint32(uint32_t a, uint32_t b)
+{
+    return a > b ? a : b;
+}
+
+void updateEngine(RuntimeContext *ctx, Texture2D texture, Texture2D overdrawTexture, Font myMonoFont, int isExtended, int screenWidth, int screenHeight)
+{
+    int step = 0;
+    ctx->frameCount++;
+    ctx->previousInputState = ctx->inputState;
+
+    ctx->inputA = IsKeyDown(KEY_I);
+    ctx->inputB = IsKeyDown(KEY_J);
+    ctx->inputUp = IsKeyDown(KEY_W);
+    ctx->inputDown = IsKeyDown(KEY_S);
+    ctx->inputLeft = IsKeyDown(KEY_A);
+    ctx->inputRight = IsKeyDown(KEY_D);
+    ctx->inputShoulderLeft = IsKeyDown(KEY_Q);
+    ctx->inputShoulderRight = IsKeyDown(KEY_E);
+    ctx->inputMenu = IsKeyDown(KEY_M);
+    ctx->time += GetFrameTime();
+    ctx->deltaTime = GetFrameTime();
+
+    memset(ctx->frameStats.overdrawCount, 0, sizeof(ctx->frameStats.overdrawCount));
+
+    if (update != NULL && setjmp(panicJmpBuf) == 0)
+    {
+        update(ctx);
+    }
+    else
+    {
+        printf("Panic in update function\n");
+        // do nothing
+    }
+    uint32_t maxOverdraw = 0;
+    for (int i = 0; i < 128 * 128; i++)
+    {
+        maxOverdraw = max_uint32(maxOverdraw, ctx->frameStats.overdrawCount[i]);
+    }
+
+    for (int i = 0; i < 128 * 128; i++)
+    {
+        float overdraw = (float)ctx->frameStats.overdrawCount[i] / maxOverdraw * 2.0f;
+        Color c = overdraw <= 1.0f ?
+            (Color){(uint8_t)((1.0f - overdraw) * 255), (uint8_t)((overdraw) * 255), 0, 255} :
+            (Color){0, (uint8_t)(1.0f-(overdraw - 1.0f) * 255), (uint8_t)(((overdraw - 1.0f)) * 255), 255};
+        ctx->frameStats.overdrawCount[i] = c.a << 24 | c.r << 16 | c.g << 8 | c.b;
+    }
+    uint32_t screenData[128 * 128];
+    for (int i = 0; i < 128 * 128; i++)
+    {
+        uint32_t c = ctx->screenData[i];
+        screenData[i] = c | 0xFF000000;
+    }
+    UpdateTexture(texture, screenData);
+    UpdateTexture(overdrawTexture, ctx->frameStats.overdrawCount);
+    if (isExtended) {
+        SetTextLineSpacing(-2);
+        const float spacing = -1.0f;
+        DrawTextEx(myMonoFont, TextFormat("FPS: %d, maxOverdraw=%d", GetFPS(), maxOverdraw), 
+            (Vector2){ 10, 10 + screenHeight / 2}, myMonoFont.baseSize, spacing, WHITE);
+        // print last 10 log lines
+        char *endOfLog = &consoleBuffer[strlen(consoleBuffer)];
+        char *lastLine = endOfLog;
+        int line = 10;
+        while (line >= 0 && lastLine > consoleBuffer)
+        {
+            lastLine--;
+            if (*lastLine == '\n')
+            {
+                line--;
+            }
+        }
+        if (*lastLine == '\n')
+            lastLine++;
+        DrawTextEx(myMonoFont, lastLine, (Vector2){ 10, 28 + screenHeight / 2}, myMonoFont.baseSize, spacing, WHITE);
+    }
+}
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -235,6 +334,7 @@ int main(void)
 
     RuntimeContext ctx = {0};
     ctx.log = consoleLog;
+    ctx.panic = _DLLPanic;
     buildCoreDLL(1, &ctx);
 
     ctx.getUTime = getUTime;
@@ -277,6 +377,7 @@ int main(void)
         }
         if (IsKeyPressed(KEY_P)) {
             isPaused = !isPaused;
+            printf("Paused: %d\n", isPaused);
         }
         if (IsKeyPressed(KEY_LEFT_SHIFT) && isPaused)
         {
@@ -344,69 +445,15 @@ int main(void)
         float scale = min(offsetWidth / 128.0f, offsetHeight / 128.0f);
         Vector2 offset = (Vector2){(offsetWidth - 128 * scale) / 2, (offsetHeight - 128 * scale) / 2};
 
-        if ((!isPaused || step) && loadSkip-- <= 0)
+        if (_isPanicked)
         {
+            printf("Panicmode\n");
+            DrawText(_isPanicked, 10, 10, 20, RED);
+        }
+        else if ((!isPaused || step) && loadSkip-- <= 0)
+        {
+            updateEngine(&ctx, texture, overdrawTexture, myMonoFont, isExtended, screenWidth, screenHeight);
             step = 0;
-            ctx.frameCount++;
-            ctx.previousInputState = ctx.inputState;
-
-            ctx.inputA = IsKeyDown(KEY_I);
-            ctx.inputB = IsKeyDown(KEY_J);
-            ctx.inputUp = IsKeyDown(KEY_W);
-            ctx.inputDown = IsKeyDown(KEY_S);
-            ctx.inputLeft = IsKeyDown(KEY_A);
-            ctx.inputRight = IsKeyDown(KEY_D);
-            ctx.inputShoulderLeft = IsKeyDown(KEY_Q);
-            ctx.inputShoulderRight = IsKeyDown(KEY_E);
-            ctx.inputMenu = IsKeyDown(KEY_M);
-            ctx.time += GetFrameTime();
-            ctx.deltaTime = GetFrameTime();
-
-            memset(ctx.frameStats.overdrawCount, 0, sizeof(ctx.frameStats.overdrawCount));
-            update(&ctx);
-            uint32_t maxOverdraw = 0;
-            for (int i = 0; i < 128 * 128; i++)
-            {
-                maxOverdraw = max(maxOverdraw, ctx.frameStats.overdrawCount[i]);
-            }
-
-            for (int i = 0; i < 128 * 128; i++)
-            {
-                float overdraw = (float)ctx.frameStats.overdrawCount[i] / maxOverdraw * 2.0f;
-                Color c = overdraw <= 1.0f ?
-                    (Color){(uint8_t)((1.0f - overdraw) * 255), (uint8_t)((overdraw) * 255), 0, 255} :
-                    (Color){0, (uint8_t)(1.0f-(overdraw - 1.0f) * 255), (uint8_t)(((overdraw - 1.0f)) * 255), 255};
-                ctx.frameStats.overdrawCount[i] = c.a << 24 | c.r << 16 | c.g << 8 | c.b;
-            }
-            uint32_t screenData[128 * 128];
-            for (int i = 0; i < 128 * 128; i++)
-            {
-                uint32_t c = ctx.screenData[i];
-                screenData[i] = c | 0xFF000000;
-            }
-            UpdateTexture(texture, screenData);
-            UpdateTexture(overdrawTexture, ctx.frameStats.overdrawCount);
-            if (isExtended) {
-                SetTextLineSpacing(-2);
-                const float spacing = -1.0f;
-                DrawTextEx(myMonoFont, TextFormat("FPS: %d, maxOverdraw=%d", GetFPS(), maxOverdraw), 
-                    (Vector2){ 10, 10 + screenHeight / 2}, myMonoFont.baseSize, spacing, WHITE);
-                // print last 10 log lines
-                char *endOfLog = &consoleBuffer[strlen(consoleBuffer)];
-                char *lastLine = endOfLog;
-                int line = 10;
-                while (line >= 0 && lastLine > consoleBuffer)
-                {
-                    lastLine--;
-                    if (*lastLine == '\n')
-                    {
-                        line--;
-                    }
-                }
-                if (*lastLine == '\n')
-                    lastLine++;
-                DrawTextEx(myMonoFont, lastLine, (Vector2){ 10, 28 + screenHeight / 2}, myMonoFont.baseSize, spacing, WHITE);
-            }
         }
         
         rlDisableColorBlend();

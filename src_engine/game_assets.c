@@ -77,7 +77,7 @@ static int DrawAnimation_HAHAHA(TE_Img *dst, uint32_t msTick, uint8_t spriteId, 
     // for (int n=0; n<2; n++)
     // {
     msTick *= 2;
-    if (msTick >= HAHA_FRAME_DURATION * 5 * loopCount - 2)
+    if (msTick + 2 >= (uint32_t)(HAHA_FRAME_DURATION * 5 * loopCount))
         return 0;
 
     int ftime = msTick % (HAHA_FRAME_DURATION * 5);
@@ -106,7 +106,7 @@ static int DrawAnimation_HAHAHA(TE_Img *dst, uint32_t msTick, uint8_t spriteId, 
 static int DrawAnimation_STAFF_HIT(TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, int isHit, BlitEx blitEx)
 {
     uint32_t frame = msTick / STAFF_HIT_FRAME_DURATION;
-    if (frame >= 6 * maxLoopCount)
+    if (frame >= (uint32_t) (6 * maxLoopCount))
         return 0;
     frame %= 6;
     // TE_Debug_drawPixel(x, y, 0xffff00ff);

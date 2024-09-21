@@ -37,7 +37,7 @@ TE_FrameStats TE_Img_resetStats()
             uint32_t rDst = (colorDst & 0xFF) * (255 - a) >> 8; \
             uint32_t gDst = ((colorDst >> 8) & 0xFF) * (255 - a) >> 8; \
             uint32_t bDst = ((colorDst >> 16) & 0xFF) * (255 - a) >> 8; \
-            color = r + rDst | ((g + gDst) << 8) | ((b + bDst) << 16) | aDst; \
+            color = (r + rDst) | ((g + gDst) << 8) | ((b + bDst) << 16) | aDst; \
         } \
         if (state.zNoWrite) \
         { \
@@ -165,7 +165,7 @@ void TE_Img_lineTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_
     int16_t dx12 = x2 - x1;
     int16_t dy12 = y2 - y1;
 
-    int16_t x, y;
+    int16_t y;
     if (dy01 == 0)
     {
         dy01 = 1;

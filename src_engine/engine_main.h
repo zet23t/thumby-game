@@ -3,6 +3,8 @@
 
 #include <inttypes.h>
 
+#define ALIGN_VALUE4(x) (((x)+3)&~3)
+
 typedef struct TE_FrameStats
 {
     uint32_t blitCount;
@@ -85,10 +87,13 @@ typedef struct RuntimeContext
 
     uint32_t(*getUTime)(void);
     void(*log)(const char *text);
+    void(*dbgSetRGB)(uint8_t r, uint8_t g, uint8_t b);
+    void(*panic)(const char *text);
 } RuntimeContext;
 
 extern uint32_t DB32Colors[];
-
+void TE_DebugRGB(uint8_t r, uint8_t g, uint8_t b);
+void TE_Panic(const char *text);
 
 #define DB32_BLACK 0
 #define DB32_DEEPINDIGO 1

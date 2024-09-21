@@ -19,6 +19,7 @@ void *RenderObject_malloc(uint32_t size)
     if (_renderObjectMemoryPointer + size > _renderObjectMemoryMaxSize)
     {
         LOG("RenderObject_malloc: Out of memory");
+        TE_Panic("Out of memory");
         return NULL;
     }
 
@@ -28,6 +29,7 @@ void *RenderObject_malloc(uint32_t size)
 
     void *ptr = _renderObjectMemory + _renderObjectMemoryPointer;
     _renderObjectMemoryPointer += size;
+    _renderObjectMemoryPointer = ALIGN_VALUE4(_renderObjectMemoryPointer);
     return ptr;
 }
 
@@ -50,6 +52,7 @@ RenderPrefab* RenderPrefab_create(RenderObjectCounts counts)
     RenderPrefab *prefab = (RenderPrefab*) RenderObject_malloc(sizeof(RenderPrefab));
     if (prefab == NULL)
     {
+        TE_DebugRGB(1,1,1);
         LOG("Failed to allocate memory for RenderPrefab");
         return NULL;
     }
@@ -196,8 +199,7 @@ void RenderPrefab_update(RenderPrefab *prefab, RuntimeContext *ctx, TE_Img *scre
         int16_t shiftX = 0;
         int16_t diffX = atlasBlitSkew->x2 - atlasBlitSkew->x1;
         int16_t diffY = atlasBlitSkew->y2 - atlasBlitSkew->y1;
-        int16_t errorX = 0;
-        int16_t stepX = diffX / diffY;
+        // int16_t stepX = diffX / diffY;
         uint8_t count = absi(diffY);
 
         for (int y = atlasBlitSkew->y1, n = 0, v = 0; n < count; y+=dir, v++, n++)

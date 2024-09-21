@@ -36,7 +36,7 @@ void TE_SDFMap_drawDebug(TE_SDFMap *map, RuntimeContext *ctx)
 
     uint16_t maxSqDist = 0;
     uint32_t pixels = map->width * map->height;
-    for (int i=0;i<pixels;i++)
+    for (uint32_t i=0;i<pixels;i++)
     {
         if (map->data[i].sqDistance > maxSqDist)
         {

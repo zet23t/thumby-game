@@ -32,7 +32,7 @@ void Scene_0_init()
     player.y = 256;
     Environment_init();
 
-    RenderObject_init(0x2000);
+    RenderObject_init(0x8000);
 }
 
 static int _getFibonacciInt(int n)
@@ -196,30 +196,31 @@ void Scene_0_drawinit(RuntimeContext *ctx, TE_Img *screen)
     //     .y = 32,
     //     .blitEx = (BlitEx){.flipX=0, .flipY=0, .rotate=0, .state=(TE_ImgOpState){.zValue=0}}
     // });
-
+    TE_randSetSeed(1);
+    uint8_t variant = 1;
     for (int row=0; row < 6; row++)
     {
         int8_t y = row * 32 + 16;
         RenderPrefab_addPrefabInstance(prefab, (RenderObjectPrefabInstance){
-            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randRange(1,8)),
+            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, variant++),
             .offsetX = 16,
             .offsetY = y,
             .offsetZ = 0
         });
         RenderPrefab_addPrefabInstance(prefab, (RenderObjectPrefabInstance){
-            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randRange(1,8)),
+            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, variant++),
             .offsetX = 48,
             .offsetY = y,
             .offsetZ = 0
         });
         RenderPrefab_addPrefabInstance(prefab, (RenderObjectPrefabInstance){
-            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randRange(1,8)),
+            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, variant++),
             .offsetX = 72,
             .offsetY = y,
             .offsetZ = 0
         });
         RenderPrefab_addPrefabInstance(prefab, (RenderObjectPrefabInstance){
-            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randRange(1,8)),
+            .prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, variant++),
             .offsetX = 96,
             .offsetY = y,
             .offsetZ = 0

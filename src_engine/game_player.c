@@ -122,7 +122,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
             percent = 1.0f;
             color = ctx->frameCount / 4 % 2 == 0 ? 0xff0000ff : 0xffffffff;
         }
-        float len = percent * 16.0f;
+        // float len = percent * 16.0f;
         float sdx = tdx;
         float sdy = tdy;
         float sdLen = sqrtf(sdx * sdx + sdy * sdy);

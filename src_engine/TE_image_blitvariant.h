@@ -10,12 +10,10 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
     {
         return;
     }
-    uint16_t imgWidth = 1 << img->p2width;
-    uint16_t imgHeight = 1 << img->p2height;
-    uint16_t srcWidth = 1 << src->p2width;
-    uint16_t srcHeight = 1 << src->p2height;
-
-    TE_ImgOpState state = options.state;
+    // uint16_t imgWidth = 1 << img->p2width;
+    // uint16_t imgHeight = 1 << img->p2height;
+    // uint16_t srcWidth = 1 << src->p2width;
+    // uint16_t srcHeight = 1 << src->p2height;
 
 #ifdef VARIANT_TINT
     uint32_t tint = options.tintColor;
@@ -29,7 +27,10 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
     uint32_t srcP2width = src->p2width;
     uint32_t *dstData = img->data;
     uint32_t dstP2width = img->p2width;
+#if defined(VARIANT_Z_COMPARE_EQUAL) || defined(VARIANT_Z_COMPARE_LESS) || defined(VARIANT_Z_COMPARE_GREATER) || defined(VARIANT_Z_COMPARE_LESS_EQUAL) || defined(VARIANT_Z_COMPARE_GREATER_EQUAL) || defined(VARIANT_Z_COMPARE_NOT_EQUAL) || !defined(VARIANT_Z_NO_WRITE)
+    TE_ImgOpState state = options.state;
     uint32_t zValue = state.zValue << 24;
+#endif
 
     for (uint16_t j = 0, dstY = y, v = srcY; j < height; j++, dstY++, v++)
     {
@@ -61,7 +62,9 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
             // TE_Img_setPixelUnchecked(img, dstX, dstY, color, options.state);
             {
                 uint32_t *pixel = &dstData[dstIndex];
+#if defined(VARIANT_Z_COMPARE_EQUAL) || defined(VARIANT_Z_COMPARE_LESS) || defined(VARIANT_Z_COMPARE_GREATER) || defined(VARIANT_Z_COMPARE_LESS_EQUAL) || defined(VARIANT_Z_COMPARE_GREATER_EQUAL) || defined(VARIANT_Z_COMPARE_NOT_EQUAL) || defined(VARIANT_Z_NO_WRITE)
                 uint32_t zDst = *pixel & 0xFF000000;
+#endif
 // #ifdef VARIANT_Z_COMPARE_ALWAYS
 #ifdef VARIANT_Z_COMPARE_EQUAL
                 if (zDst == zValue) 
@@ -93,7 +96,7 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
                         uint32_t rDst = (colorDst & 0xFF) * (255 - a) >> 8;
                         uint32_t gDst = ((colorDst >> 8) & 0xFF) * (255 - a) >> 8;
                         uint32_t bDst = ((colorDst >> 16) & 0xFF) * (255 - a) >> 8;
-                        color = r + rDst | ((g + gDst) << 8) | ((b + bDst) << 16);
+                        color = (r + rDst) | ((g + gDst) << 8) | ((b + bDst) << 16);
                     }
 #endif
 

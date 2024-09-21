@@ -131,8 +131,7 @@ static void DrawBush(TE_Img *img, int16_t bushX, int16_t bushY)
     }
 
     // transform x/y to shadow projected x/y
-    int dx = x - bushX;
-    int dy = y - bushY;
+    // int dx = x - bushX;
     int shadowX =bushX + 2;
     int shadowY = bushY + 2;
     TE_Img_blitEx(img, &atlasImg, shadowX, shadowY, TE_randRange(0,2)*8, TE_randRange(0,2)*8 + srcYOffset, 8, 8, (BlitEx) {
@@ -248,7 +247,8 @@ void DrawTree(TE_Img *img, int16_t treeX, int16_t treeY)
     int leafdropPointCount = 0;
 
     // drawing the leafs
-    for (int td = 0; td < sizeof(instructions) / sizeof(TreeDrawInstruction); td++)
+    const int count = (int) (sizeof(instructions) / sizeof(TreeDrawInstruction));
+    for (int td = 0; td < count; td++)
     {
         TreeDrawInstruction *instruction = &instructions[td];
         int32_t minX = instruction->x - instruction->scatterX;
@@ -423,8 +423,8 @@ float Environment_calcSDFValue(int16_t px, int16_t py, int16_t *nearestX, int16_
         }
         else if (environmentScene.objects[i].type == TYPE_TREEGROUP)
         {
-            int posX[32];
-            int posY[32];
+            int32_t posX[32];
+            int32_t posY[32];
             int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
             int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
             for (int j=0;j<treeGroupCount;j++)
@@ -484,8 +484,8 @@ int Environment_raycastCircle(int16_t px, int16_t py, int16_t radius, int16_t *o
         }
         else if (environmentScene.objects[i].type == TYPE_TREEGROUP)
         {
-            int posX[32];
-            int posY[32];
+            int32_t posX[32];
+            int32_t posY[32];
             int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
             int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
             for (int j=0;j<treeGroupCount;j++)
@@ -531,8 +531,8 @@ int Environment_raycastPoint(int16_t px, int16_t py)
         }
         else if (environmentScene.objects[i].type == TYPE_TREEGROUP)
         {
-            int posX[32];
-            int posY[32];
+            int32_t posX[32];
+            int32_t posY[32];
             int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
             int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
             for (int j=0;j<treeGroupCount;j++)
@@ -580,8 +580,8 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
         }
         else if (environmentScene.objects[i].type == TYPE_TREEGROUP)
         {
-            int posX[32];
-            int posY[32];
+            int32_t posX[32];
+            int32_t posY[32];
             int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
             int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
             for (int j=0;j<treeGroupCount;j++)
@@ -599,8 +599,8 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
         }
         else if (environmentScene.objects[i].type == TYPE_BUSHGROUP)
         {
-            int posX[32];
-            int posY[32];
+            int32_t posX[32];
+            int32_t posY[32];
             int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
             int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
             for (int j=0;j<treeGroupCount;j++)
@@ -614,8 +614,8 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
         }
         else if (environmentScene.objects[i].type == TYPE_FLOWERGROUP)
         {
-            int posX[32];
-            int posY[32];
+            int32_t posX[32];
+            int32_t posY[32];
             int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
             int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
             for (int j=0;j<treeGroupCount;j++)
@@ -710,6 +710,7 @@ void Environment_updateSDFMap(TE_SDFMap *sdfMap)
             }
         }
     }
+    TE_randSetSeed(oldSeed);
 }
 
 void Environment_setSDFMap(TE_SDFMap *sdfMap)

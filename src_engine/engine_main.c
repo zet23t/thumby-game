@@ -49,6 +49,24 @@ char* TE_StrFmt(const char *format, ...)
 }
 
 static void (*ctxLog)(const char *text);
+static void (*ctxSetRGB)(uint8_t r, uint8_t g, uint8_t b);
+static void (*ctxPanic)(const char *text);
+
+void TE_DebugRGB(uint8_t r, uint8_t g, uint8_t b)
+{
+    if (ctxSetRGB)
+    {
+        ctxSetRGB(r, g, b);
+    }
+}
+
+void TE_Panic(const char *text)
+{
+    if (ctxPanic)
+    {
+        ctxPanic(text);
+    }
+}
 
 void TE_Logf(const char *tag, const char *fmt, ...)
 {
@@ -105,11 +123,15 @@ float Avg32F_get(Avg32F *avg)
 DLL_EXPORT void init(RuntimeContext *ctx)
 {
     ctxLog = ctx->log;
+    ctxSetRGB = ctx->dbgSetRGB;
+    ctxPanic = ctx->panic;
+    TE_DebugRGB(0, 0, 0);
     TE_Logf(LOG_TAG_SYSTEM, "Initializing, sizeof(RuntimeContext) = %d", sizeof(RuntimeContext));
     TE_Logf(LOG_TAG_SYSTEM, "sizeof(TE_Img) = %d; sizeof(TE_ImgOpState) = %d", sizeof(TE_Img), sizeof(TE_ImgOpState));
     TE_Logf(LOG_TAG_SYSTEM, "sizeof(RenderObjectSprite) = %d;", sizeof(RenderObjectSprite));
     TE_Logf(LOG_TAG_SYSTEM, "sizeof(TE_Font) = %d;", sizeof(TE_Font));
-
+    
+    TE_DebugRGB(1, 0, 0);
     ParticleSystem_init();
 
     atlasImg = (TE_Img) {
@@ -209,10 +231,13 @@ DLL_EXPORT void init(RuntimeContext *ctx)
     TE_Logf(LOG_TAG_SYSTEM, "Initialized");
     TE_Logf(LOG_TAG_SYSTEM, "sizeof(items) = %d; sizeof(characters) = %d", 
         sizeof(items), sizeof(characters));
+    TE_DebugRGB(0, 1, 0);
 
     GameRuntimeContextState *state = (GameRuntimeContextState*)ctx->projectData;
     Scene_init(state->isInitiailized ? state->currentScene : 1);
+    TE_DebugRGB(1, 1, 1);
     Scene_setStep(state->currentStep);
+    TE_DebugRGB(1, 0, 1);
     // Environment_addTree(30,50, 12343050);
     // // Environment_addTree(35,50, 12343550);
     // // Environment_addTree(25,30, 12342530);
@@ -269,7 +294,6 @@ uint8_t activeSceneId;
 
 DLL_EXPORT void update(RuntimeContext *ctx)
 {
-    TE_FrameStats prevStats = ctx->frameStats;
     TE_FrameStats imgStats = TE_Img_resetStats();
 
     ctx->frameStats = (TE_FrameStats) {0};

@@ -223,7 +223,6 @@ Enemy* Enemies_getEnemy(uint8_t id)
 
 int Enemies_raycastPoint(float x, float y)
 {
-    float rad2 = ENEMY_RADIUS * ENEMY_RADIUS;
     for (int i=0;i<MAX_ENEMIES;i++)
     {
         if (enemies[i].health > 0.0f)

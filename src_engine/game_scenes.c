@@ -1345,10 +1345,12 @@ void* Scene_malloc(uint32_t size)
     if (_sceneAllocatorOffset + size > sizeof(_sceneAllocatorData))
     {
         LOG("Can not allocate %d bytes, out of memory (%d)", size, sizeof(_sceneAllocatorData));
+        TE_Panic("Out of memory");
         return NULL;
     }
     void *ptr = &_sceneAllocatorData[_sceneAllocatorOffset];
     _sceneAllocatorOffset += size;
+    _sceneAllocatorOffset = ALIGN_VALUE4(_sceneAllocatorOffset);
     return ptr;
 }
 
