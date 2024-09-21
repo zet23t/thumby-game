@@ -43,7 +43,12 @@ static TE_SDFMap *sdfMap = 0;
 void Scene_3_init()
 {
     Environment_addTreeGroup(20, 20, 18522, 4, 20);
-    Environment_addTreeGroup(100, 30, 1852, 6, 25);
+    Environment_addTree(88,20,124);
+    Environment_addTree(114,34,125);
+    Environment_addTree(108,14,125);
+    Environment_addTree(120,20,125);
+    Environment_addTree(94,20,125);
+    // Environment_addTreeGroup(100, 20, 1856, 5, 30);
     Environment_addFlowerGroup(76,40, 232, 15, 20);
     Environment_addBushGroup(75,35, 1232, 5, 10);
 

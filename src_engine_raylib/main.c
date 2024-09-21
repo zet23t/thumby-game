@@ -447,7 +447,6 @@ int main(void)
 
         if (_isPanicked)
         {
-            printf("Panicmode\n");
             DrawText(_isPanicked, 10, 10, 20, RED);
         }
         else if ((!isPaused || step) && loadSkip-- <= 0)

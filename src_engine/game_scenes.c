@@ -1365,7 +1365,7 @@ void Scene_init(uint8_t sceneId)
     memset(_sceneAllocatorData, 0, sizeof(_sceneAllocatorData));
     _currentSceneId = sceneId;
     TE_Logf("SCENE", "Init scene %d", sceneId);
-    RenderObject_init(0);
+    RenderObject_init(0x8000);
     ParticleSystem_init();
     Enemies_init();
     Player_setInputEnabled(1);

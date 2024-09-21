@@ -330,7 +330,7 @@ static RenderPrefab* GameAssets_createTreePrefab(uint16_t id)
             .blitEx = {
                 .blendMode = TE_BLEND_ALPHAMASK,
                 .tint = 1,
-                .tintColor = 0x33000000,
+                .tintColor = 0x44000000,
                 .absZ = 1,
                 .state.zValue = 8,
                 .state.zCompareMode = Z_COMPARE_LESS,

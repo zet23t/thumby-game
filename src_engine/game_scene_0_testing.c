@@ -31,8 +31,6 @@ void Scene_0_init()
     player.x = 256;
     player.y = 256;
     Environment_init();
-
-    RenderObject_init(0x8000);
 }
 
 static int _getFibonacciInt(int n)
