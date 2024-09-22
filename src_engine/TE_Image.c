@@ -260,7 +260,7 @@ void TE_Img_fillTriangle(TE_Img *img, int16_t x0, int16_t y0, int16_t x1, int16_
     {
         dy12 = 1;
     }
-    for (y = y0; y <= y1; y++)
+    for (y = y0; y < y1; y++)
     {
         int16_t xL = x0 + dx01 * (y - y0) / dy01;
         int16_t xR = x0 + dx02 * (y - y0) / dy02;
@@ -1028,7 +1028,7 @@ void TE_Img_HLine(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint32_t color,
         return;
     }
     x = x < 0 ? 0 : x;
-    x2 = x2 >= (1 << img->p2width) ? (1 << img->p2width) - 1 : x2;
+    x2 = x2 >= (1 << img->p2width) ? (1 << img->p2width) : x2;
 
     for (uint16_t i = x; i < x2; i++)
     {
@@ -1048,7 +1048,7 @@ void TE_Img_VLine(TE_Img *img, int16_t x, int16_t y, uint16_t h, uint32_t color,
         return;
     }
     y = y < 0 ? 0 : y;
-    y2 = y2 >= (1 << img->p2height) ? (1 << img->p2height) - 1 : y2;
+    y2 = y2 >= (1 << img->p2height) ? (1 << img->p2height): y2;
 
     for (uint16_t i = y; i < y2; i++)
     {
@@ -1060,8 +1060,8 @@ void TE_Img_lineRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, 
 {
     TE_Img_HLine(img, x, y, w, color, state);
     TE_Img_HLine(img, x, y + h - 1, w, color, state);
-    TE_Img_VLine(img, x, y, h, color, state);
-    TE_Img_VLine(img, x + w - 1, y, h, color, state);
+    TE_Img_VLine(img, x, y + 1, h - 2, color, state);
+    TE_Img_VLine(img, x + w - 1, y + 1, h - 2, color, state);
 }
 
 void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, uint32_t color, TE_ImgOpState state)
@@ -1091,7 +1091,8 @@ void TE_Img_fillRect(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint16_t h, 
     {
         for (uint16_t j = x1; j < x2; j++)
         {
-            TE_Img_setPixelUnchecked(img, j, i, color, state);
+            uint32_t rgba = color;
+            TE_Img_setPixelUnchecked(img, j, i, rgba, state);
         }
     }
 }

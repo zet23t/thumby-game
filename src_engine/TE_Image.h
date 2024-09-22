@@ -83,5 +83,7 @@ void TE_Img_drawPatch9(TE_Img *img, TE_Img* src, int16_t x, int16_t y, int16_t w
 void TE_Img_fillCircle(TE_Img *img, int16_t x, int16_t y, uint16_t radius, uint32_t color, TE_ImgOpState state);
 void TE_Img_lineCircle(TE_Img *img, int16_t x, int16_t y, uint16_t radius, uint32_t color, TE_ImgOpState state);
 void TE_Img_blitSprite(TE_Img *img, TE_Sprite sprite, int16_t x, int16_t y, BlitEx options);
+void TE_Img_HLine(TE_Img *img, int16_t x, int16_t y, uint16_t w, uint32_t color, TE_ImgOpState state);
+void TE_Img_VLine(TE_Img *img, int16_t x, int16_t y, uint16_t h, uint32_t color, TE_ImgOpState state);
 
 #endif

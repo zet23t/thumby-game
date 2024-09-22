@@ -40,6 +40,140 @@ void Scene_3_envDebugDraw(RuntimeContext *ctx, TE_Img *screenData, ScriptedActio
 }
 static TE_SDFMap *sdfMap = 0;
 
+void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *action)
+{
+    int16_t x = -1, y = -1;
+    int16_t w = 130, h = 50;
+    TE_Img_fillRect(screen, x, y, w, h, 0x88000000 | (0xffffff & DB32Colors[15]), (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Img_lineRect(screen, x, y, w, h, 0x33ffffff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+
+    int16_t divX = 80;
+    int16_t divX2 = divX + 26;
+    const int16_t lineHeight = 11;
+    static int16_t selected = 0;
+    const uint32_t selectedColor = 0x660099ff;
+    if (ctx->inputUp && !ctx->prevInputUp)
+    {
+        selected--;
+        if (selected < 0)
+        {
+            selected = 3;
+        }
+    }
+    if (ctx->inputDown && !ctx->prevInputDown)
+    {
+        selected++;
+        if (selected > 3)
+        {
+            selected = 0;
+        }
+    }
+    int16_t selectedY = y + selected * lineHeight + 2;
+    TE_Img_fillRect(screen, x + 1, selectedY, divX2 - 1, lineHeight + 1, selectedColor, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Img_fillTriangle(screen, x + 1, selectedY, x + 6, selectedY + lineHeight / 2, x + 1, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Img_fillTriangle(screen, divX - 2, selectedY, divX - 7, selectedY + lineHeight / 2, divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+
+    TE_Font font = GameAssets_getFont(FONT_MEDIUM);
+    TE_Img_VLine(screen, divX + x, y + 1, h - 2, 0x33ffffff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Img_VLine(screen, divX2 + x, y + 1, h - 2, 0x33ffffff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Font_drawTextBox(screen, &font, 8 + x, 1 + y, 80, h, -1, -3, "Thrust\nParry\nStrike\nChange target", 0.0f, 0.0f, 0xffffffff, 
+        (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 200,
+        });
+    TE_Font_drawTextBox(screen, &font, 83 + x, 1 + y, 40, h, -1, -3, "6 AP\n3 AP\n8 AP\n1 AP", 0.0f, 0.0f, 0xffffffff, 
+        (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 200,
+        });
+
+    int8_t apSelection[4] = {6, 3, 8, 1};
+    int8_t selectedAPUse = apSelection[selected];
+
+    // action bars
+    TE_Img_fillRect(screen, divX2, y + 1, w + x - divX2 - 1, h - 2, 0x88000000, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 200,
+        .zAlphaBlend = 0,
+    });
+    uint32_t colors[5] = {0x3344ff88, 0x33ffaa66, 0x33ffaa66, 0x33ffaa66, 0xff444444};
+    int8_t ap[5] = {0, 2, 10, 1, 0};
+    const int16_t pxPerAP = 4;
+    for (int i=0;i<5;i++)
+    {
+        int16_t x = divX2 + 1 + i * 4;
+        TE_Img_fillRect(screen, x, y + 2, 3, h - 4, colors[i], (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 200,
+            .zAlphaBlend = 0,
+        });
+        TE_Img_fillRect(screen, x, y + h - 8, 3, 6, 0x88000000, (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 200,
+            .zAlphaBlend = 1,
+        });
+
+        if (i < 4)
+        {
+            int apY = y + h - 3 - 2 - ap[i] * pxPerAP;
+            TE_Img_fillRect(screen, x, apY, 3, 3, 0xff000000, (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 200,
+                .zAlphaBlend = 1,
+            });
+            TE_Img_fillRect(screen, x, apY+1, 3, 1, 0xffffffff, (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 200,
+                .zAlphaBlend = 1,
+            });
+
+            if (i == 0 && fmodf(ctx->time * 2.0f, 1.0f) < 0.5f)
+            {
+                int futureAPY = y + h - 3 - 2 - selectedAPUse * pxPerAP;
+                TE_Img_fillRect(screen, x, futureAPY, 3, 3, 0xff000000, (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_ALWAYS,
+                    .zValue = 200,
+                    .zAlphaBlend = 1,
+                });
+                TE_Img_fillRect(screen, x, futureAPY+1, 3, 1, 0xffffffff, (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_ALWAYS,
+                    .zValue = 200,
+                    .zAlphaBlend = 1,
+                });
+            }
+        }
+    }
+    
+}
+
 void Scene_3_init()
 {
     Environment_addTreeGroup(20, 20, 18522, 4, 20);
@@ -157,32 +291,34 @@ void Scene_3_init()
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });
     step++;
 
-    Scene3_EnemyCrowd *crowd = Scene_malloc(sizeof(Scene3_EnemyCrowd));
-    crowd->aliveCount = 4;
-    crowd->nextStepOnDefeated = step + 2;
-    crowd->enemies[0].crowd = crowd;
-    crowd->enemies[1].crowd = crowd;
-    crowd->enemies[2].crowd = crowd;
-    crowd->enemies[3].crowd = crowd;
+    // Scene3_EnemyCrowd *crowd = Scene_malloc(sizeof(Scene3_EnemyCrowd));
+    // crowd->aliveCount = 4;
+    // crowd->nextStepOnDefeated = step + 2;
+    // crowd->enemies[0].crowd = crowd;
+    // crowd->enemies[1].crowd = crowd;
+    // crowd->enemies[2].crowd = crowd;
+    // crowd->enemies[3].crowd = crowd;
 
-    ScriptedAction_addSetEnemyCallback(step, step, 1, (EnemyCallbackUserData) {
-        .callback = Scene_3_enemyCallback,
-        .dataPointer = &crowd->enemies[0],
-    });
-    ScriptedAction_addSetEnemyCallback(step, step, 2, (EnemyCallbackUserData) {
-        .callback = Scene_3_enemyCallback,
-        .dataPointer = &crowd->enemies[1],
-    });
-    ScriptedAction_addSetEnemyCallback(step, step, 3, (EnemyCallbackUserData) {
-        .callback = Scene_3_enemyCallback,
-        .dataPointer = &crowd->enemies[2],
-    });
-    ScriptedAction_addSetEnemyCallback(step, step, 4, (EnemyCallbackUserData) {
-        .callback = Scene_3_enemyCallback,
-        .dataPointer = &crowd->enemies[3],
-    });
+    // ScriptedAction_addSetEnemyCallback(step, step, 1, (EnemyCallbackUserData) {
+    //     .callback = Scene_3_enemyCallback,
+    //     .dataPointer = &crowd->enemies[0],
+    // });
+    // ScriptedAction_addSetEnemyCallback(step, step, 2, (EnemyCallbackUserData) {
+    //     .callback = Scene_3_enemyCallback,
+    //     .dataPointer = &crowd->enemies[1],
+    // });
+    // ScriptedAction_addSetEnemyCallback(step, step, 3, (EnemyCallbackUserData) {
+    //     .callback = Scene_3_enemyCallback,
+    //     .dataPointer = &crowd->enemies[2],
+    // });
+    // ScriptedAction_addSetEnemyCallback(step, step, 4, (EnemyCallbackUserData) {
+    //     .callback = Scene_3_enemyCallback,
+    //     .dataPointer = &crowd->enemies[3],
+    // });
+    
     ScriptedAction_addJumpStep(step, step, step + 1);
     step++;
+    ScriptedAction_addCustomCallback(step, step, Scene_3_battleStart);
     // fight
     step++;
     LOG("final Step: %d", step);
