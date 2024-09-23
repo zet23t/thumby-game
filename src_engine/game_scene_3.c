@@ -3,6 +3,7 @@
 #include "game_character.h"
 #include "game_enemies.h"
 #include "game_environment.h"
+#include "game_enemies.h"
 #include "game_assets.h"
 #include "game_particlesystem.h"
 #include "game.h"
@@ -11,6 +12,7 @@
 #include "TE_math.h"
 #include "TE_rand.h"
 #include <math.h>
+#include <stdio.h>
 
 typedef struct Scene3_EnemyCrowd Scene3_EnemyCrowd;
 
@@ -40,10 +42,127 @@ void Scene_3_envDebugDraw(RuntimeContext *ctx, TE_Img *screenData, ScriptedActio
 }
 static TE_SDFMap *sdfMap = 0;
 
+typedef struct BattleAction BattleAction;
+
+typedef struct BattleEntityState
+{
+    uint8_t id:4;
+    uint8_t target:4;
+    uint8_t team:2;
+    uint8_t characterType:4;
+    uint8_t actionPoints:4;
+    uint8_t hitpoints:4;
+    uint8_t position:4;
+    BattleAction *actionNTList;
+} BattleEntityState;
+
+typedef struct BattlePosition
+{
+    uint8_t x;
+    uint8_t y;
+} BattlePosition;
+
+typedef struct BattleState
+{
+    BattleEntityState entities[8];
+    uint8_t entityCount;
+    BattlePosition positions[16];
+} BattleState;
+
+#define BATTLEACTION_ONACTIVATING_CONTINUE 0
+#define BATTLEACTION_ONACTIVATING_DONE 1
+#define BATTLEACTION_ONACTIVATING_CANCEL 2
+
+typedef struct BattleAction
+{
+    const char *name;
+    uint8_t actionPointCosts;
+    void (*onSelected)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
+    uint8_t (*onActivating)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
+    uint8_t (*onActivated)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
+} BattleAction;
+
 void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *action)
 {
+    Player_setInputEnabled(0);
+    BattleState *battleState = (BattleState*)action->customCallback.dataPointer;
+    BattleEntityState *playerEntity = &battleState->entities[0];
+    for (int i=0;i<battleState->entityCount;i++)
+    {
+        BattleEntityState *entity = &battleState->entities[i];
+        BattlePosition *position = &battleState->positions[entity->position];
+        int16_t targetX = position->x;
+        int16_t targetY = position->y - 10;
+        if (entity->id == 0)
+        {
+            playerEntity = entity;
+            playerCharacter.targetX = targetX;
+            playerCharacter.targetY = targetY;
+
+            BattleEntityState *targetEntity = &battleState->entities[entity->target];
+            BattlePosition* targetPosition = &battleState->positions[targetEntity->position];
+            int16_t anim = (int)(fmodf(ctx->time * 2.0f, 1.0f) * 3);
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_RIGHT), targetPosition->x - 6 + anim, targetPosition->y, (BlitEx)
+            {
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .tint = 1,
+                .tintColor = DB32Colors[DB32_ORANGE],
+                .state = (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = targetPosition->y + 8,
+                    .zAlphaBlend = 1,
+                }
+            });
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_LEFT), targetPosition->x + 4 - anim, targetPosition->y, (BlitEx)
+            {
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .tint = 1,
+                .tintColor = DB32Colors[DB32_ORANGE],
+                .state = (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = targetPosition->y + 8,
+                    .zAlphaBlend = 1,
+                }
+            });
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP), targetPosition->x - 1, targetPosition->y + 4 - anim, (BlitEx)
+            {
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .tint = 1,
+                .tintColor = DB32Colors[DB32_ORANGE],
+                .state = (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = targetPosition->y + 12,
+                    .zAlphaBlend = 1,
+                }
+            });
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN), targetPosition->x - 1, targetPosition->y - 4 + anim, (BlitEx)
+            {
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .tint = 1,
+                .tintColor = DB32Colors[DB32_ORANGE],
+                .state = (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = targetPosition->y + 5,
+                    .zAlphaBlend = 1,
+                }
+            });
+        }
+        else
+        {
+            Enemy* enemy = Enemies_getEnemy(entity->id);
+            if (enemy == 0)
+            {
+                Enemies_spawn(entity->id, entity->characterType, targetX, targetY);
+            }
+            else
+            {
+                enemy->character.targetX = targetX;
+                enemy->character.targetY = targetY;
+            }
+        }
+    }
     int16_t x = -1, y = -1;
-    int16_t w = 130, h = 50;
+    int16_t w = 130, h = 44;
     TE_Img_fillRect(screen, x, y, w, h, 0x88000000 | (0xffffff & DB32Colors[15]), (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 200,
@@ -60,67 +179,86 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     const int16_t lineHeight = 11;
     static int16_t selected = 0;
     const uint32_t selectedColor = 0x660099ff;
+
+    
+    TE_Font font = GameAssets_getFont(FONT_MEDIUM);
+    int8_t selectedAPUse = 0;
+    uint8_t maxSelectableActions;
+
+    // draw battle actions
+    TE_ImgOpState actionState = (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 201,
+        .scissorX = 0,
+        .scissorY = 0,
+        .scissorWidth = divX2,
+        .scissorHeight = h - 2
+    };
+    int16_t actionScrollListOffset = max_s16(0, (selected - 2) * lineHeight);
+    for (maxSelectableActions=0; playerEntity->actionNTList[maxSelectableActions].name; maxSelectableActions++)
+    {
+        BattleAction *action = &playerEntity->actionNTList[maxSelectableActions];
+        if (maxSelectableActions == selected)
+        {
+            selectedAPUse = action->actionPointCosts;
+        }
+        int16_t actionY = maxSelectableActions * lineHeight - actionScrollListOffset;
+        TE_Font_drawTextBox(screen, &font, 8 + x, actionY, 80, h, -1, -3, action->name, 0.0f, 0.0f, 0xffffffff, actionState);
+        char buffer[16];
+        snprintf(buffer, sizeof(buffer), "%d AP", action->actionPointCosts);
+        TE_Font_drawTextBox(screen, &font, 83 + x, actionY, 40, h, -1, -3, buffer, 0.0f, 0.0f, 0xffffffff, actionState);
+    }
+    int16_t selectedY = y + selected * lineHeight + 2 - actionScrollListOffset;
+    TE_Img_fillRect(screen, x + 1, selectedY, divX2 - 1, lineHeight + 1, selectedColor, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Img_fillTriangle(screen, x + 1, selectedY, x + 6, selectedY + lineHeight / 2, x + 1, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Img_fillTriangle(screen, divX - 2, selectedY, divX - 7, selectedY + lineHeight / 2, divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+
+
+
+
     if (ctx->inputUp && !ctx->prevInputUp)
     {
         selected--;
         if (selected < 0)
         {
-            selected = 3;
+            selected = 0;
         }
     }
     if (ctx->inputDown && !ctx->prevInputDown)
     {
         selected++;
-        if (selected > 3)
+        if (selected >= maxSelectableActions)
         {
-            selected = 0;
+            selected = maxSelectableActions - 1;
         }
     }
-    int16_t selectedY = y + selected * lineHeight + 2;
-    TE_Img_fillRect(screen, x + 1, selectedY, divX2 - 1, lineHeight + 1, selectedColor, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 200,
-        .zAlphaBlend = 1,
-    });
-    TE_Img_fillTriangle(screen, x + 1, selectedY, x + 6, selectedY + lineHeight / 2, x + 1, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 200,
-        .zAlphaBlend = 1,
-    });
-    TE_Img_fillTriangle(screen, divX - 2, selectedY, divX - 7, selectedY + lineHeight / 2, divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 200,
-        .zAlphaBlend = 1,
-    });
 
-    TE_Font font = GameAssets_getFont(FONT_MEDIUM);
     TE_Img_VLine(screen, divX + x, y + 1, h - 2, 0x33ffffff, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
         .zValue = 200,
         .zAlphaBlend = 1,
     });
     TE_Img_VLine(screen, divX2 + x, y + 1, h - 2, 0x33ffffff, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
         .zValue = 200,
         .zAlphaBlend = 1,
     });
-    TE_Font_drawTextBox(screen, &font, 8 + x, 1 + y, 80, h, -1, -3, "Thrust\nParry\nStrike\nChange target", 0.0f, 0.0f, 0xffffffff, 
-        (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_ALWAYS,
-            .zValue = 200,
-        });
-    TE_Font_drawTextBox(screen, &font, 83 + x, 1 + y, 40, h, -1, -3, "6 AP\n3 AP\n8 AP\n1 AP", 0.0f, 0.0f, 0xffffffff, 
-        (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_ALWAYS,
-            .zValue = 200,
-        });
-
-    int8_t apSelection[4] = {6, 3, 8, 1};
-    int8_t selectedAPUse = apSelection[selected];
 
     // action bars
     TE_Img_fillRect(screen, divX2, y + 1, w + x - divX2 - 1, h - 2, 0x88000000, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
         .zValue = 200,
         .zAlphaBlend = 0,
     });
@@ -318,7 +456,54 @@ void Scene_3_init()
     
     ScriptedAction_addJumpStep(step, step, step + 1);
     step++;
-    ScriptedAction_addCustomCallback(step, step, Scene_3_battleStart);
+
+    BattleAction *playerActions = Scene_malloc(sizeof(BattleAction) * 8);
+    playerActions[0] = (BattleAction){
+        .name = "Thrust",
+        .actionPointCosts = 6,
+    };
+    playerActions[1] = (BattleAction) {
+        .name = "Parry",
+        .actionPointCosts = 3,
+    };
+    playerActions[2] = (BattleAction) {
+        .name = "Strike",
+        .actionPointCosts = 8,
+    };
+    playerActions[3] = (BattleAction) {
+        .name = "Change target",
+        .actionPointCosts = 2,
+    };
+    playerActions[4] = (BattleAction) {
+        .name = "Insult",
+        .actionPointCosts = 1,
+    };
+
+    BattleState *battleState = Scene_malloc(sizeof(BattleState));
+    battleState->entityCount = 5;
+    for (int i=0;i<5;i++)
+    {
+        battleState->entities[i].id = i;
+        battleState->entities[i].team = i > 0 ? 1 : 0;
+        battleState->entities[i].actionPoints = 10;
+        battleState->entities[i].hitpoints = 6;
+        battleState->entities[i].position = i;
+    }
+    battleState->entities[0].target = 1;
+    battleState->entities[0].actionNTList = playerActions;
+    battleState->entities[1].characterType = 3;
+    battleState->entities[2].characterType = 4;
+    battleState->entities[3].characterType = 3;
+    battleState->entities[4].characterType = 4;
+
+    battleState->positions[0] = (BattlePosition){.x = 90, .y = 85};
+    battleState->positions[1] = (BattlePosition){.x = 70, .y = 70};
+    battleState->positions[2] = (BattlePosition){.x = 110, .y = 70};
+    battleState->positions[3] = (BattlePosition){.x = 70, .y = 110};
+    battleState->positions[4] = (BattlePosition){.x = 110, .y = 110};
+
+    ScriptedAction *battleAction = ScriptedAction_addCustomCallback(step, step, Scene_3_battleStart);
+    battleAction->customCallback.dataPointer = battleState;
     // fight
     step++;
     LOG("final Step: %d", step);
