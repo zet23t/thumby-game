@@ -51,10 +51,14 @@ static const SpriteData _sprites[] = {
     {0, 24, 4, 4, 2, 2},      // TREE_FOLLIAGE_SMALL_2
     {8, 16, 4, 4, 2, 2},      // TREE_FOLLIAGE_SMALL_3
     {8, 24, 4, 4, 2, 2},      // TREE_FOLLIAGE_SMALL_4
-    {112, 184, 5, 8, 4, 3},    // FLAT_ARROW_RIGHT
-    {117, 184, 5, 8, 0, 3},    // FLAT_ARROW_LEFT
-    {129, 185, 7, 6, 3, 0},    // FLAT_ARROW_UP
-    {122, 185, 7, 6, 3, 5},    // FLAT_ARROW_DOWN
+    {112, 184, 5, 8, 4, 3},   // FLAT_ARROW_RIGHT
+    {117, 184, 5, 8, 0, 3},   // FLAT_ARROW_LEFT
+    {129, 185, 7, 6, 3, 0},   // FLAT_ARROW_UP
+    {122, 185, 7, 6, 3, 5},   // FLAT_ARROW_DOWN
+    {112, 192, 6, 7, 0, 0},   // FLAT_ARROW_UP_LEFT
+    {118, 192, 6, 7, 5, 0},   // FLAT_ARROW_UP_RIGHT
+    {124, 192, 6, 7, 0, 6},   // FLAT_ARROW_DOWN_LEFT
+    {130, 192, 6, 7, 5, 6},   // FLAT_ARROW_DOWN_RIGHT
 };
 
 static SpriteData _getSpriteData(uint8_t index)

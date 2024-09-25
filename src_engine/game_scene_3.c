@@ -36,9 +36,9 @@ void Scene_3_enemyCallback(struct Enemy *enemy, EnemyCallbackArg arg, RuntimeCon
 
 void Scene_3_envDebugDraw(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction *action)
 {
-    TE_SDFMap *sdfMap = (TE_SDFMap*)action->customCallback.dataPointer;
-    if (ctx->inputB)
-        TE_SDFMap_drawDebug(sdfMap, ctx);
+    // TE_SDFMap *sdfMap = (TE_SDFMap*)action->customCallback.dataPointer;
+    // // if (ctx->inputB)
+    // //     TE_SDFMap_drawDebug(sdfMap, ctx);
 }
 static TE_SDFMap *sdfMap = 0;
 
@@ -67,20 +67,71 @@ typedef struct BattleState
     BattleEntityState entities[8];
     uint8_t entityCount;
     BattlePosition positions[16];
+    int8_t selectedAction;
+    int8_t activatingAction;
 } BattleState;
 
 #define BATTLEACTION_ONACTIVATING_CONTINUE 0
 #define BATTLEACTION_ONACTIVATING_DONE 1
 #define BATTLEACTION_ONACTIVATING_CANCEL 2
 
+#define BATTLEACTION_ONSELECTED_IGNORE 0
+#define BATTLEACTION_ONSELECTED_ACTIVATE 1
+
 typedef struct BattleAction
 {
     const char *name;
     uint8_t actionPointCosts;
-    void (*onSelected)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
+    uint8_t (*onSelected)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
     uint8_t (*onActivating)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
     uint8_t (*onActivated)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
 } BattleAction;
+
+static uint8_t BattleAction_ChangeTarget_OnSelected (RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
+{
+    for (int i=0;i<battleState->entityCount;i++)
+    {
+        BattleEntityState *entity = &battleState->entities[i];
+        if (entity->team != actor->team)
+        {
+            BattlePosition *position = &battleState->positions[entity->position];
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN), position->x - 1, position->y - 14, (BlitEx)
+            {
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .tint = 1,
+                .tintColor = DB32Colors[DB32_SKYBLUE],
+                .state = (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_LESS,
+                    .zValue = position->y + 20,
+                    .zAlphaBlend = 1,
+                }
+            });
+        }
+    }
+    return !ctx->prevInputA && ctx->inputA ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
+}
+
+static uint8_t BattleAction_ChangeTarget_OnActivating (RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
+{
+    for (int i=0;i<battleState->entityCount;i++)
+    {
+        BattleEntityState *entity = &battleState->entities[i];
+        if (entity->team != actor->team)
+        {
+            BattlePosition *position = &battleState->positions[entity->position];
+            // if (ctx->inputA)
+            // {
+            //     actor->target = entity->position;
+            //     return BATTLEACTION_ONACTIVATING_DONE;
+            // }
+        }
+    }
+    if (ctx->inputB)
+    {
+        return BATTLEACTION_ONACTIVATING_CANCEL;
+    }
+    return BATTLEACTION_ONACTIVATING_CONTINUE;
+}
 
 void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *action)
 {
@@ -102,7 +153,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             BattleEntityState *targetEntity = &battleState->entities[entity->target];
             BattlePosition* targetPosition = &battleState->positions[targetEntity->position];
             int16_t anim = (int)(fmodf(ctx->time * 2.0f, 1.0f) * 3);
-            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_RIGHT), targetPosition->x - 6 + anim, targetPosition->y, (BlitEx)
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP_RIGHT), targetPosition->x - 6 + anim, targetPosition->y + 4 - anim, (BlitEx)
             {
                 .blendMode = TE_BLEND_ALPHAMASK,
                 .tint = 1,
@@ -113,7 +164,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
                     .zAlphaBlend = 1,
                 }
             });
-            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_LEFT), targetPosition->x + 4 - anim, targetPosition->y, (BlitEx)
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP_LEFT), targetPosition->x + 4 - anim, targetPosition->y + 4 - anim, (BlitEx)
             {
                 .blendMode = TE_BLEND_ALPHAMASK,
                 .tint = 1,
@@ -124,18 +175,18 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
                     .zAlphaBlend = 1,
                 }
             });
-            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP), targetPosition->x - 1, targetPosition->y + 4 - anim, (BlitEx)
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN_RIGHT), targetPosition->x - 6 + anim, targetPosition->y - 4 + anim, (BlitEx)
             {
                 .blendMode = TE_BLEND_ALPHAMASK,
                 .tint = 1,
                 .tintColor = DB32Colors[DB32_ORANGE],
                 .state = (TE_ImgOpState){
                     .zCompareMode = Z_COMPARE_LESS,
-                    .zValue = targetPosition->y + 12,
+                    .zValue = targetPosition->y + 5,
                     .zAlphaBlend = 1,
                 }
             });
-            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN), targetPosition->x - 1, targetPosition->y - 4 + anim, (BlitEx)
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN_LEFT), targetPosition->x + 4 - anim, targetPosition->y - 4 + anim, (BlitEx)
             {
                 .blendMode = TE_BLEND_ALPHAMASK,
                 .tint = 1,
@@ -177,7 +228,6 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     int16_t divX = 80;
     int16_t divX2 = divX + 26;
     const int16_t lineHeight = 11;
-    static int16_t selected = 0;
     const uint32_t selectedColor = 0x660099ff;
 
     
@@ -194,54 +244,79 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         .scissorWidth = divX2,
         .scissorHeight = h - 2
     };
-    int16_t actionScrollListOffset = max_s16(0, (selected - 2) * lineHeight);
-    for (maxSelectableActions=0; playerEntity->actionNTList[maxSelectableActions].name; maxSelectableActions++)
+    if (battleState->activatingAction >= 0)
     {
-        BattleAction *action = &playerEntity->actionNTList[maxSelectableActions];
-        if (maxSelectableActions == selected)
+        BattleAction *action = &playerEntity->actionNTList[battleState->activatingAction];
+        if (action->onActivating)
         {
-            selectedAPUse = action->actionPointCosts;
+            uint8_t actionState = action->onActivating ? action->onActivating(ctx, screen, battleState, action, playerEntity) : BATTLEACTION_ONACTIVATING_CONTINUE;
+
+            if (actionState == BATTLEACTION_ONACTIVATING_CANCEL || actionState == BATTLEACTION_ONACTIVATING_DONE)
+            {
+                battleState->activatingAction = -1;
+            }
         }
-        int16_t actionY = maxSelectableActions * lineHeight - actionScrollListOffset;
-        TE_Font_drawTextBox(screen, &font, 8 + x, actionY, 80, h, -1, -3, action->name, 0.0f, 0.0f, 0xffffffff, actionState);
-        char buffer[16];
-        snprintf(buffer, sizeof(buffer), "%d AP", action->actionPointCosts);
-        TE_Font_drawTextBox(screen, &font, 83 + x, actionY, 40, h, -1, -3, buffer, 0.0f, 0.0f, 0xffffffff, actionState);
-    }
-    int16_t selectedY = y + selected * lineHeight + 2 - actionScrollListOffset;
-    TE_Img_fillRect(screen, x + 1, selectedY, divX2 - 1, lineHeight + 1, selectedColor, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 200,
-        .zAlphaBlend = 1,
-    });
-    TE_Img_fillTriangle(screen, x + 1, selectedY, x + 6, selectedY + lineHeight / 2, x + 1, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 200,
-        .zAlphaBlend = 1,
-    });
-    TE_Img_fillTriangle(screen, divX - 2, selectedY, divX - 7, selectedY + lineHeight / 2, divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 200,
-        .zAlphaBlend = 1,
-    });
-
-
-
-
-    if (ctx->inputUp && !ctx->prevInputUp)
-    {
-        selected--;
-        if (selected < 0)
+        else
         {
-            selected = 0;
+            battleState->activatingAction = -1;
         }
     }
-    if (ctx->inputDown && !ctx->prevInputDown)
+    else
     {
-        selected++;
-        if (selected >= maxSelectableActions)
+        int16_t actionScrollListOffset = max_s16(0, (battleState->selectedAction - 2) * lineHeight);
+        for (maxSelectableActions=0; playerEntity->actionNTList[maxSelectableActions].name; maxSelectableActions++)
         {
-            selected = maxSelectableActions - 1;
+            BattleAction *action = &playerEntity->actionNTList[maxSelectableActions];
+            if (maxSelectableActions == battleState->selectedAction)
+            {
+                selectedAPUse = action->actionPointCosts;
+
+                if (action->onSelected && action->onSelected(ctx, screen, battleState, action, playerEntity) == BATTLEACTION_ONSELECTED_ACTIVATE)
+                {
+                    battleState->activatingAction = battleState->selectedAction;
+                }
+            }
+            int16_t actionY = maxSelectableActions * lineHeight - actionScrollListOffset;
+            TE_Font_drawTextBox(screen, &font, 8 + x, actionY, 80, h, -1, -3, action->name, 0.0f, 0.0f, 0xffffffff, actionState);
+            char buffer[16];
+            snprintf(buffer, sizeof(buffer), "%d AP", action->actionPointCosts);
+            TE_Font_drawTextBox(screen, &font, 83 + x, actionY, 40, h, -1, -3, buffer, 0.0f, 0.0f, 0xffffffff, actionState);
+        }
+        int16_t selectedY = y + battleState->selectedAction * lineHeight + 2 - actionScrollListOffset;
+        TE_Img_fillRect(screen, x + 1, selectedY, divX2 - 1, lineHeight + 1, selectedColor, (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_LESS_EQUAL,
+            .zValue = 200,
+            .zAlphaBlend = 1,
+        });
+        TE_Img_fillTriangle(screen, x + 1, selectedY, x + 6, selectedY + lineHeight / 2, x + 1, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_LESS_EQUAL,
+            .zValue = 200,
+            .zAlphaBlend = 1,
+        });
+        TE_Img_fillTriangle(screen, divX - 2, selectedY, divX - 7, selectedY + lineHeight / 2, divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_LESS_EQUAL,
+            .zValue = 200,
+            .zAlphaBlend = 1,
+        });
+
+
+
+
+        if (ctx->inputUp && !ctx->prevInputUp)
+        {
+            battleState->selectedAction--;
+            if (battleState->selectedAction < 0)
+            {
+                battleState->selectedAction = 0;
+            }
+        }
+        if (ctx->inputDown && !ctx->prevInputDown)
+        {
+            battleState->selectedAction++;
+            if (battleState->selectedAction >= maxSelectableActions)
+            {
+                battleState->selectedAction = maxSelectableActions - 1;
+            }
         }
     }
 
@@ -473,6 +548,8 @@ void Scene_3_init()
     playerActions[3] = (BattleAction) {
         .name = "Change target",
         .actionPointCosts = 2,
+        .onSelected = BattleAction_ChangeTarget_OnSelected,
+        .onActivating = BattleAction_ChangeTarget_OnActivating,
     };
     playerActions[4] = (BattleAction) {
         .name = "Insult",
@@ -480,6 +557,7 @@ void Scene_3_init()
     };
 
     BattleState *battleState = Scene_malloc(sizeof(BattleState));
+    battleState->activatingAction = -1;
     battleState->entityCount = 5;
     for (int i=0;i<5;i++)
     {
