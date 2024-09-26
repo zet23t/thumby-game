@@ -71,10 +71,10 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         // player->y = floorf(player->y) + frac;
         // printf_s("Diagonal movement %f %f\n", player->x, player->y);
     }
-    if (ctx->inputA)
-    {
-        multiplier *= 0.5f;
-    }
+    // if (ctx->inputA)
+    // {
+    //     // multiplier *= 0.5f;
+    // }
     player->x += player->dx * ctx->deltaTime * multiplier;
     player->y += player->dy * ctx->deltaTime * multiplier;
 
@@ -110,7 +110,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     Item *item = &items[_playerWeaponIndex > 0 ? _playerWeaponIndex - 1 : 0];
     float coolDown = item->cooldown;
 
-    if (ctx->inputA && _playerWeaponIndex)
+    if (ctx->inputA && 0 && _playerWeaponIndex)
     {
         playerCharacter->isAiming = 1;
         // playerCharacter->itemRightHand = -2;

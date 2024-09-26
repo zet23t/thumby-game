@@ -299,6 +299,7 @@ static void GameAssets_treeSpawnLeafs(RuntimeContext *ctx, TE_Img* screen, void 
 
 static RenderPrefab* GameAssets_createTreePrefab(uint16_t id)
 {
+    uint32_t oldSeed = TE_randSetSeed(id + 2);
     LOG("Creating tree prefab %d", id);
     RenderPrefab *prefab = RenderPrefab_create((RenderObjectCounts){
         .spriteMaxCount = 40,
@@ -306,7 +307,6 @@ static RenderPrefab* GameAssets_createTreePrefab(uint16_t id)
         .functionCallMaxCount = 1
     });
     prefab->id = id;
-    TE_randSetSeed(id + 2);
 
     int8_t x = 0;
     int8_t y = -16;
@@ -473,6 +473,7 @@ static RenderPrefab* GameAssets_createTreePrefab(uint16_t id)
     //         }
     //     });
     
+    TE_randSetSeed(oldSeed);
     return prefab;
 }
 

@@ -906,7 +906,7 @@ static void Scene_1_init()
     player.x = -8;
     playerCharacter.x = player.x;
 
-    Environment_addTreeGroup(24, 30, 1232, 5, 25);
+    Environment_addTreeGroup(24, 30, 26, 5, 25);
     Environment_addTreeGroup(114, 30, 122, 5, 25);
     Environment_addTreeGroup(114, 125, 1252, 5, 25);
     Environment_addTreeGroup(24, 124, 99, 5, 20);

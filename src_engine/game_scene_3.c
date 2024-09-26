@@ -78,6 +78,26 @@ typedef struct BattleState
 #define BATTLEACTION_ONSELECTED_IGNORE 0
 #define BATTLEACTION_ONSELECTED_ACTIVATE 1
 
+typedef struct BattleMenuEntry
+{
+    const char *menuText;
+    const char *columnText;
+} BattleMenuEntry;
+
+typedef struct BattleMenu
+{
+    int16_t x, y;
+    int16_t w, h;
+    int16_t divX;
+    int16_t divX2;
+    int16_t lineHeight;
+    uint32_t selectedColor;
+
+    int8_t selectedAction;
+    BattleMenuEntry *entries;
+    uint8_t entriesCount;
+} BattleMenu;
+
 typedef struct BattleAction
 {
     const char *name;
@@ -86,6 +106,69 @@ typedef struct BattleAction
     uint8_t (*onActivating)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
     uint8_t (*onActivated)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
 } BattleAction;
+
+static void DrawMenuActions(RuntimeContext *ctx, TE_Img *screen, BattleMenu *battleMenu)
+{
+    TE_Font font = GameAssets_getFont(FONT_MEDIUM);
+    int16_t x = battleMenu->x;
+    int16_t y = battleMenu->y;
+    int16_t w = battleMenu->w;
+    int16_t h = battleMenu->h;
+    uint8_t lineHeight = battleMenu->lineHeight;
+    int16_t actionScrollListOffset = max_s16(0, (battleMenu->selectedAction - 2) * lineHeight);
+    TE_ImgOpState actionState = (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 201,
+        .scissorX = 0,
+        .scissorY = 0,
+        .scissorWidth = battleMenu->divX2,
+        .scissorHeight = h - 2
+    };
+    
+    for (int i=0; i < battleMenu->entriesCount; i++)
+    {
+        BattleMenuEntry *action = &battleMenu->entries[i];
+        int16_t actionY = i * lineHeight - actionScrollListOffset;
+        TE_Font_drawTextBox(screen, &font, 8 + x, actionY, 80, h, -1, -3, action->menuText, 0.0f, 0.0f, 0xffffffff, actionState);
+        if (action->columnText)
+            TE_Font_drawTextBox(screen, &font, 83 + x, actionY, 40, h, -1, -3, action->columnText, 0.0f, 0.0f, 0xffffffff, actionState);
+    }
+
+    // selection highlight
+    int16_t selectedY = y + battleMenu->selectedAction * lineHeight + 2 - actionScrollListOffset;
+    TE_Img_fillRect(screen, x + 1, selectedY, battleMenu->divX2 - 1, lineHeight + 1, battleMenu->selectedColor, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Img_fillTriangle(screen, x + 1, selectedY, x + 6, selectedY + lineHeight / 2, x + 1, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+    TE_Img_fillTriangle(screen, battleMenu->divX - 2, selectedY, battleMenu->divX - 7, selectedY + lineHeight / 2, battleMenu->divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
+        .zValue = 200,
+        .zAlphaBlend = 1,
+    });
+
+    if (ctx->inputUp && !ctx->prevInputUp)
+    {
+        battleMenu->selectedAction--;
+        if (battleMenu->selectedAction < 0)
+        {
+            battleMenu->selectedAction = 0;
+        }
+    }
+    if (ctx->inputDown && !ctx->prevInputDown)
+    {
+        battleMenu->selectedAction++;
+        if (battleMenu->selectedAction >= battleMenu->entriesCount)
+        {
+            battleMenu->selectedAction = battleMenu->entriesCount - 1;
+        }
+    }
+}
 
 static uint8_t BattleAction_ChangeTarget_OnSelected (RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
@@ -118,7 +201,7 @@ static uint8_t BattleAction_ChangeTarget_OnActivating (RuntimeContext *ctx, TE_I
         BattleEntityState *entity = &battleState->entities[i];
         if (entity->team != actor->team)
         {
-            BattlePosition *position = &battleState->positions[entity->position];
+            // BattlePosition *position = &battleState->positions[entity->position];
             // if (ctx->inputA)
             // {
             //     actor->target = entity->position;
@@ -214,6 +297,12 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     }
     int16_t x = -1, y = -1;
     int16_t w = 130, h = 44;
+
+    int16_t divX = 80;
+    int16_t divX2 = divX + 26;
+    const int16_t lineHeight = 11;
+    const uint32_t selectedColor = 0x660099ff;
+
     TE_Img_fillRect(screen, x, y, w, h, 0x88000000 | (0xffffff & DB32Colors[15]), (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 200,
@@ -224,12 +313,6 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         .zValue = 200,
         .zAlphaBlend = 1,
     });
-
-    int16_t divX = 80;
-    int16_t divX2 = divX + 26;
-    const int16_t lineHeight = 11;
-    const uint32_t selectedColor = 0x660099ff;
-
     
     TE_Font font = GameAssets_getFont(FONT_MEDIUM);
     int8_t selectedAPUse = 0;
@@ -282,6 +365,8 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             snprintf(buffer, sizeof(buffer), "%d AP", action->actionPointCosts);
             TE_Font_drawTextBox(screen, &font, 83 + x, actionY, 40, h, -1, -3, buffer, 0.0f, 0.0f, 0xffffffff, actionState);
         }
+
+        // selection highlight
         int16_t selectedY = y + battleState->selectedAction * lineHeight + 2 - actionScrollListOffset;
         TE_Img_fillRect(screen, x + 1, selectedY, divX2 - 1, lineHeight + 1, selectedColor, (TE_ImgOpState){
             .zCompareMode = Z_COMPARE_LESS_EQUAL,
@@ -298,9 +383,6 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             .zValue = 200,
             .zAlphaBlend = 1,
         });
-
-
-
 
         if (ctx->inputUp && !ctx->prevInputUp)
         {

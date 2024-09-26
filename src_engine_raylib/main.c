@@ -318,6 +318,71 @@ void updateEngine(RuntimeContext *ctx, Texture2D texture, Texture2D overdrawText
     }
 }
 
+typedef struct ModMusicPlayState
+{
+    pthread_t thread;
+    pthread_mutex_t mutex;
+    Music music;
+    int rewind;
+    int isPlaying;
+    int exit;
+} ModMusicPlayState;
+
+void* ModMusicPlayState_thread(void *arg)
+{
+    ModMusicPlayState *state = (ModMusicPlayState *)arg;
+    printf("Music thread started\n");
+    while (!state->exit)
+    {
+        pthread_mutex_lock(&state->mutex);
+        if (state->rewind)
+        {
+            StopMusicStream(state->music);
+            PlayMusicStream(state->music);
+            state->rewind = 0;
+        }
+        if (state->isPlaying)
+        {
+            UpdateMusicStream(state->music);
+        }
+        pthread_mutex_unlock(&state->mutex);
+    }
+}
+
+void ModMusicPlayState_init(ModMusicPlayState *state)
+{
+    state->music = LoadMusicStream("dev_mod_files/fairyflk.xm");
+    state->isPlaying = 0;
+    pthread_mutex_init(&state->mutex, NULL);
+    pthread_create(&state->thread, NULL, (void *(*)(void *))ModMusicPlayState_thread, state);
+}
+
+void ModMusicPlayState_update(ModMusicPlayState *state)
+{
+    if (IsKeyPressed(KEY_F7))
+    {
+        pthread_mutex_lock(&state->mutex);
+        if (state->isPlaying)
+        {
+            PauseMusicStream(state->music);
+            state->isPlaying = 0;
+        }
+        else
+        {
+            PlayMusicStream(state->music);
+            state->isPlaying = 1;
+        }
+        pthread_mutex_unlock(&state->mutex);
+    }
+    
+    if (IsKeyPressed(KEY_F8))
+    {
+        pthread_mutex_lock(&state->mutex);
+        state->rewind = 1;
+        pthread_mutex_unlock(&state->mutex);
+    }
+}
+
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 int main(void)
@@ -326,9 +391,13 @@ int main(void)
     int screenWidth = 128 * 2;
     int screenHeight = 128 * 2;
     int isExtended = 0;
+    ModMusicPlayState musicState = {0};
     
     InitWindow(screenWidth, screenHeight, "Thumby color engine simulator");
+    InitAudioDevice();
     printf("sizeof(RuntimeContext) = %d\n", sizeof(RuntimeContext));
+
+    ModMusicPlayState_init(&musicState);
 
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
@@ -370,6 +439,7 @@ int main(void)
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
+        ModMusicPlayState_update(&musicState);
         if (IsKeyPressed(KEY_F10))
         {
             // copy source to pico2 build dir
@@ -469,7 +539,9 @@ int main(void)
             copyScreenShot();
         }
     }
-
+    musicState.exit = 1;
+    pthread_join(musicState.thread, NULL);
+    CloseAudioDevice();
     // De-Initialization
     CloseWindow(); // Close window and OpenGL context
 }

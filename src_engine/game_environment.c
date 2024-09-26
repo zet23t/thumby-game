@@ -150,10 +150,12 @@ static void DrawBush(TE_Img *img, int16_t bushX, int16_t bushY)
     });
 }
 
-static uint32_t _treeSeed = 1234;
+// static uint32_t _treeSeed = 1234;
 void DrawTree(TE_Img *img, RuntimeContext *ctx, int16_t treeX, int16_t treeY)
 {
-    RenderPrefab *prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, TE_randGetSeed()%12);
+    uint8_t variant = (TE_rand() + treeX + treeY * 3) % 17;
+    RenderPrefab *prefab = GameAssets_getRenderPrefab(RENDER_PREFAB_TREE, variant);
+    // TE_Debug_drawText(treeX, treeY, TE_StrFmt("Tree %d", variant), DB32Colors[7]);
     RenderPrefab_update(prefab, ctx, img, treeX, treeY, treeY + 8);
 }
 
@@ -412,9 +414,21 @@ void Environment_update(RuntimeContext *ctx, TE_Img* img)
             int32_t posY[32];
             int treeGroupCount = environmentScene.objects[i].treeGroupData.count;
             int treeGroupScatterRadius = environmentScene.objects[i].treeGroupData.scatterRadius;
+            int32_t retryCap = 12;
             for (int j=0;j<treeGroupCount;j++)
             {
                 TE_randRadius(treeGroupScatterRadius, &posX[j], &posY[j]);
+                for (int k=0;k<j && retryCap > 0;k++)
+                {
+                    int32_t dx = posX[j] - posX[k];
+                    int32_t dy = posY[j] - posY[k];
+                    if (dx * dx + dy * dy <= 128)
+                    {
+                        j--;
+                        retryCap--;
+                        break;
+                    }
+                }
             }
             for (int j=0;j<treeGroupCount;j++)
             {
