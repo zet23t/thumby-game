@@ -48,11 +48,14 @@ typedef struct BattleEntityState
 {
     uint8_t id:4;
     uint8_t target:4;
+    uint8_t nextTarget:4;
     uint8_t team:2;
     uint8_t characterType:4;
     uint8_t actionPoints:4;
     uint8_t hitpoints:4;
     uint8_t position:4;
+    float actionTimer;
+    const char *name;
     BattleAction *actionNTList;
 } BattleEntityState;
 
@@ -67,8 +70,11 @@ typedef struct BattleState
     BattleEntityState entities[8];
     uint8_t entityCount;
     BattlePosition positions[16];
-    int8_t selectedAction;
-    int8_t activatingAction;
+    int8_t selectedAction:4;
+    int8_t activatingAction:4;
+    int8_t queuedEntityId;
+    uint8_t queuedActionId:4;
+    float timer;
 } BattleState;
 
 #define BATTLEACTION_ONACTIVATING_CONTINUE 0
@@ -82,9 +88,11 @@ typedef struct BattleMenuEntry
 {
     const char *menuText;
     const char *columnText;
+    uint8_t id;
 } BattleMenuEntry;
+#define BattleMenuEntryDef(menuText, columnText, id) ((BattleMenuEntry){menuText, columnText, id})
 
-typedef struct BattleMenu
+typedef struct BattleMenuWindow
 {
     int16_t x, y;
     int16_t w, h;
@@ -92,36 +100,39 @@ typedef struct BattleMenu
     int16_t divX2;
     int16_t lineHeight;
     uint32_t selectedColor;
+} BattleMenuWindow;
 
+typedef struct BattleMenu
+{
     int8_t selectedAction;
-    BattleMenuEntry *entries;
     uint8_t entriesCount;
+    BattleMenuEntry *entries;
 } BattleMenu;
 
 typedef struct BattleAction
 {
     const char *name;
     uint8_t actionPointCosts;
+    int8_t selectedAction;
     uint8_t (*onSelected)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
     uint8_t (*onActivating)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
     uint8_t (*onActivated)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
 } BattleAction;
 
-static void DrawMenuActions(RuntimeContext *ctx, TE_Img *screen, BattleMenu *battleMenu)
+static void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWindow* window, BattleMenu *battleMenu)
 {
     TE_Font font = GameAssets_getFont(FONT_MEDIUM);
-    int16_t x = battleMenu->x;
-    int16_t y = battleMenu->y;
-    int16_t w = battleMenu->w;
-    int16_t h = battleMenu->h;
-    uint8_t lineHeight = battleMenu->lineHeight;
+    int16_t x = window->x;
+    int16_t y = window->y;
+    int16_t h = window->h;
+    uint8_t lineHeight = window->lineHeight;
     int16_t actionScrollListOffset = max_s16(0, (battleMenu->selectedAction - 2) * lineHeight);
     TE_ImgOpState actionState = (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_ALWAYS,
         .zValue = 201,
         .scissorX = 0,
         .scissorY = 0,
-        .scissorWidth = battleMenu->divX2,
+        .scissorWidth = window->divX2,
         .scissorHeight = h - 2
     };
     
@@ -136,7 +147,7 @@ static void DrawMenuActions(RuntimeContext *ctx, TE_Img *screen, BattleMenu *bat
 
     // selection highlight
     int16_t selectedY = y + battleMenu->selectedAction * lineHeight + 2 - actionScrollListOffset;
-    TE_Img_fillRect(screen, x + 1, selectedY, battleMenu->divX2 - 1, lineHeight + 1, battleMenu->selectedColor, (TE_ImgOpState){
+    TE_Img_fillRect(screen, x + 1, selectedY, window->divX2 - 1, lineHeight + 1, window->selectedColor, (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_LESS_EQUAL,
         .zValue = 200,
         .zAlphaBlend = 1,
@@ -146,7 +157,7 @@ static void DrawMenuActions(RuntimeContext *ctx, TE_Img *screen, BattleMenu *bat
         .zValue = 200,
         .zAlphaBlend = 1,
     });
-    TE_Img_fillTriangle(screen, battleMenu->divX - 2, selectedY, battleMenu->divX - 7, selectedY + lineHeight / 2, battleMenu->divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
+    TE_Img_fillTriangle(screen, window->divX - 2, selectedY, window->divX - 7, selectedY + lineHeight / 2, window->divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_LESS_EQUAL,
         .zValue = 200,
         .zAlphaBlend = 1,
@@ -170,7 +181,13 @@ static void DrawMenuActions(RuntimeContext *ctx, TE_Img *screen, BattleMenu *bat
     }
 }
 
-static uint8_t BattleAction_ChangeTarget_OnSelected (RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
+static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
+{
+    LOG("Thrust activated");
+    return 1;
+}
+
+static uint8_t BattleAction_ChangeTarget_OnSelected(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
     for (int i=0;i<battleState->entityCount;i++)
     {
@@ -194,6 +211,41 @@ static uint8_t BattleAction_ChangeTarget_OnSelected (RuntimeContext *ctx, TE_Img
     return !ctx->prevInputA && ctx->inputA ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
 }
 
+static uint8_t BattleAction_ChangeTarget_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
+{
+    float progress = actor->actionTimer / 1.0f;
+    if (progress >= 1.0f)
+    {
+        actor->target = actor->nextTarget;
+        return 1;
+    }
+    actor->actionTimer += ctx->deltaTime;
+    progress = fTweenElasticOut(progress);
+    BattleEntityState *nextTarget = &battleState->entities[actor->nextTarget];
+    BattleEntityState *currentTarget = &battleState->entities[actor->target];
+    BattlePosition *nextPosition = &battleState->positions[nextTarget->position];
+    BattlePosition *currentPosition = &battleState->positions[currentTarget->position];
+    int16_t x = (int16_t)(currentPosition->x + (nextPosition->x - currentPosition->x) * progress);
+    int16_t y = (int16_t)(currentPosition->y + (nextPosition->y - currentPosition->y) * progress);
+    playerCharacter.dirX = x - playerCharacter.x;
+    playerCharacter.dirY = y - playerCharacter.y;
+    playerCharacter.dx = playerCharacter.dirX;
+    playerCharacter.dy = playerCharacter.dirY;
+    TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN), x - 1, y - 14, (BlitEx)
+    {
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tint = 1,
+        .tintColor = DB32Colors[DB32_SKYBLUE],
+        .state = (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = y + 20,
+            .zAlphaBlend = 1,
+        }
+    });
+
+    return 0;
+}
+
 static uint8_t BattleAction_ChangeTarget_OnActivating (RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
     for (int i=0;i<battleState->entityCount;i++)
@@ -209,6 +261,65 @@ static uint8_t BattleAction_ChangeTarget_OnActivating (RuntimeContext *ctx, TE_I
             // }
         }
     }
+    const int idCancel = 8;
+    BattleMenuEntry entries[8];
+    uint8_t entriesCount = 0;
+    for (int i=0;i<battleState->entityCount;i++)
+    {
+        BattleEntityState *entity = &battleState->entities[i];
+        if (entity->team != actor->team)
+        {
+            entries[entriesCount++] = BattleMenuEntryDef(entity->name,actor->target == i ? "0 AP" : "2 AP", i);
+
+            if (entriesCount - 1 == action->selectedAction)
+            {
+                BattlePosition *position = &battleState->positions[entity->position];
+                int16_t offset = (int)(fmodf(ctx->time * 2.0f, 1.0f) * 3);
+                TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN), position->x - 1, position->y - 14 + offset, (BlitEx)
+                {
+                    .blendMode = TE_BLEND_ALPHAMASK,
+                    .tint = 1,
+                    .tintColor = DB32Colors[DB32_SKYBLUE],
+                    .state = (TE_ImgOpState){
+                        .zCompareMode = Z_COMPARE_LESS,
+                        .zValue = position->y + 20,
+                        .zAlphaBlend = 1,
+                    }
+                });
+            }
+        }
+    }
+    entries[entriesCount++] = BattleMenuEntryDef("Cancel", 0, idCancel);
+    
+    BattleMenuWindow window = {
+        .x = -1,
+        .y = -1,
+        .w = 130,
+        .h = 44,
+        .divX = 80,
+        .divX2 = 106,
+        .lineHeight = 11,
+        .selectedColor = 0x660099ff,
+    };
+
+    BattleMenu battleMenu = {
+        .selectedAction = action->selectedAction,
+        .entries = entries,
+        .entriesCount = entriesCount,
+    };
+    BattleMenuWindow_update(ctx, screen, &window, &battleMenu);
+    action->selectedAction = battleMenu.selectedAction;
+    if (ctx->inputA && !ctx->prevInputA)
+    {
+        int id = battleMenu.entries[battleMenu.selectedAction].id;
+        if (id == idCancel)
+        {
+            return BATTLEACTION_ONACTIVATING_CANCEL;
+        }
+        actor->actionTimer = 0.0f;
+        actor->nextTarget = id;
+        return BATTLEACTION_ONACTIVATING_DONE;
+    }
     if (ctx->inputB)
     {
         return BATTLEACTION_ONACTIVATING_CANCEL;
@@ -220,6 +331,59 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
 {
     Player_setInputEnabled(0);
     BattleState *battleState = (BattleState*)action->customCallback.dataPointer;
+    battleState->timer += ctx->deltaTime;
+
+    // Handle running action
+    if (battleState->queuedEntityId >= 0)
+    {
+        BattleEntityState *entity = &battleState->entities[battleState->queuedEntityId];
+        BattleAction *action = &entity->actionNTList[battleState->queuedActionId];
+        if (!action->onActivated || action->onActivated(ctx, screen, battleState, action, entity))
+        {
+            battleState->activatingAction = -1;
+            battleState->queuedEntityId = -1;
+            battleState->queuedActionId = -1;
+            entity->actionPoints += action->actionPointCosts;
+        }
+        return;
+    }
+
+    // Handle activating action; find out lowest AP
+    int8_t lowestAP = 127;
+    for (int i=0;i<battleState->entityCount;i++)
+    {
+        BattleEntityState *entity = &battleState->entities[i];
+        if (entity->actionPoints < lowestAP)
+        {
+            lowestAP = entity->actionPoints;
+        }
+    }
+
+    // decrease AP of all entities unless player has 1 AP; player actions can happen at AP 1 or AP 0. NPCs only at AP 0
+    if (lowestAP > 0 && battleState->entities[0].actionPoints > 1)
+    {
+        if (battleState->timer > 0.25f)
+        {
+            for (int i=0;i<battleState->entityCount;i++)
+            {
+                BattleEntityState *entity = &battleState->entities[i];
+                if (entity->actionPoints > 0)
+                    entity->actionPoints -= 1;
+                if (entity->team == 1 && entity->actionPoints == 0)
+                {
+                    // AI enemy turn
+                    battleState->queuedEntityId = i;
+                    battleState->queuedActionId = 0;
+                    
+                    break;
+                } 
+            }
+            battleState->timer = 0.0f;
+        }
+        return;
+    }
+
+    // draw player target selection
     BattleEntityState *playerEntity = &battleState->entities[0];
     for (int i=0;i<battleState->entityCount;i++)
     {
@@ -295,6 +459,8 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             }
         }
     }
+
+    // draw battle menu
     int16_t x = -1, y = -1;
     int16_t w = 130, h = 44;
 
@@ -330,6 +496,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     if (battleState->activatingAction >= 0)
     {
         BattleAction *action = &playerEntity->actionNTList[battleState->activatingAction];
+        selectedAPUse = action->actionPointCosts;
         if (action->onActivating)
         {
             uint8_t actionState = action->onActivating ? action->onActivating(ctx, screen, battleState, action, playerEntity) : BATTLEACTION_ONACTIVATING_CONTINUE;
@@ -337,6 +504,14 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             if (actionState == BATTLEACTION_ONACTIVATING_CANCEL || actionState == BATTLEACTION_ONACTIVATING_DONE)
             {
                 battleState->activatingAction = -1;
+            }
+            if (actionState == BATTLEACTION_ONACTIVATING_DONE)
+            {
+                battleState->queuedActionId = battleState->selectedAction;
+                battleState->queuedEntityId = 0;
+                // if (action->onActivated)
+                //     battleState->activatingAction = -2;
+                
             }
         }
         else
@@ -420,10 +595,10 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         .zAlphaBlend = 0,
     });
     uint32_t colors[5] = {0x3344ff88, 0x33ffaa66, 0x33ffaa66, 0x33ffaa66, 0xff444444};
-    int8_t ap[5] = {0, 2, 10, 1, 0};
     const int16_t pxPerAP = 4;
-    for (int i=0;i<5;i++)
+    for (int i=0;i<battleState->entityCount;i++)
     {
+        BattleEntityState *entity = &battleState->entities[i];
         int16_t x = divX2 + 1 + i * 4;
         TE_Img_fillRect(screen, x, y + 2, 3, h - 4, colors[i], (TE_ImgOpState){
             .zCompareMode = Z_COMPARE_ALWAYS,
@@ -438,7 +613,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
 
         if (i < 4)
         {
-            int apY = y + h - 3 - 2 - ap[i] * pxPerAP;
+            int apY = y + h - 3 - 2 - entity->actionPoints * pxPerAP;
             TE_Img_fillRect(screen, x, apY, 3, 3, 0xff000000, (TE_ImgOpState){
                 .zCompareMode = Z_COMPARE_ALWAYS,
                 .zValue = 200,
@@ -452,7 +627,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
 
             if (i == 0 && fmodf(ctx->time * 2.0f, 1.0f) < 0.5f)
             {
-                int futureAPY = y + h - 3 - 2 - selectedAPUse * pxPerAP;
+                int futureAPY = apY - selectedAPUse * pxPerAP;
                 TE_Img_fillRect(screen, x, futureAPY, 3, 3, 0xff000000, (TE_ImgOpState){
                     .zCompareMode = Z_COMPARE_ALWAYS,
                     .zValue = 200,
@@ -615,6 +790,9 @@ void Scene_3_init()
     step++;
 
     BattleAction *playerActions = Scene_malloc(sizeof(BattleAction) * 8);
+    BattleMenu *changeTargetMenu = Scene_malloc(sizeof(BattleMenu));
+    changeTargetMenu->selectedAction = 0;
+
     playerActions[0] = (BattleAction){
         .name = "Thrust",
         .actionPointCosts = 6,
@@ -632,28 +810,45 @@ void Scene_3_init()
         .actionPointCosts = 2,
         .onSelected = BattleAction_ChangeTarget_OnSelected,
         .onActivating = BattleAction_ChangeTarget_OnActivating,
+        .onActivated = BattleAction_ChangeTarget_OnActivated,
     };
     playerActions[4] = (BattleAction) {
         .name = "Insult",
         .actionPointCosts = 1,
     };
 
+    BattleAction *npcActions = Scene_malloc(sizeof(BattleAction) * 8);
+    npcActions[0] = (BattleAction){
+        .name = "Thrust",
+        .actionPointCosts = 6,
+        .onActivated = BattleAction_Thrust_OnActivated,
+    };
+
     BattleState *battleState = Scene_malloc(sizeof(BattleState));
+    battleState->queuedEntityId = -1;
     battleState->activatingAction = -1;
     battleState->entityCount = 5;
     for (int i=0;i<5;i++)
     {
         battleState->entities[i].id = i;
         battleState->entities[i].team = i > 0 ? 1 : 0;
-        battleState->entities[i].actionPoints = 10;
+        battleState->entities[i].actionPoints = i == 0 ? 1 : 4 + i;
         battleState->entities[i].hitpoints = 6;
         battleState->entities[i].position = i;
+        if (i > 0)
+        {
+            battleState->entities[i].actionNTList = npcActions;
+        }
     }
     battleState->entities[0].target = 1;
     battleState->entities[0].actionNTList = playerActions;
+    battleState->entities[1].name = "Lenny";
     battleState->entities[1].characterType = 3;
+    battleState->entities[2].name = "Pip";
     battleState->entities[2].characterType = 4;
+    battleState->entities[3].name = "Chuck";
     battleState->entities[3].characterType = 3;
+    battleState->entities[4].name = "Mart";
     battleState->entities[4].characterType = 4;
 
     battleState->positions[0] = (BattlePosition){.x = 90, .y = 85};
