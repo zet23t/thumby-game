@@ -59,6 +59,22 @@ static const SpriteData _sprites[] = {
     {118, 192, 6, 7, 5, 0},   // FLAT_ARROW_UP_RIGHT
     {124, 192, 6, 7, 0, 6},   // FLAT_ARROW_DOWN_LEFT
     {130, 192, 6, 7, 5, 6},   // FLAT_ARROW_DOWN_RIGHT
+    {248, 0, 7, 8, 4, 4},     // SPRITE_FLAT_ARROW_2_0000
+    {248, 8, 7, 8, 4, 4},     // SPRITE_FLAT_ARROW_2_0225
+    {248, 16, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_0450
+    {248, 24, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_0675
+    {248, 32, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_0900
+    {248, 40, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_1125
+    {248, 48, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_1350
+    {248, 56, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_1575
+    {248, 64, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_1800
+    {248, 72, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_2025
+    {248, 80, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_2250
+    {248, 88, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_2475
+    {248, 96, 7, 8, 4, 4},    // SPRITE_FLAT_ARROW_2_2700
+    {248, 104, 7, 8, 4, 4},   // SPRITE_FLAT_ARROW_2_2925
+    {248, 112, 7, 8, 4, 4},   // SPRITE_FLAT_ARROW_2_3150
+    {248, 120, 7, 8, 4, 4},   // SPRITE_FLAT_ARROW_2_3375
 };
 
 static SpriteData _getSpriteData(uint8_t index)

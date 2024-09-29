@@ -25,7 +25,7 @@ void *RenderObject_malloc(uint32_t size)
 
     if (size == 0) return NULL;
 
-    LOG("RenderObject_malloc: %d", size);
+    // LOG("RenderObject_malloc: %d", size);
 
     void *ptr = _renderObjectMemory + _renderObjectMemoryPointer;
     _renderObjectMemoryPointer += size;
