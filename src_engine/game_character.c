@@ -177,7 +177,8 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     }
 
     int16_t x = (int16_t) floorf(character->x + .5f);
-    int16_t y = (int16_t) floorf(character->y + .5f);
+    int16_t y = (int16_t) floorf(character->y + .5f - character->flyHeight);
+    int16_t charBaseY = (int16_t) floorf(character->y + .5f);
     int baseX = x - 1;
     int baseY = y + 6;
     uint8_t charZ = (uint8_t) character->y + 12;
@@ -432,4 +433,16 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
         });
     }
 
+    // shadow
+    TE_Img_blitSprite(img, GameAssets_getSprite(SPRITE_CHARACTER_SHADOW), x-1, charBaseY + 12, (BlitEx) {
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .tint = 1,
+        .tintColor = 0x44000000,
+        
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = 8,
+            .zAlphaBlend = 1,
+        }
+    });
 }

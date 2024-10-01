@@ -35,5 +35,8 @@ float fTweenElasticOut(float t);
 int absi(int a);
 int16_t max_s16(int16_t a, int16_t b);
 int16_t min_s16(int16_t a, int16_t b);
+float max_f(float a, float b);
+float min_f(float a, float b);
+float sign_f(float a);
 
 #endif

@@ -4,8 +4,47 @@
 
 static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
-    LOG("Thrust activated");
-    return 1;
+    BattlePosition attackerPosition = battleState->positions[actor->position];
+    BattleEntityState *target = &battleState->entities[actor->target];
+    BattlePosition targetPosition = battleState->positions[target->position];
+    float position = battleState->timer / 0.5f;
+    float mirrored = 1.0f - fabsf(1.0f - position);
+    float bumped = max_f(0.0f, mirrored * 10.0f - 9.0f);
+    float dx = targetPosition.x - attackerPosition.x;
+    float dy = targetPosition.y - attackerPosition.y;
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len < 1.0f)
+    {
+        return 1;
+    }
+    float nx = dx / len;
+    float ny = dy / len;
+    float tx = targetPosition.x - nx * 6.0f;
+    float ty = targetPosition.y - ny * 6.0f;
+    // LOG("Thrust activated %.2f", mirrored);
+    int16_t cx = attackerPosition.x + (tx - attackerPosition.x) * mirrored;
+    int16_t cy = attackerPosition.y + (ty - attackerPosition.y) * mirrored;
+
+    Character *character = actor->id == 0 ? &playerCharacter : &enemies[actor->id - 1].character;
+
+    float jump = sinf(mirrored * TE_PI * 0.85f);
+
+    character->targetX = character->x = cx;
+    character->targetY = character->y = cy - 10;
+    character->flyHeight = max_f(0.0f, jump - .5f) * 15.0f;
+
+    Character *targetCharacter = actor->target == 0 ? &playerCharacter : &enemies[actor->target - 1].character;
+    targetCharacter->targetX = targetCharacter->x = targetPosition.x + nx * bumped * 3.0f;
+    targetCharacter->targetY = targetCharacter->y = targetPosition.y + ny * bumped * 3.0f - 10;
+
+
+
+    // TE_Img_fillCircle(screen, cx, cy, 2, 0xff0000ff, (TE_ImgOpState){
+    //     .zCompareMode = Z_COMPARE_LESS,
+    //     .zValue = cy + 20,
+    //     .zAlphaBlend = 1,
+    // });
+    return position >= 2.0f;
 }
 
 static uint8_t BattleAction_Thrust_OnActivating(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -59,7 +98,8 @@ BattleAction BattleAction_Thrust()
 
 static uint8_t BattleAction_Strike_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
-    LOG("Strike activated");
+    LOG("Strike activated %.2f", battleState->timer);
+    
     return 1;
 }
 
@@ -152,8 +192,8 @@ static uint8_t BattleAction_ChangeTarget_OnActivated(RuntimeContext *ctx, TE_Img
     BattlePosition *currentPosition = &battleState->positions[currentTarget->position];
     int16_t x = (int16_t)(currentPosition->x + (nextPosition->x - currentPosition->x) * progress);
     int16_t y = (int16_t)(currentPosition->y + (nextPosition->y - currentPosition->y) * progress);
-    playerCharacter.dirX = x - playerCharacter.x;
-    playerCharacter.dirY = y - playerCharacter.y;
+    playerCharacter.dirX = sign_f(x - playerCharacter.x);
+    playerCharacter.dirY = sign_f(y - playerCharacter.y);
     playerCharacter.dx = playerCharacter.dirX;
     playerCharacter.dy = playerCharacter.dirY;
     TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN), x - 1, y - 14, (BlitEx)

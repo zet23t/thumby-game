@@ -50,6 +50,7 @@ typedef struct Character
     float x, y;
     float prevX, prevY;
     float targetX, targetY;
+    float flyHeight;
     float walkDistance;
     float targetDistance;
     float speed;

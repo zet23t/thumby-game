@@ -372,12 +372,14 @@ void ModMusicPlayState_update(ModMusicPlayState *state)
             PlayMusicStream(state->music);
             state->isPlaying = 1;
         }
+        printf("Music playing: %d\n", state->isPlaying);
         pthread_mutex_unlock(&state->mutex);
     }
     
     if (IsKeyPressed(KEY_F8))
     {
         pthread_mutex_lock(&state->mutex);
+        printf("Rewind music\n");
         state->rewind = 1;
         pthread_mutex_unlock(&state->mutex);
     }

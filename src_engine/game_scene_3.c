@@ -93,6 +93,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
                     // AI enemy turn
                     battleState->queuedEntityId = i;
                     battleState->queuedActionId = 0;
+                    battleState->timer = 0.0f;
 
                     break;
                 } 
@@ -102,8 +103,9 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         return;
     }
 
-    // draw player target selection
+    
     BattleEntityState *playerEntity = &battleState->entities[0];
+    // draw player target selection
     for (int i=0;i<battleState->entityCount;i++)
     {
         BattleEntityState *entity = &battleState->entities[i];
@@ -115,54 +117,57 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             playerEntity = entity;
             playerCharacter.targetX = targetX;
             playerCharacter.targetY = targetY;
-
+            
             BattleEntityState *targetEntity = &battleState->entities[entity->target];
             BattlePosition* targetPosition = &battleState->positions[targetEntity->position];
-            int16_t anim = (int)(fmodf(ctx->time * 2.0f, 1.0f) * 3);
-            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP_RIGHT), targetPosition->x - 6 + anim, targetPosition->y + 4 - anim, (BlitEx)
-            {
-                .blendMode = TE_BLEND_ALPHAMASK,
-                .tint = 1,
-                .tintColor = DB32Colors[DB32_ORANGE],
-                .state = (TE_ImgOpState){
-                    .zCompareMode = Z_COMPARE_LESS,
-                    .zValue = targetPosition->y + 8,
-                    .zAlphaBlend = 1,
-                }
-            });
-            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP_LEFT), targetPosition->x + 4 - anim, targetPosition->y + 4 - anim, (BlitEx)
-            {
-                .blendMode = TE_BLEND_ALPHAMASK,
-                .tint = 1,
-                .tintColor = DB32Colors[DB32_ORANGE],
-                .state = (TE_ImgOpState){
-                    .zCompareMode = Z_COMPARE_LESS,
-                    .zValue = targetPosition->y + 8,
-                    .zAlphaBlend = 1,
-                }
-            });
-            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN_RIGHT), targetPosition->x - 6 + anim, targetPosition->y - 4 + anim, (BlitEx)
-            {
-                .blendMode = TE_BLEND_ALPHAMASK,
-                .tint = 1,
-                .tintColor = DB32Colors[DB32_ORANGE],
-                .state = (TE_ImgOpState){
-                    .zCompareMode = Z_COMPARE_LESS,
-                    .zValue = targetPosition->y + 5,
-                    .zAlphaBlend = 1,
-                }
-            });
-            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN_LEFT), targetPosition->x + 4 - anim, targetPosition->y - 4 + anim, (BlitEx)
-            {
-                .blendMode = TE_BLEND_ALPHAMASK,
-                .tint = 1,
-                .tintColor = DB32Colors[DB32_ORANGE],
-                .state = (TE_ImgOpState){
-                    .zCompareMode = Z_COMPARE_LESS,
-                    .zValue = targetPosition->y + 5,
-                    .zAlphaBlend = 1,
-                }
-            });
+            playerCharacter.dirX = sign_f(targetPosition->x - playerCharacter.x);
+            playerCharacter.dirY = sign_f(targetPosition->y - playerCharacter.y);
+
+            // int16_t anim = (int)(fmodf(ctx->time * 2.0f, 1.0f) * 3);
+            // TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP_RIGHT), targetPosition->x - 6 + anim, targetPosition->y + 4 - anim, (BlitEx)
+            // {
+            //     .blendMode = TE_BLEND_ALPHAMASK,
+            //     .tint = 1,
+            //     .tintColor = DB32Colors[DB32_ORANGE],
+            //     .state = (TE_ImgOpState){
+            //         .zCompareMode = Z_COMPARE_LESS,
+            //         .zValue = targetPosition->y + 8,
+            //         .zAlphaBlend = 1,
+            //     }
+            // });
+            // TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP_LEFT), targetPosition->x + 4 - anim, targetPosition->y + 4 - anim, (BlitEx)
+            // {
+            //     .blendMode = TE_BLEND_ALPHAMASK,
+            //     .tint = 1,
+            //     .tintColor = DB32Colors[DB32_ORANGE],
+            //     .state = (TE_ImgOpState){
+            //         .zCompareMode = Z_COMPARE_LESS,
+            //         .zValue = targetPosition->y + 8,
+            //         .zAlphaBlend = 1,
+            //     }
+            // });
+            // TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN_RIGHT), targetPosition->x - 6 + anim, targetPosition->y - 4 + anim, (BlitEx)
+            // {
+            //     .blendMode = TE_BLEND_ALPHAMASK,
+            //     .tint = 1,
+            //     .tintColor = DB32Colors[DB32_ORANGE],
+            //     .state = (TE_ImgOpState){
+            //         .zCompareMode = Z_COMPARE_LESS,
+            //         .zValue = targetPosition->y + 5,
+            //         .zAlphaBlend = 1,
+            //     }
+            // });
+            // TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN_LEFT), targetPosition->x + 4 - anim, targetPosition->y - 4 + anim, (BlitEx)
+            // {
+            //     .blendMode = TE_BLEND_ALPHAMASK,
+            //     .tint = 1,
+            //     .tintColor = DB32Colors[DB32_ORANGE],
+            //     .state = (TE_ImgOpState){
+            //         .zCompareMode = Z_COMPARE_LESS,
+            //         .zValue = targetPosition->y + 5,
+            //         .zAlphaBlend = 1,
+            //     }
+            // });
         }
         else
         {
@@ -173,8 +178,15 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             }
             else
             {
+                BattlePosition *position = &battleState->positions[entity->position];
+                BattlePosition *targetPosition = &battleState->positions[entity->target];
+                float dx = targetPosition->x - position->x;
+                float dy = targetPosition->y - position->y;
+
                 enemy->character.targetX = targetX;
                 enemy->character.targetY = targetY;
+                enemy->character.dirX = sign_f(dx);
+                enemy->character.dirY = sign_f(dy);
             }
         }
     }
@@ -228,6 +240,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             {
                 battleState->queuedActionId = battleState->selectedAction;
                 battleState->queuedEntityId = 0;
+                battleState->timer = 0.0f;
                 // if (action->onActivated)
                 //     battleState->activatingAction = -2;
                 
@@ -236,6 +249,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         else
         {
             battleState->activatingAction = -1;
+            battleState->timer = 0.0f;
         }
     }
     else

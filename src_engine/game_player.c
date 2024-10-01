@@ -259,8 +259,19 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
     {
         targetX = playerCharacter->targetX;
         targetY = playerCharacter->targetY;
-        dirX = playerCharacter->x < targetX ? 1 : (playerCharacter->x > targetX ? -1 : playerCharacter->dirX);
-        dirY = playerCharacter->y < targetY ? 1 : (playerCharacter->y > targetY ? -1 : playerCharacter->dirY);
+        float dx = targetX - playerCharacter->x;
+        float dy = targetY - playerCharacter->y;
+        float sqLen = dx * dx + dy * dy;
+        if (sqLen > 0.01f)
+        {
+            dirX = sign_f(dx);
+            dirY = sign_f(dy);
+        }
+        else
+        {
+            dirX = playerCharacter->dirX;
+            dirY = playerCharacter->dirY;
+        }
         // TE_Logf("DBG", "Player target %f %f : %f %f", targetX, targetY, player->dirX, player->dirY);
     }
     Character_update(playerCharacter, ctx, img, targetX, targetY, dirX, dirY);
