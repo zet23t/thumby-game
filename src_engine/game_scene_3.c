@@ -484,11 +484,11 @@ void Scene_3_init()
     ScriptedAction_addNPCSpawn(step, step, 3, 3, 100, 0, 100, 40);
     ScriptedAction_addNPCSpawn(step, step, 4, 4, 130, 120, 100, 96);
     ScriptedAction_addPlayerControlsEnabled(step, step, 1);
-    ScriptedAction_addSetItem(step, step, 0, 0, ITEM_STAFF);
-    ScriptedAction_addSetItem(step, step, 1, 0, ITEM_STAFF);
-    ScriptedAction_addSetItem(step, step, 2, -ITEM_STAFF, 0);
-    ScriptedAction_addSetItem(step, step, 3, 0, -ITEM_STAFF);
-    ScriptedAction_addSetItem(step, step, 4, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 0, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 1, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 2, -ITEM_STAFF, 0);
+    ScriptedAction_addSetItem(step, step+2, 3, 0, -ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 4, 0, ITEM_STAFF);
 
     ScriptedAction_addSpeechBubble(step, step, "Fine, let's have some fun first.", 0, 4, 4, 70, 48, -4, -8);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });

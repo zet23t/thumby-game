@@ -24,6 +24,11 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
     // LOG("Thrust activated %.2f", mirrored);
     int16_t cx = attackerPosition.x + (tx - attackerPosition.x) * mirrored;
     int16_t cy = attackerPosition.y + (ty - attackerPosition.y) * mirrored;
+    if (position >= 2.0f)
+    {
+        cx = attackerPosition.x;
+        cy = attackerPosition.y;
+    }
 
     Character *character = actor->id == 0 ? &playerCharacter : &enemies[actor->id - 1].character;
 
