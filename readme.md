@@ -12,5 +12,6 @@ The game code is written in C. The game code gets called and is provided the cur
 ## The Thumby Color
 
 The hardware looks like this:
+
 ![grafik](https://github.com/user-attachments/assets/211eef65-ef8a-40ed-9c9c-71698bcc3800)
 
