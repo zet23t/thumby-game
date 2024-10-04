@@ -1,6 +1,7 @@
 *.exe
 *.dll
 *.gif
+*.mp4
 .vscode/*
 _src_gen/*
 _obj/*
