@@ -21,7 +21,11 @@ void *getUpdateFunction(void *lib);
 void *getInitFunction(void *lib);
 void *loadLibrary(const char *libName);
 void unloadLibrary(void *lib);
-int copyBitmapIntoClipboard(void* hwnd, const uint8_t *bitmapData, size_t sizeT);
+
+void* configureCOMPort(const char *portName);
+void closeCOMPort(void* hComm);
+int sendData(void* hComm, const char *data);
+int receiveData(void* hComm, char *buffer, int bufferSize);
 
 void *coreLib;
 typedef void (*UpdateFunc)(void *);
@@ -347,6 +351,8 @@ void* ModMusicPlayState_thread(void *arg)
         }
         pthread_mutex_unlock(&state->mutex);
     }
+
+    return NULL;
 }
 
 void ModMusicPlayState_init(ModMusicPlayState *state)
@@ -385,6 +391,169 @@ void ModMusicPlayState_update(ModMusicPlayState *state)
     }
 }
 
+typedef struct InputState
+{
+    uint8_t inputRight, inputLeft, inputUp, inputDown, inputA, inputB, inputShoulderLeft, inputShoulderRight, inputMenu;
+} InputState;
+
+typedef struct SerialRemote
+{
+    int running;
+    void *hComm;
+    pthread_t thread;
+    pthread_mutex_t mutex;
+
+    InputState currentInput;
+    InputState remoteInput;
+} SerialRemote;
+
+
+int SerialRemote_updateInput(SerialRemote *remote, void *hComm, uint8_t *remoteInput, uint8_t *input, const char *onChar, const char *offChar)
+{
+    if (*remoteInput != *input)
+    {
+        if (sendData(hComm, *input ? onChar : offChar))
+        {
+            printf("Error sending data\n");
+            return 0;
+        }
+        else 
+        {
+            printf("Sent data: %s\n", *input ? onChar : offChar);
+            *remoteInput = *input;
+        }
+    }
+    return 1;
+}
+
+void* SerialRemote_thread(void *arg)
+{
+    SerialRemote *remote = (SerialRemote *)arg;
+    printf("Serial remote thread started\n");
+    const char *comports[] = {
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+    };
+    void *hComm = NULL;
+
+    while (1)
+    {
+        nanosleep((struct timespec[]){{0, 
+            hComm ? 100000 : 1000000
+        }}, NULL);
+
+        for (int i = 0; i < sizeof(comports) / sizeof(comports[0]) && hComm == NULL; i++)
+        {
+            hComm = configureCOMPort(comports[i]);
+            if (hComm)
+            {
+                printf("Connected to COM port: %s\n", comports[i]);
+                // test if this com port has the device we are looking for
+                char buffer[256];
+                if (sendData(hComm, "?"))
+                {
+                    printf("Error sending data\n");
+                    closeCOMPort(hComm);
+                    hComm = NULL;
+                }
+                else
+                {
+                    printf("Sent data: ?\n");
+                    int bytesRead = receiveData(hComm, buffer, sizeof(buffer));
+                    if (bytesRead > 0)
+                    {
+                        buffer[bytesRead] = '\0';
+                        if (strncmp(buffer, "Input: ?", 8) == 0)
+                        {
+                            printf("Handshake successful\n");
+                        }
+                        else
+                        {
+                            printf("Received unexpected data: %s\n", buffer);
+                            closeCOMPort(hComm);
+                            hComm = NULL;
+                        }
+                    }
+                    else if (bytesRead < 0)
+                    {
+                        printf("Error receiving data\n");
+                        closeCOMPort(hComm);
+                        hComm = NULL;
+                    }
+                }
+            }
+        }
+    
+
+        pthread_mutex_lock(&remote->mutex);
+        if (!remote->running)
+        {
+            pthread_mutex_unlock(&remote->mutex);
+            break;
+        }
+
+        if (hComm)
+        {
+            if (!SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputRight, &remote->currentInput.inputRight, "D", "d") ||
+                !SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputLeft, &remote->currentInput.inputLeft, "A", "a") ||
+                !SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputUp, &remote->currentInput.inputUp, "W", "w") ||
+                !SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputDown, &remote->currentInput.inputDown, "S", "s") ||
+                !SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputA, &remote->currentInput.inputA, "I", "i") ||
+                !SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputB, &remote->currentInput.inputB, "J", "j") ||
+                !SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputShoulderLeft, &remote->currentInput.inputShoulderLeft, "Q", "q") ||
+                !SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputShoulderRight, &remote->currentInput.inputShoulderRight, "E", "e") ||
+                !SerialRemote_updateInput(remote, hComm, &remote->remoteInput.inputMenu, &remote->currentInput.inputMenu, "M", "m")
+                )
+            {
+                closeCOMPort(hComm);
+                hComm = NULL;
+            }
+        }
+
+        pthread_mutex_unlock(&remote->mutex);
+    }
+    if (hComm)
+    {
+        closeCOMPort(hComm);
+    }
+    return NULL;
+}
+
+void SerialRemote_init(SerialRemote *remote)
+{
+    remote->running = 1;
+    pthread_mutex_init(&remote->mutex, NULL);
+    pthread_create(&remote->thread, NULL, (void *(*)(void *))SerialRemote_thread, remote);
+}
+
+void SerialRemote_update(SerialRemote *remote)
+{
+    pthread_mutex_lock(&remote->mutex);
+    remote->currentInput.inputRight = IsKeyDown(KEY_D);
+    remote->currentInput.inputLeft = IsKeyDown(KEY_A);
+    remote->currentInput.inputUp = IsKeyDown(KEY_W);
+    remote->currentInput.inputDown = IsKeyDown(KEY_S);
+    remote->currentInput.inputA = IsKeyDown(KEY_I);
+    remote->currentInput.inputB = IsKeyDown(KEY_J);
+    remote->currentInput.inputShoulderLeft = IsKeyDown(KEY_Q);
+    remote->currentInput.inputShoulderRight = IsKeyDown(KEY_E);
+    remote->currentInput.inputMenu = IsKeyDown(KEY_M);
+    pthread_mutex_unlock(&remote->mutex);
+}
+
+void SerialRemote_exit(SerialRemote *remote)
+{
+    pthread_mutex_lock(&remote->mutex);
+    remote->running = 0;
+    pthread_mutex_unlock(&remote->mutex);
+    pthread_join(remote->thread, NULL);
+}
+
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 int main(void)
@@ -394,12 +563,14 @@ int main(void)
     int screenHeight = 128 * 2;
     int isExtended = 0;
     ModMusicPlayState musicState = {0};
+    // SerialRemote remote = {0};
     
     InitWindow(screenWidth, screenHeight, "Thumby color engine simulator");
     InitAudioDevice();
     printf("sizeof(RuntimeContext) = %d\n", sizeof(RuntimeContext));
 
     ModMusicPlayState_init(&musicState);
+    // SerialRemote_init(&remote);
 
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
@@ -446,6 +617,7 @@ int main(void)
         {
             // copy source to pico2 build dir
             copyFilesToDir("src_engine", "C:\\devel\\rapico2\\test\\blink\\game");
+            copyFilesToDir("_src_gen", "C:\\devel\\rapico2\\test\\blink\\_src_gen");
         }
         if (IsKeyPressed(KEY_P)) {
             isPaused = !isPaused;
@@ -540,10 +712,14 @@ int main(void)
             // compress screenshot data in memory to PNG format
             copyScreenShot();
         }
+
+        // remote input updates
+        // SerialRemote_update(&remote);
     }
     musicState.exit = 1;
     pthread_join(musicState.thread, NULL);
     CloseAudioDevice();
+    // SerialRemote_exit(&remote);
     // De-Initialization
     CloseWindow(); // Close window and OpenGL context
 }

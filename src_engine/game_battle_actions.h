@@ -6,5 +6,7 @@
 BattleAction BattleAction_Thrust();
 BattleAction BattleAction_ChangeTarget();
 BattleAction BattleAction_Strike();
+BattleAction BattleAction_Parry();
+BattleAction BattleAction_Insult(const char **insults);
 
 #endif

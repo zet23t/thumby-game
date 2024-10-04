@@ -42,11 +42,43 @@ int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t sp
     return width;
 }
 
-static int TE_Font_drawTextBox_internal(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_t w, uint8_t h, int8_t wordSpacing, int8_t lineSpacing, const char *text, float alignX, float alignY, uint32_t color, TE_ImgOpState state, int draw)
+typedef struct TE_Font_drawTextBoy_args
 {
+    TE_Img *img;
+    TE_Font *font;
+    int16_t x;
+    int16_t y;
+    uint8_t w;
+    uint8_t h;
+    int8_t wordSpacing;
+    int8_t lineSpacing;
+    const char *text;
+    float alignX;
+    float alignY;
+    uint32_t color;
+    TE_ImgOpState state;
+    int draw;
+} TE_Font_drawTextBoy_args;
+
+static TE_Vector2_s16 TE_Font_drawTextBox_internal(TE_Font_drawTextBoy_args args)
+{
+    TE_Img *img = args.img;
+    TE_Font *font = args.font;
+    int16_t x = args.x;
+    int16_t y = args.y;
+    uint8_t w = args.w;
+    int8_t wordSpacing = args.wordSpacing;
+    int8_t lineSpacing = args.lineSpacing;
+    const char *text = args.text;
+    float alignX = args.alignX;
+    uint32_t color = args.color;
+    TE_ImgOpState state = args.state;
+    int draw = args.draw;
+
     int textIndex = 0;
     char line[256];
     int16_t lineY = y;
+    int16_t maxWidth = 0;
     // if (!draw) TE_Img_lineRect(img, x, y, w, h, 0xff0000ff, state);
     while (text[textIndex])
     {
@@ -81,6 +113,10 @@ static int TE_Font_drawTextBox_internal(TE_Img *img, TE_Font *font, int16_t x, i
             }
         }
 
+        if (breakWidth > maxWidth)
+        {
+            maxWidth = breakWidth;
+        }
         textIndex = breakPos;
         if (text[textIndex] == '\n') textIndex += 1;
 
@@ -93,15 +129,36 @@ static int TE_Font_drawTextBox_internal(TE_Img *img, TE_Font *font, int16_t x, i
         // TE_Img_lineRect(img, lineX, lineY, lineWidth, font->rectHeights[0], 0xff00ffff, (TE_ImgOpState){.zValue=255});
         lineY += font->rectHeights[0] + lineSpacing;
     }
-    return lineY - y - lineSpacing;
+    return (TE_Vector2_s16){
+        .x = maxWidth,
+        .y = lineY - y - lineSpacing
+    };
 }
 
-int TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_t w, uint8_t h, int8_t wordSpacing, int8_t lineSpacing, const char *text, float alignX, float alignY, uint32_t color, TE_ImgOpState state)
+TE_Vector2_s16 TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_t y, uint8_t w, uint8_t h, int8_t wordSpacing, int8_t lineSpacing, const char *text, float alignX, float alignY, uint32_t color, TE_ImgOpState state)
 {
-    int height = TE_Font_drawTextBox_internal(img, font, x, y, w, h, wordSpacing, lineSpacing, text, alignX, alignY, color, state, 0);
-    int16_t offset = (int16_t)ceilf((h - height) * alignY);
-    TE_Font_drawTextBox_internal(img, font, x, y + offset, w, h, wordSpacing, lineSpacing, text, alignX, alignY, color, state, 1);
-    return height;
+    TE_Font_drawTextBoy_args args = (TE_Font_drawTextBoy_args) {
+        .img = img,
+        .font = font,
+        .x = x,
+        .y = y,
+        .w = w,
+        .h = h,
+        .wordSpacing = wordSpacing,
+        .lineSpacing = lineSpacing,
+        .text = text,
+        .alignX = alignX,
+        .alignY = alignY,
+        .color = color,
+        .state = state,
+        .draw = 0
+    };
+    TE_Vector2_s16 size = TE_Font_drawTextBox_internal(args);
+    int16_t offset = (int16_t)ceilf((h - size.y) * alignY);
+    args.y += offset;
+    args.draw = 1;
+    TE_Font_drawTextBox_internal(args);
+    return size;
 }
 
 int TE_Font_getLetterWidth(TE_Font *font, char c)

@@ -45,9 +45,82 @@ void Scene_3_envDebugDraw(RuntimeContext *ctx, TE_Img *screenData, ScriptedActio
 static TE_SDFMap *sdfMap = 0;
 
 
+void BattleMenu_drawActionBars(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, uint8_t selectedAPUse, BattleMenuWindow *window)
+{
+    // action bars
+    int16_t x = window->x, y = window->y;
+    int16_t w = window->w, h = window->h;
+    int16_t divX2 = window->divX2;
+    
+    TE_Img_fillRect(screen, divX2, y + 1, w + x - divX2 - 1, h - 2, 0x88000000, (TE_ImgOpState){
+        .zCompareMode = Z_COMPARE_LESS_EQUAL,
+        .zValue = 200,
+        .zAlphaBlend = 0,
+    });
+    uint32_t colors[5] = {0x33ff8888, 0x336688ff, 0x336688ff, 0x336688ff, 0x336688ff};
+    // uint32_t targettedColors[5] = {0x33ff8888, 0x3366aaff, 0x3366aaff, 0x3366aaff, 0x3366aaff};
+    const int16_t pxPerAP = 4;
+    
+    for (int i=0;i<battleState->entityCount;i++)
+    {
+        BattleEntityState *entity = &battleState->entities[i];
+        int16_t x = divX2 + 1 + i * 4;
+        uint32_t color = colors[i];
+        for (int ap=1;ap * pxPerAP < h; ap++)
+        {
+            uint8_t alpha = (ap * 5);
+            uint8_t r = min_s16(255, max_s16(((color) & 0xff) * 6 / (ap + 3) - alpha, 0));
+            uint8_t g = min_s16(255, max_s16(((color >> 8) & 0xff) * 6 / (ap + 3) - alpha, 0));
+            uint8_t b = min_s16(255, max_s16(((color >> 16) & 0xff) * 6 / (ap + 3) - alpha, 0));
+            uint32_t rgba = (r) | (g << 8) | (b << 16) | 0xff000000;
+            TE_Img_fillRect(screen, x, y + 3 + h - (ap + 1) * pxPerAP, 3, pxPerAP - 1, rgba, (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 200,
+                .zAlphaBlend = 0,
+            });
+        }
+        // TE_Img_fillRect(screen, x, y + h - 8, 3, 6, 0x88000000, (TE_ImgOpState){
+        //     .zCompareMode = Z_COMPARE_ALWAYS,
+        //     .zValue = 200,
+        //     .zAlphaBlend = 1,
+        // });
+
+        if (entity->hitpoints > 0)
+        {
+            int apY = y + h - 3 - 2 - entity->actionPoints * pxPerAP;
+            TE_Img_fillRect(screen, x, apY, 3, 3, 0xff000000, (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 200,
+                .zAlphaBlend = 1,
+            });
+            TE_Img_fillRect(screen, x, apY+1, 3, 1, 0xffffffff, (TE_ImgOpState){
+                .zCompareMode = Z_COMPARE_ALWAYS,
+                .zValue = 200,
+                .zAlphaBlend = 1,
+            });
+
+            if (selectedAPUse > 0 && i == 0 && fmodf(ctx->time * 2.0f, 1.0f) < 0.5f)
+            {
+                int futureAPY = apY - selectedAPUse * pxPerAP;
+                TE_Img_fillRect(screen, x, futureAPY, 3, 3, 0xff000000, (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_ALWAYS,
+                    .zValue = 200,
+                    .zAlphaBlend = 1,
+                });
+                TE_Img_fillRect(screen, x, futureAPY+1, 3, 1, 0xffffffff, (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_ALWAYS,
+                    .zValue = 200,
+                    .zAlphaBlend = 1,
+                });
+            }
+        }
+    }
+}
 
 void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *action)
 {
+    // draw battle menu
+
     Player_setInputEnabled(0);
     BattleState *battleState = (BattleState*)action->customCallback.dataPointer;
     battleState->timer += ctx->deltaTime;
@@ -63,7 +136,10 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             battleState->queuedEntityId = -1;
             battleState->queuedActionId = -1;
             entity->actionPoints += action->actionPointCosts;
+            LOG("Action %s (%d) done; Entity %d at %d", action->name, action->actionPointCosts, entity->id, entity->actionPoints);
         }
+
+        BattleMenu_drawActionBars(ctx, screen, battleState, 0, &battleState->menuWindow);
         return;
     }
 
@@ -79,27 +155,39 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     }
 
     // decrease AP of all entities unless player has 1 AP; player actions can happen at AP 1 or AP 0. NPCs only at AP 0
-    if (lowestAP > 0 && battleState->entities[0].actionPoints > 1)
+    if (battleState->entities[0].actionPoints > 0)
     {
         if (battleState->timer > 0.25f)
         {
+            uint8_t scheduledAction = 0;
             for (int i=0;i<battleState->entityCount;i++)
             {
                 BattleEntityState *entity = &battleState->entities[i];
-                if (entity->actionPoints > 0)
-                    entity->actionPoints -= 1;
+                // LOG("Entity %d/%d at %d", entity->id, entity->team, entity->actionPoints);
                 if (entity->team == 1 && entity->actionPoints == 0)
                 {
                     // AI enemy turn
                     battleState->queuedEntityId = i;
                     battleState->queuedActionId = 0;
                     battleState->timer = 0.0f;
-
+                    scheduledAction = 1;
+                    LOG("Scheduling action of enemy %d at %d", entity->id, entity->actionPoints);
                     break;
-                } 
+                }
+            }
+            if (!scheduledAction)
+            {
+                for (int i=0;i<battleState->entityCount;i++)
+                {
+                    BattleEntityState *entity = &battleState->entities[i];
+                    if (entity->actionPoints > 0)
+                        entity->actionPoints -= 1;
+                }
             }
             battleState->timer = 0.0f;
         }
+        BattleMenu_drawActionBars(ctx, screen, battleState, 0, &battleState->menuWindow);
+
         return;
     }
 
@@ -122,52 +210,6 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             BattlePosition* targetPosition = &battleState->positions[targetEntity->position];
             playerCharacter.dirX = sign_f(targetPosition->x - playerCharacter.x);
             playerCharacter.dirY = sign_f(targetPosition->y - playerCharacter.y);
-
-            // int16_t anim = (int)(fmodf(ctx->time * 2.0f, 1.0f) * 3);
-            // TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP_RIGHT), targetPosition->x - 6 + anim, targetPosition->y + 4 - anim, (BlitEx)
-            // {
-            //     .blendMode = TE_BLEND_ALPHAMASK,
-            //     .tint = 1,
-            //     .tintColor = DB32Colors[DB32_ORANGE],
-            //     .state = (TE_ImgOpState){
-            //         .zCompareMode = Z_COMPARE_LESS,
-            //         .zValue = targetPosition->y + 8,
-            //         .zAlphaBlend = 1,
-            //     }
-            // });
-            // TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_UP_LEFT), targetPosition->x + 4 - anim, targetPosition->y + 4 - anim, (BlitEx)
-            // {
-            //     .blendMode = TE_BLEND_ALPHAMASK,
-            //     .tint = 1,
-            //     .tintColor = DB32Colors[DB32_ORANGE],
-            //     .state = (TE_ImgOpState){
-            //         .zCompareMode = Z_COMPARE_LESS,
-            //         .zValue = targetPosition->y + 8,
-            //         .zAlphaBlend = 1,
-            //     }
-            // });
-            // TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN_RIGHT), targetPosition->x - 6 + anim, targetPosition->y - 4 + anim, (BlitEx)
-            // {
-            //     .blendMode = TE_BLEND_ALPHAMASK,
-            //     .tint = 1,
-            //     .tintColor = DB32Colors[DB32_ORANGE],
-            //     .state = (TE_ImgOpState){
-            //         .zCompareMode = Z_COMPARE_LESS,
-            //         .zValue = targetPosition->y + 5,
-            //         .zAlphaBlend = 1,
-            //     }
-            // });
-            // TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN_LEFT), targetPosition->x + 4 - anim, targetPosition->y - 4 + anim, (BlitEx)
-            // {
-            //     .blendMode = TE_BLEND_ALPHAMASK,
-            //     .tint = 1,
-            //     .tintColor = DB32Colors[DB32_ORANGE],
-            //     .state = (TE_ImgOpState){
-            //         .zCompareMode = Z_COMPARE_LESS,
-            //         .zValue = targetPosition->y + 5,
-            //         .zAlphaBlend = 1,
-            //     }
-            // });
         }
         else
         {
@@ -191,14 +233,11 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         }
     }
 
-    // draw battle menu
     int16_t x = -1, y = -1;
     int16_t w = 130, h = 44;
 
     int16_t divX = 80;
     int16_t divX2 = divX + 26;
-    const int16_t lineHeight = 11;
-    const uint32_t selectedColor = 0x660099ff;
 
     TE_Img_fillRect(screen, x, y, w, h, 0x88000000 | (0xffffff & DB32Colors[15]), (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_ALWAYS,
@@ -211,19 +250,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         .zAlphaBlend = 1,
     });
     
-    TE_Font font = GameAssets_getFont(FONT_MEDIUM);
     int8_t selectedAPUse = 0;
-    uint8_t maxSelectableActions;
-
-    // draw battle actions
-    TE_ImgOpState actionState = (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 201,
-        .scissorX = 0,
-        .scissorY = 0,
-        .scissorWidth = divX2,
-        .scissorHeight = h - 2
-    };
     if (battleState->activatingAction >= 0)
     {
         BattleAction *action = &playerEntity->actionNTList[battleState->activatingAction];
@@ -241,9 +268,6 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
                 battleState->queuedActionId = battleState->selectedAction;
                 battleState->queuedEntityId = 0;
                 battleState->timer = 0.0f;
-                // if (action->onActivated)
-                //     battleState->activatingAction = -2;
-                
             }
         }
         else
@@ -254,59 +278,42 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     }
     else
     {
-        int16_t actionScrollListOffset = max_s16(0, (battleState->selectedAction - 2) * lineHeight);
-        for (maxSelectableActions=0; playerEntity->actionNTList[maxSelectableActions].name; maxSelectableActions++)
-        {
-            BattleAction *action = &playerEntity->actionNTList[maxSelectableActions];
-            if (maxSelectableActions == battleState->selectedAction)
-            {
-                selectedAPUse = action->actionPointCosts;
+        BattleMenuWindow_update(ctx, screen, &battleState->menuWindow, &battleState->menu);
+        battleState->selectedAction = battleState->menu.selectedAction;
+        BattleAction *action = &playerEntity->actionNTList[battleState->selectedAction];
+        selectedAPUse = action->actionPointCosts;
 
-                if (action->onSelected && action->onSelected(ctx, screen, battleState, action, playerEntity) == BATTLEACTION_ONSELECTED_ACTIVATE)
-                {
-                    battleState->activatingAction = battleState->selectedAction;
+        if (action->onSelected && action->onSelected(ctx, screen, battleState, action, playerEntity) == BATTLEACTION_ONSELECTED_ACTIVATE)
+        {
+            battleState->activatingAction = battleState->selectedAction;
+        }
+    }
+
+    // draw indicators which enemies will act after player
+    uint8_t futureAP = playerEntity->actionPoints + selectedAPUse;
+    for (int i=0;i<battleState->entityCount;i++)
+    {
+        BattleEntityState *entity = &battleState->entities[i];
+        if (entity->team == 1 && entity->actionPoints < futureAP)
+        {
+            BattlePosition *position = &battleState->positions[entity->position];
+            float blink = fabsf(fmodf(ctx->time * 1.0f, 1.0f) - .5f) * 3.0f;
+            uint8_t alpha = (uint8_t)fminf(blink * 255.0f, 255.0f);
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_EXCLAMATION_MARK), position->x, position->y - 18, (BlitEx){
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .tint = 1,
+                .tintColor = (DB32Colors[DB32_ORANGE] & 0xffffff) | (alpha << 24),
+                .state = (TE_ImgOpState){
+                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                    .zValue = position->y + 18,
+                    .zAlphaBlend = 1,
                 }
-            }
-            int16_t actionY = maxSelectableActions * lineHeight - actionScrollListOffset;
-            TE_Font_drawTextBox(screen, &font, 8 + x, actionY, 80, h, -1, -3, action->name, 0.0f, 0.0f, 0xffffffff, actionState);
-            char buffer[16];
-            snprintf(buffer, sizeof(buffer), "%d AP", action->actionPointCosts);
-            TE_Font_drawTextBox(screen, &font, 83 + x, actionY, 40, h, -1, -3, buffer, 0.0f, 0.0f, 0xffffffff, actionState);
-        }
-
-        // selection highlight
-        int16_t selectedY = y + battleState->selectedAction * lineHeight + 2 - actionScrollListOffset;
-        TE_Img_fillRect(screen, x + 1, selectedY, divX2 - 1, lineHeight + 1, selectedColor, (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_LESS_EQUAL,
-            .zValue = 200,
-            .zAlphaBlend = 1,
-        });
-        TE_Img_fillTriangle(screen, x + 1, selectedY, x + 6, selectedY + lineHeight / 2, x + 1, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_LESS_EQUAL,
-            .zValue = 200,
-            .zAlphaBlend = 1,
-        });
-        TE_Img_fillTriangle(screen, divX - 2, selectedY, divX - 7, selectedY + lineHeight / 2, divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_LESS_EQUAL,
-            .zValue = 200,
-            .zAlphaBlend = 1,
-        });
-
-        if (ctx->inputUp && !ctx->prevInputUp)
-        {
-            battleState->selectedAction--;
-            if (battleState->selectedAction < 0)
-            {
-                battleState->selectedAction = 0;
-            }
-        }
-        if (ctx->inputDown && !ctx->prevInputDown)
-        {
-            battleState->selectedAction++;
-            if (battleState->selectedAction >= maxSelectableActions)
-            {
-                battleState->selectedAction = maxSelectableActions - 1;
-            }
+            });
+            // TE_Img_HLine(screen, position->x - 4, position->y + 3, 8, 0xff0000ff, (TE_ImgOpState){
+            //     .zCompareMode = Z_COMPARE_LESS_EQUAL,
+            //     .zValue = 200,
+            //     .zAlphaBlend = 1,
+            // });
         }
     }
 
@@ -321,59 +328,8 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         .zAlphaBlend = 1,
     });
 
-    // action bars
-    TE_Img_fillRect(screen, divX2, y + 1, w + x - divX2 - 1, h - 2, 0x88000000, (TE_ImgOpState){
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 200,
-        .zAlphaBlend = 0,
-    });
-    uint32_t colors[5] = {0x3344ff88, 0x33ffaa66, 0x33ffaa66, 0x33ffaa66, 0xff444444};
-    const int16_t pxPerAP = 4;
-    for (int i=0;i<battleState->entityCount;i++)
-    {
-        BattleEntityState *entity = &battleState->entities[i];
-        int16_t x = divX2 + 1 + i * 4;
-        TE_Img_fillRect(screen, x, y + 2, 3, h - 4, colors[i], (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_ALWAYS,
-            .zValue = 200,
-            .zAlphaBlend = 0,
-        });
-        TE_Img_fillRect(screen, x, y + h - 8, 3, 6, 0x88000000, (TE_ImgOpState){
-            .zCompareMode = Z_COMPARE_ALWAYS,
-            .zValue = 200,
-            .zAlphaBlend = 1,
-        });
-
-        if (i < 4)
-        {
-            int apY = y + h - 3 - 2 - entity->actionPoints * pxPerAP;
-            TE_Img_fillRect(screen, x, apY, 3, 3, 0xff000000, (TE_ImgOpState){
-                .zCompareMode = Z_COMPARE_ALWAYS,
-                .zValue = 200,
-                .zAlphaBlend = 1,
-            });
-            TE_Img_fillRect(screen, x, apY+1, 3, 1, 0xffffffff, (TE_ImgOpState){
-                .zCompareMode = Z_COMPARE_ALWAYS,
-                .zValue = 200,
-                .zAlphaBlend = 1,
-            });
-
-            if (i == 0 && fmodf(ctx->time * 2.0f, 1.0f) < 0.5f)
-            {
-                int futureAPY = apY - selectedAPUse * pxPerAP;
-                TE_Img_fillRect(screen, x, futureAPY, 3, 3, 0xff000000, (TE_ImgOpState){
-                    .zCompareMode = Z_COMPARE_ALWAYS,
-                    .zValue = 200,
-                    .zAlphaBlend = 1,
-                });
-                TE_Img_fillRect(screen, x, futureAPY+1, 3, 1, 0xffffffff, (TE_ImgOpState){
-                    .zCompareMode = Z_COMPARE_ALWAYS,
-                    .zValue = 200,
-                    .zAlphaBlend = 1,
-                });
-            }
-        }
-    }
+    BattleMenu_drawActionBars(ctx, screen, battleState, selectedAPUse, &battleState->menuWindow);
+    
     
 }
 
@@ -527,16 +483,16 @@ void Scene_3_init()
     changeTargetMenu->selectedAction = 0;
 
     playerActions[0] = BattleAction_Thrust();
-    playerActions[1] = (BattleAction) {
-        .name = "Parry",
-        .actionPointCosts = 3,
-    };
-    playerActions[2] = BattleAction_Strike();
+    playerActions[1] = BattleAction_Strike();
+    playerActions[2] = BattleAction_Parry();
     playerActions[3] = BattleAction_ChangeTarget();
-    playerActions[4] = (BattleAction) {
-        .name = "Insult",
-        .actionPointCosts = 1,
-    };
+    playerActions[4] = BattleAction_Insult((const char *[]){
+        "A fine swing ... for a child!",
+        "I've seen trees move faster than you.",
+        "Aiming for the air, are we?",
+        "Did you all practice missing together?",
+        0
+    });
 
     BattleAction *npcActions = Scene_malloc(sizeof(BattleAction) * 8);
     npcActions[0] = BattleAction_Thrust();
@@ -573,6 +529,29 @@ void Scene_3_init()
     battleState->positions[2] = (BattlePosition){.x = 110, .y = 70};
     battleState->positions[3] = (BattlePosition){.x = 70, .y = 110};
     battleState->positions[4] = (BattlePosition){.x = 110, .y = 110};
+
+    battleState->menuWindow.x = -1;
+    battleState->menuWindow.y = -1;
+    battleState->menuWindow.w = 130;
+    battleState->menuWindow.h = 44;
+    battleState->menuWindow.divX = 80;
+    battleState->menuWindow.divX2 = 106;
+    battleState->menuWindow.lineHeight = 11;
+    battleState->menuWindow.selectedColor = 0x660099ff;
+
+    BattleMenuEntry *mainEntries = Scene_malloc(sizeof(BattleMenuEntry) * 5);
+    mainEntries[0] = BattleMenuEntryDef("Thrust", "8 AP", 0);
+    mainEntries[1] = BattleMenuEntryDef("Strike", "6 AP", 1);
+    mainEntries[2] = BattleMenuEntryDef("Parry", "3 AP", 2);
+    mainEntries[3] = BattleMenuEntryDef("Change Target", "2 AP", 3);
+    mainEntries[4] = BattleMenuEntryDef("Insult", "1 AP", 4);
+
+
+    battleState->menu = (BattleMenu){
+        .selectedAction = 0,
+        .entries = mainEntries,
+        .entriesCount = 5,
+    };
 
     ScriptedAction *battleAction = ScriptedAction_addCustomCallback(step, step, Scene_3_battleStart);
     battleAction->customCallback.dataPointer = battleState;

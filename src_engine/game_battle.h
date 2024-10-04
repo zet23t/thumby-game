@@ -7,6 +7,36 @@
 #include <inttypes.h>
 
 typedef struct BattleAction BattleAction;
+typedef struct BattleMenu BattleMenu;
+
+typedef struct BattleMenuEntry
+{
+    const char *menuText;
+    const char *columnText;
+    TE_Vector2_s16 textSize;
+    float time;
+    float textScrollX;
+    uint8_t id;
+} BattleMenuEntry;
+#define BattleMenuEntryDef(menuText_, columnText_, id_) ((BattleMenuEntry){.menuText=menuText_, .columnText = columnText_, .id =id_})
+
+typedef struct BattleMenuWindow
+{
+    int16_t x, y;
+    int16_t w, h;
+    int16_t divX;
+    int16_t divX2;
+    int16_t lineHeight;
+    uint32_t selectedColor;
+} BattleMenuWindow;
+
+typedef struct BattleMenu
+{
+    int8_t selectedAction;
+    uint8_t entriesCount;
+    BattleMenuEntry *entries;
+    float selectedActionY;
+} BattleMenu;
 
 typedef struct BattleEntityState
 {
@@ -32,6 +62,8 @@ typedef struct BattlePosition
 typedef struct BattleState
 {
     BattleEntityState entities[8];
+    BattleMenu menu;
+    BattleMenuWindow menuWindow;
     uint8_t entityCount;
     BattlePosition positions[16];
     int8_t selectedAction:4;
@@ -48,36 +80,13 @@ typedef struct BattleState
 #define BATTLEACTION_ONSELECTED_IGNORE 0
 #define BATTLEACTION_ONSELECTED_ACTIVATE 1
 
-typedef struct BattleMenuEntry
-{
-    const char *menuText;
-    const char *columnText;
-    uint8_t id;
-} BattleMenuEntry;
-#define BattleMenuEntryDef(menuText, columnText, id) ((BattleMenuEntry){menuText, columnText, id})
-
-typedef struct BattleMenuWindow
-{
-    int16_t x, y;
-    int16_t w, h;
-    int16_t divX;
-    int16_t divX2;
-    int16_t lineHeight;
-    uint32_t selectedColor;
-} BattleMenuWindow;
-
-typedef struct BattleMenu
-{
-    int8_t selectedAction;
-    uint8_t entriesCount;
-    BattleMenuEntry *entries;
-} BattleMenu;
-
 typedef struct BattleAction
 {
     const char *name;
     uint8_t actionPointCosts;
     int8_t selectedAction;
+    void *userData;
+    BattleMenu *menu;
     uint8_t (*onSelected)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
     uint8_t (*onActivating)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
     uint8_t (*onActivated)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
