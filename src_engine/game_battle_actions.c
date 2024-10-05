@@ -2,6 +2,11 @@
 #include "game_battle_actions.h"
 #include "TE_math.h"
 
+//# Overview
+// Thrust action: Hits the target strongly, dealing 2 damage + 1 action point loss.
+// Strike action: Hits the target, dealing 1 damage + 1 action point loss.
+// Parry action: Blocks all next attacks.
+
 //# Thrust action
 
 static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -10,13 +15,14 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
     BattleEntityState *target = &battleState->entities[actor->target];
     BattlePosition targetPosition = battleState->positions[target->position];
     float position = battleState->timer / 0.5f;
-    float mirrored = 1.0f - fabsf(1.0f - position);
-    float bumped = max_f(0.0f, mirrored * 10.0f - 9.0f);
+    float pingpong = 1.0f - fabsf(1.0f - position);
+    float bumped = max_f(0.0f, pingpong * 10.0f - 9.0f);
     float dx = targetPosition.x - attackerPosition.x;
     float dy = targetPosition.y - attackerPosition.y;
     float len = sqrtf(dx * dx + dy * dy);
     if (len < 1.0f)
     {
+        LOG("Invalid positionings / targets");
         return 1;
     }
     float nx = dx / len;
@@ -24,8 +30,8 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
     float tx = targetPosition.x - nx * 6.0f;
     float ty = targetPosition.y - ny * 6.0f;
     // LOG("Thrust activated %.2f", mirrored);
-    int16_t cx = attackerPosition.x + (tx - attackerPosition.x) * mirrored;
-    int16_t cy = attackerPosition.y + (ty - attackerPosition.y) * mirrored;
+    int16_t cx = attackerPosition.x + (tx - attackerPosition.x) * pingpong;
+    int16_t cy = attackerPosition.y + (ty - attackerPosition.y) * pingpong;
     if (position >= 2.0f)
     {
         cx = attackerPosition.x;
@@ -34,7 +40,7 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
 
     Character *character = actor->id == 0 ? &playerCharacter : &enemies[actor->id - 1].character;
 
-    float jump = sinf(mirrored * TE_PI * 0.85f);
+    float jump = sinf(pingpong * TE_PI * 0.85f);
 
     character->targetX = character->x = cx;
     character->targetY = character->y = cy - 10;
@@ -44,19 +50,24 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
     targetCharacter->targetX = targetCharacter->x = targetPosition.x + nx * bumped * 3.0f;
     targetCharacter->targetY = targetCharacter->y = targetPosition.y + ny * bumped * 3.0f - 10;
 
-
-
-    // TE_Img_fillCircle(screen, cx, cy, 2, 0xff0000ff, (TE_ImgOpState){
-    //     .zCompareMode = Z_COMPARE_LESS,
-    //     .zValue = cy + 20,
-    //     .zAlphaBlend = 1,
-    // });
+    if (position >= 2.0f)
+    {
+        if (battleState->entities[actor->target].hitpoints > 2)
+        {
+            battleState->entities[actor->target].hitpoints -= 2;
+        }
+        else
+        {
+            battleState->entities[actor->target].hitpoints = 0;
+        }
+    }
     return position >= 2.0f;
 }
 
 static uint8_t BattleAction_Thrust_OnActivating(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
     LOG("Thrust activating");
+    action->statusFlags = 0;
     return 1;
 }
 
@@ -95,7 +106,7 @@ static uint8_t BattleAction_Thrust_OnSelected(RuntimeContext *ctx, TE_Img *scree
 BattleAction BattleAction_Thrust()
 {
     return (BattleAction){
-        .name = "Thrust",
+        .name = "Thrust \bs\x3c",
         .actionPointCosts = 6,
         .onActivated = BattleAction_Thrust_OnActivated,
         .onActivating = BattleAction_Thrust_OnActivating,

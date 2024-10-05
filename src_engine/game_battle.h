@@ -47,6 +47,7 @@ typedef struct BattleEntityState
     uint8_t characterType:4;
     uint8_t actionPoints:4;
     uint8_t hitpoints:4;
+    uint8_t maxHitpoints:4;
     uint8_t position:4;
     float actionTimer;
     const char *name;
@@ -85,6 +86,7 @@ typedef struct BattleAction
     const char *name;
     uint8_t actionPointCosts;
     int8_t selectedAction;
+    uint8_t statusFlags;
     void *userData;
     BattleMenu *menu;
     uint8_t (*onSelected)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);

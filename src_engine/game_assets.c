@@ -77,6 +77,7 @@ static const SpriteData _sprites[] = {
     {248, 120, 7, 8, 4, 4},   // SPRITE_FLAT_ARROW_2_3375
     {16, 136, 12, 6, 6, 3},   // SPRITE_CHARACTER_SHADOW
     {107, 136, 5, 13, 2, 9},  // SPRITE_EXCLAMATION_MARK
+    {107, 148, 5, 5, 2, 2},   // SPRITE_TINY_HEART
 };
 
 static SpriteData _getSpriteData(uint8_t index)

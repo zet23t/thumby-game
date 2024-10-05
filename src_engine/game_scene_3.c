@@ -294,9 +294,19 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     for (int i=0;i<battleState->entityCount;i++)
     {
         BattleEntityState *entity = &battleState->entities[i];
+        BattlePosition *position = &battleState->positions[entity->position];
+        for (int j=0;j<entity->hitpoints;j++)
+        {
+            TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_TINY_HEART), position->x - 4 + j * 3, position->y + 5, (BlitEx) {
+                .blendMode = TE_BLEND_ALPHAMASK,
+                .state = {
+                    .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                    .zValue = position->y + 15,
+                }
+            });
+        }
         if (entity->team == 1 && entity->actionPoints < futureAP)
         {
-            BattlePosition *position = &battleState->positions[entity->position];
             float blink = fabsf(fmodf(ctx->time * 1.0f, 1.0f) - .5f) * 3.0f;
             uint8_t alpha = (uint8_t)fminf(blink * 255.0f, 255.0f);
             TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_EXCLAMATION_MARK), position->x, position->y - 18, (BlitEx){
@@ -506,13 +516,16 @@ void Scene_3_init()
         battleState->entities[i].id = i;
         battleState->entities[i].team = i > 0 ? 1 : 0;
         battleState->entities[i].actionPoints = i == 0 ? 1 : 4 + i;
-        battleState->entities[i].hitpoints = 6;
+        battleState->entities[i].hitpoints = 3;
+        battleState->entities[i].maxHitpoints = 3;
         battleState->entities[i].position = i;
         if (i > 0)
         {
             battleState->entities[i].actionNTList = npcActions;
         }
     }
+    battleState->entities[0].hitpoints = 5;
+    battleState->entities[0].maxHitpoints = 5;
     battleState->entities[0].target = 1;
     battleState->entities[0].actionNTList = playerActions;
     battleState->entities[1].name = "Lenny";
