@@ -553,23 +553,10 @@ void Scene_3_init()
     battleState->menuWindow.selectedColor = 0x660099ff;
 
     BattleMenuEntry *mainEntries = Scene_malloc(sizeof(BattleMenuEntry) * 5);
-
-
-
-
-
-
-    mainEntries[0] = BattleMenuEntryDef(
-        "Thrust: " 
-            TX_SPRITE(SPRITE_HEART_HALF, 2, 2) TX_MOVECURSOR_X(253) 
-            TX_SPRITE(SPRITE_HEART_HALF, 2, 2) TX_MOVECURSOR_X(2)
-            TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 
-        "8 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 0);
-    mainEntries[1] = BattleMenuEntryDef("Strike: " TX_SPRITE(SPRITE_HEART_HALF, 2, 2), "6 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 1);
-    mainEntries[2] = BattleMenuEntryDef("Parry: " TX_SPRITE(SPRITE_SHIELD, 2, 2), "3 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 2);
-    mainEntries[3] = BattleMenuEntryDef("Insult: " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2) TX_MOVECURSOR_X(253) TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), "1 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 4);
-    mainEntries[4] = BattleMenuEntryDef("Switch Target", "2 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 3);
-
+    for (int i=0;i<5;i++)
+    {
+        mainEntries[i] = BattleMenuEntry_fromAction(&playerActions[i]);
+    }
 
     battleState->menu = (BattleMenu){
         .selectedAction = 0,

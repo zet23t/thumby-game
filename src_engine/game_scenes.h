@@ -168,8 +168,8 @@ typedef struct Scene
     void (*updateFn)(RuntimeContext *ctx, TE_Img *screenData);
 } Scene;
 
-// allocates memory with scene lifetime. Can not be freed. Memory space is zeroed.
 void* Scene_malloc(uint32_t size);
+char* Scene_strDup(const char *str, int strlength);
 uint32_t Scene_getAllocatedSize();
 
 void Scene_init(uint8_t sceneId);

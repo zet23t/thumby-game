@@ -26,6 +26,44 @@ int TE_Font_drawChar(TE_Img *img, TE_Font *font, int16_t x, int16_t y, char c, u
     return 0;
 }
 
+// appends a string to another string that may contain special font instructions. Does not check for buffer overflow.
+char* TE_Font_concat(char *dest, const char *src)
+{
+    char *eostring = &dest[TE_Font_getStringLength(dest)];
+    int srcLength = TE_Font_getStringLength(src);
+    memcpy(eostring, src, srcLength);
+    eostring[srcLength] = 0;
+    return dest;
+}
+
+// determines the count of bytes of a string that may contain special font instructions
+int TE_Font_getStringLength(const char *text)
+{
+    const char *start = text;
+    while (*text)
+    {
+        if (*text == '\b')
+        {
+            text++;
+            switch (*text)
+            {
+                case 'x': // move x
+                {
+                    text+=2;
+                    continue;
+                }
+                case 's': // sprite injection
+                {
+                    text+=4;
+                    continue;
+                }
+            }
+        }
+        text++;
+    }
+    return text - start;
+}
+
 int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t spacing, const char *text, uint32_t color, TE_ImgOpState state)
 {
     int width = 0;

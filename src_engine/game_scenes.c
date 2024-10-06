@@ -1339,6 +1339,8 @@ static uint8_t _currentSceneId = 0xff;
 // does not allow freeing memory, is reset on scene change
 static uint8_t _sceneAllocatorData[0x30000];
 static uint32_t _sceneAllocatorOffset = 0;
+
+// malloc from the scene memory. Memory is zero initialized and not freeable. Will reset on scene change.
 void* Scene_malloc(uint32_t size)
 {
     if (size == 0) return 0;
@@ -1351,6 +1353,15 @@ void* Scene_malloc(uint32_t size)
     void *ptr = &_sceneAllocatorData[_sceneAllocatorOffset];
     _sceneAllocatorOffset += size;
     _sceneAllocatorOffset = ALIGN_VALUE4(_sceneAllocatorOffset);
+    return ptr;
+}
+
+// duplicate a string into the scene memory
+char* Scene_strDup(const char *str, int strlength)
+{
+    if (!str) return NULL;
+    char *ptr = Scene_malloc(strlength + 1);
+    memcpy(ptr, str, strlength);
     return ptr;
 }
 

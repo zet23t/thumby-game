@@ -1,5 +1,20 @@
 #include "game_battle.h"
+#include "game_scenes.h"
+#include "TE_Font.h"
 #include "TE_math.h"
+
+BattleMenuEntry BattleMenuEntry_fromAction(BattleAction *action)
+{
+    BattleMenuEntry entry = {
+        .menuText = action->name,
+        .action = action,
+    };
+    char *columnText = Scene_malloc(12);
+    entry.columnText = columnText;
+    TE_Font_concat(columnText, TE_StrFmt("%d ", action->actionPointCosts));
+    TE_Font_concat(columnText, TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2));
+    return entry;
+}
 
 void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWindow* window, BattleMenu *battleMenu)
 {

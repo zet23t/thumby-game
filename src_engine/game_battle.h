@@ -16,6 +16,7 @@ typedef struct BattleMenuEntry
     TE_Vector2_s16 textSize;
     float time;
     float textScrollX;
+    BattleAction *action;
     uint8_t id;
 } BattleMenuEntry;
 #define BattleMenuEntryDef(menuText_, columnText_, id_) ((BattleMenuEntry){.menuText=menuText_, .columnText = columnText_, .id =id_})
@@ -95,5 +96,6 @@ typedef struct BattleAction
 } BattleAction;
 
 void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWindow* window, BattleMenu *battleMenu);
+BattleMenuEntry BattleMenuEntry_fromAction(BattleAction *action);
 
 #endif

@@ -106,7 +106,10 @@ static uint8_t BattleAction_Thrust_OnSelected(RuntimeContext *ctx, TE_Img *scree
 BattleAction BattleAction_Thrust()
 {
     return (BattleAction){
-        .name = "Thrust \bs\x3c",
+        .name = "Thrust: " 
+            TX_SPRITE(SPRITE_HEART_HALF, 2, 2) TX_MOVECURSOR_X(253) 
+            TX_SPRITE(SPRITE_HEART_HALF, 2, 2) TX_MOVECURSOR_X(2)
+            TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2),
         .actionPointCosts = 6,
         .onActivated = BattleAction_Thrust_OnActivated,
         .onActivating = BattleAction_Thrust_OnActivating,
@@ -208,7 +211,7 @@ static uint8_t BattleAction_Strike_OnSelected(RuntimeContext *ctx, TE_Img *scree
 BattleAction BattleAction_Strike()
 {
     return (BattleAction){
-        .name = "Strike",
+        .name = "Strike: " TX_SPRITE(SPRITE_HEART_HALF, 2, 2),
         .actionPointCosts = 4,
         .onActivated = BattleAction_Strike_OnActivated,
         .onActivating = BattleAction_Strike_OnActivating,
@@ -395,7 +398,7 @@ static uint8_t BattleAction_Parry_OnActivating(RuntimeContext *ctx, TE_Img *scre
 BattleAction BattleAction_Parry()
 {
     return (BattleAction){
-        .name = "Parry",
+        .name = "Parry: " TX_SPRITE(SPRITE_SHIELD, 2, 2),
         .actionPointCosts = 2,
         .onActivated = BattleAction_Parry_OnActivated,
         .onActivating = BattleAction_Parry_OnActivating,
@@ -476,7 +479,7 @@ BattleAction BattleAction_Insult(const char** insults)
     entries[entriesCount++] = BattleMenuEntryDef("Cancel", 0, idCancel);
 
     return (BattleAction){
-        .name = "Insult",
+        .name = "Insult: " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2) TX_MOVECURSOR_X(253) TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2),
         .userData = entries,
         .actionPointCosts = 1,
         .onActivated = BattleAction_Insult_OnActivated,
