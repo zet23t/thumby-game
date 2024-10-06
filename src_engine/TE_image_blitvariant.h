@@ -10,10 +10,6 @@ static void VARIANT_NAME(TE_Img *img, TE_Img *src, int16_t x, int16_t y, uint16_
     {
         return;
     }
-    // uint16_t imgWidth = 1 << img->p2width;
-    // uint16_t imgHeight = 1 << img->p2height;
-    // uint16_t srcWidth = 1 << src->p2width;
-    // uint16_t srcHeight = 1 << src->p2height;
 
 #ifdef VARIANT_TINT
     uint32_t tint = options.tintColor;

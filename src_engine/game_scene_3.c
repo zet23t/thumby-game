@@ -495,14 +495,14 @@ void Scene_3_init()
     playerActions[0] = BattleAction_Thrust();
     playerActions[1] = BattleAction_Strike();
     playerActions[2] = BattleAction_Parry();
-    playerActions[3] = BattleAction_ChangeTarget();
-    playerActions[4] = BattleAction_Insult((const char *[]){
+    playerActions[3] = BattleAction_Insult((const char *[]){
         "A fine swing ... for a child!",
         "I've seen trees move faster than you.",
         "Aiming for the air, are we?",
         "Did you all practice missing together?",
         0
     });
+    playerActions[4] = BattleAction_ChangeTarget();
 
     BattleAction *npcActions = Scene_malloc(sizeof(BattleAction) * 8);
     npcActions[0] = BattleAction_Thrust();
@@ -553,11 +553,22 @@ void Scene_3_init()
     battleState->menuWindow.selectedColor = 0x660099ff;
 
     BattleMenuEntry *mainEntries = Scene_malloc(sizeof(BattleMenuEntry) * 5);
-    mainEntries[0] = BattleMenuEntryDef("Thrust", "8 AP", 0);
-    mainEntries[1] = BattleMenuEntryDef("Strike", "6 AP", 1);
-    mainEntries[2] = BattleMenuEntryDef("Parry", "3 AP", 2);
-    mainEntries[3] = BattleMenuEntryDef("Change Target", "2 AP", 3);
-    mainEntries[4] = BattleMenuEntryDef("Insult", "1 AP", 4);
+
+
+
+
+
+
+    mainEntries[0] = BattleMenuEntryDef(
+        "Thrust: " 
+            TX_SPRITE(SPRITE_HEART_HALF, 2, 2) TX_MOVECURSOR_X(253) 
+            TX_SPRITE(SPRITE_HEART_HALF, 2, 2) TX_MOVECURSOR_X(2)
+            TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 
+        "8 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 0);
+    mainEntries[1] = BattleMenuEntryDef("Strike: " TX_SPRITE(SPRITE_HEART_HALF, 2, 2), "6 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 1);
+    mainEntries[2] = BattleMenuEntryDef("Parry: " TX_SPRITE(SPRITE_SHIELD, 2, 2), "3 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 2);
+    mainEntries[3] = BattleMenuEntryDef("Insult: " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2) TX_MOVECURSOR_X(253) TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), "1 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 4);
+    mainEntries[4] = BattleMenuEntryDef("Switch Target", "2 " TX_SPRITE(SPRITE_HOURGLASS_6, 2, 2), 3);
 
 
     battleState->menu = (BattleMenu){

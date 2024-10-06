@@ -78,6 +78,17 @@ static const SpriteData _sprites[] = {
     {16, 136, 12, 6, 6, 3},   // SPRITE_CHARACTER_SHADOW
     {107, 136, 5, 13, 2, 9},  // SPRITE_EXCLAMATION_MARK
     {107, 148, 5, 5, 2, 2},   // SPRITE_TINY_HEART
+    {0, 112, 9, 9, 4, 4},     // SPRITE_HEART
+    {9, 112, 9, 9, 4, 4},     // SPRITE_HEART_HALF
+    {18, 112, 9, 9, 4, 4},    // SPRITE_HEART_EMPTY
+    {105, 153, 7, 9, 3, 4},     // SPRITE_HOURGLASS_0
+    {105, 161, 7, 9, 3, 4},     // SPRITE_HOURGLASS_1
+    {105, 169, 7, 9, 3, 4},     // SPRITE_HOURGLASS_2
+    {105, 177, 7, 9, 3, 4},     // SPRITE_HOURGLASS_3
+    {105, 185, 7, 9, 3, 4},     // SPRITE_HOURGLASS_4
+    {105, 193, 7, 9, 3, 4},     // SPRITE_HOURGLASS_5
+    {105, 201, 7, 9, 3, 4},     // SPRITE_HOURGLASS_6
+    {98, 166, 7, 9, 3, 4},     // SPRITE_SHIELD
 };
 
 static SpriteData _getSpriteData(uint8_t index)

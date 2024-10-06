@@ -1,6 +1,9 @@
 #include "TE_Font.h"
+#include "game_assets.h"
 #include <stdio.h>
 #include <math.h>
+#include <memory.h>
+#include <string.h>
 
 int TE_Font_drawChar(TE_Img *img, TE_Font *font, int16_t x, int16_t y, char c, uint32_t color, TE_ImgOpState state)
 {
@@ -35,6 +38,33 @@ int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t sp
             text++;
             width = 0;
             continue;
+        }
+        if (*text == '\b')
+        {
+            text++;
+            switch (*text)
+            {
+                case 'x': // move x
+                {
+                    width += (int8_t)text[1];
+                    text+=2;
+                    continue;
+                }
+                case 's': // sprite injection
+                {
+                    uint8_t spriteId = (uint8_t)text[1];
+                    int8_t offsetX = text[2];
+                    int8_t offsetY = text[3];
+                    text+=4;
+                    TE_Sprite sprite = GameAssets_getSprite(spriteId);
+                    TE_Img_blitSprite(img, sprite, x + width + offsetX + sprite.pivotX, y + offsetY + sprite.pivotY, (BlitEx){
+                        .blendMode = TE_BLEND_ALPHAMASK,
+                        .state = state,
+                    });
+                    width += sprite.src.width + spacing;
+                    continue;
+                }
+            }
         }
         width += TE_Font_drawChar(img, font, x + width, y, *text, color, state) + spacing;
         text++;
@@ -82,21 +112,24 @@ static TE_Vector2_s16 TE_Font_drawTextBox_internal(TE_Font_drawTextBoy_args args
     // if (!draw) TE_Img_lineRect(img, x, y, w, h, 0xff0000ff, state);
     while (text[textIndex])
     {
-        int lineWidth = TE_Font_getLetterWidth(font, text[textIndex]);
+        memset(line, 0, sizeof(line));
+        strncpy(line, &text[textIndex], sizeof(line) - 1);
+        uint8_t charWidth;
+        int lineWidth = TE_Font_getLetterWidth(font, &text[textIndex], &charWidth);
         // printf("?%d ",lineWidth);
         int lineEndIndex = textIndex;
-        line[0] = text[textIndex];
-        int linePos = 1;
-        int breakPos = lineEndIndex + 1;
+        int linePos = 0;
+        for (int i=0;i<charWidth;i++) line[linePos++] = text[textIndex + i];
+        int breakPos = lineEndIndex + charWidth;
         int breakWidth = lineWidth;
-        while (text[lineEndIndex + 1] && lineWidth < w && text[lineEndIndex + 1] != '\n')
+        while (text[lineEndIndex + charWidth] && lineWidth < w && text[lineEndIndex + charWidth] != '\n')
         {
-            int cw = TE_Font_getLetterWidth(font, text[lineEndIndex + 1]);
+            int cw = TE_Font_getLetterWidth(font, &text[lineEndIndex + charWidth], &charWidth);
+
             if (lineWidth + cw < w)
             {
-                line[linePos++] = text[lineEndIndex + 1];
+                lineEndIndex += charWidth;
                 lineWidth += cw + wordSpacing;
-                lineEndIndex += 1;
             }
             else
             {
@@ -106,10 +139,10 @@ static TE_Vector2_s16 TE_Font_drawTextBox_internal(TE_Font_drawTextBoy_args args
                 break;
             }
 
-            if (text[lineEndIndex + 1] <= ' ')
+            if (text[lineEndIndex + charWidth] <= ' ')
             {
                 breakWidth = lineWidth;
-                breakPos = lineEndIndex + (text[lineEndIndex + 1] ? 2 : 1);
+                breakPos = lineEndIndex + (text[lineEndIndex + charWidth] ? charWidth + 1 : charWidth);
             }
         }
 
@@ -120,10 +153,11 @@ static TE_Vector2_s16 TE_Font_drawTextBox_internal(TE_Font_drawTextBoy_args args
         textIndex = breakPos;
         if (text[textIndex] == '\n') textIndex += 1;
 
-        line[linePos] = 0;
+        // line[linePos + charWidth - 1] = 0;
         // printf("line: %d,%d %s %d %d\n",lineX,lineY,line, lineWidth, w);
         if (draw) {
             int16_t lineX = x + (int16_t)ceilf((w - lineWidth) * alignX);
+            // LOG("line: %s %d %d", line, charWidth, lineWidth);
             TE_Font_drawText(img, font, lineX, lineY, wordSpacing, line, color, state);
         }
         // TE_Img_lineRect(img, lineX, lineY, lineWidth, font->rectHeights[0], 0xff00ffff, (TE_ImgOpState){.zValue=255});
@@ -161,11 +195,32 @@ TE_Vector2_s16 TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_
     return size;
 }
 
-int TE_Font_getLetterWidth(TE_Font *font, char c)
+int TE_Font_getLetterWidth(TE_Font *font, const char *c, uint8_t *charWidth)
 {
+    if (*c == '\b')
+    {
+        switch (c[1])
+        {
+            case 'x': // move x
+            {
+                *charWidth = 2;
+                return (int8_t)c[2];
+            }
+            case 's': // sprite injection
+            {
+                *charWidth = 4;
+                uint8_t spriteId = (uint8_t)c[2];
+                TE_Sprite sprite = GameAssets_getSprite(spriteId);
+                return sprite.src.width;
+            }
+        }
+        return 0;
+    }
+
+    *charWidth = 1;
     for (uint16_t i = 0; i < font->glyphCount; i++)
     {
-        if (font->glyphValues[i] == c)
+        if (font->glyphValues[i] == *c)
         {
             return font->rectWidths[i];
         }
