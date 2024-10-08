@@ -23,7 +23,7 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
     if (len < 1.0f)
     {
         LOG("Invalid positionings / targets");
-        return 1;
+        return BATTLEACTION_ONACTIVATED_DONE;
     }
     float nx = dx / len;
     float ny = dy / len;
@@ -50,8 +50,10 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
     targetCharacter->targetX = targetCharacter->x = targetPosition.x + nx * bumped * 3.0f;
     targetCharacter->targetY = targetCharacter->y = targetPosition.y + ny * bumped * 3.0f - 10;
 
-    if (position >= 2.0f)
+    if (position >= 1.0f && (action->statusFlags & 1) == 0)
     {
+        LOG("Thrust of %d hits %d", actor->id, actor->target);
+        action->statusFlags |= 1;
         if (battleState->entities[actor->target].hitpoints > 2)
         {
             battleState->entities[actor->target].hitpoints -= 2;
@@ -61,14 +63,14 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
             battleState->entities[actor->target].hitpoints = 0;
         }
     }
-    return position >= 2.0f;
+    return position >= 2.0f ? BATTLEACTION_ONACTIVATED_DONE : BATTLEACTION_ONACTIVATED_CONTINUE;
 }
 
 static uint8_t BattleAction_Thrust_OnActivating(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
     LOG("Thrust activating");
     action->statusFlags = 0;
-    return 1;
+    return BATTLEACTION_ONACTIVATING_DONE;
 }
 
 static uint8_t BattleAction_Thrust_OnSelected(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -133,7 +135,7 @@ static uint8_t BattleAction_Strike_OnActivated(RuntimeContext *ctx, TE_Img *scre
     float len = sqrtf(dx * dx + dy * dy);
     if (len < 1.0f)
     {
-        return 1;
+        return BATTLEACTION_ONACTIVATED_DONE;
     }
     float nx = dx / len;
     float ny = dy / len;
@@ -160,20 +162,29 @@ static uint8_t BattleAction_Strike_OnActivated(RuntimeContext *ctx, TE_Img *scre
     targetCharacter->targetX = targetCharacter->x = targetPosition.x + nx * bumped * 3.0f;
     targetCharacter->targetY = targetCharacter->y = targetPosition.y + ny * bumped * 3.0f - 10;
 
+    
+    if (position >= 1.0f && (action->statusFlags & 1) == 0)
+    {
+        LOG("Strike of %d hits %d", actor->id, actor->target);
+        action->statusFlags |= 1;
+        if (battleState->entities[actor->target].hitpoints > 1)
+        {
+            battleState->entities[actor->target].hitpoints -= 1;
+        }
+        else
+        {
+            battleState->entities[actor->target].hitpoints = 0;
+        }
+    }
 
-
-    // TE_Img_fillCircle(screen, cx, cy, 2, 0xff0000ff, (TE_ImgOpState){
-    //     .zCompareMode = Z_COMPARE_LESS,
-    //     .zValue = cy + 20,
-    //     .zAlphaBlend = 1,
-    // });
-    return position >= 2.0f;
+    return position >= 2.0f ? BATTLEACTION_ONACTIVATED_DONE : BATTLEACTION_ONACTIVATED_CONTINUE;
 }
 
 static uint8_t BattleAction_Strike_OnActivating(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
     LOG("Strike activating");
-    return 1;
+    action->statusFlags = 0;
+    return BATTLEACTION_ONACTIVATING_DONE;
 }
 
 static uint8_t BattleAction_Strike_OnSelected(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -251,7 +262,7 @@ static uint8_t BattleAction_ChangeTarget_OnActivated(RuntimeContext *ctx, TE_Img
     if (progress >= 1.0f)
     {
         actor->target = actor->nextTarget;
-        return 1;
+        return BATTLEACTION_ONACTIVATED_DONE;
     }
     actor->actionTimer += ctx->deltaTime;
     progress = fTweenElasticOut(progress);
@@ -277,7 +288,7 @@ static uint8_t BattleAction_ChangeTarget_OnActivated(RuntimeContext *ctx, TE_Img
         }
     });
 
-    return 0;
+    return BATTLEACTION_ONACTIVATED_CONTINUE;
 }
 
 static uint8_t BattleAction_ChangeTarget_OnActivating (RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -380,6 +391,11 @@ BattleAction BattleAction_ChangeTarget()
 
 //# Parry action
 
+typedef struct ParryData
+{
+    uint8_t lockedHealth;
+} ParryData;
+
 static uint8_t BattleAction_Parry_OnSelected(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
     return ctx->inputA && !ctx->prevInputA ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
@@ -387,12 +403,45 @@ static uint8_t BattleAction_Parry_OnSelected(RuntimeContext *ctx, TE_Img *screen
 
 static uint8_t BattleAction_Parry_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
-    return 1;
+    // LOG("Parry activated %.2f", action->actionTimer);
+    float progress = action->actionTimer / 1.0f;
+    action->actionTimer += ctx->deltaTime;
+    if (progress >= 1.0f)
+    {
+        return BATTLEACTION_ONACTIVATED_ISACTIVE;
+    }
+    return BATTLEACTION_ONACTIVATED_CONTINUE;
 }
 
 static uint8_t BattleAction_Parry_OnActivating(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
-    return 1;
+    LOG("Parry activating");
+    ParryData *data = (ParryData*)action->userData;
+    data->lockedHealth = actor->hitpoints;
+    action->actionTimer = 0;
+
+    return BATTLEACTION_ONACTIVATING_DONE;
+}
+
+static uint8_t BattleAction_parry_OnActive(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
+{
+    ParryData *data = (ParryData*)action->userData;
+    if (data->lockedHealth > actor->hitpoints)
+    {
+        actor->hitpoints = data->lockedHealth;
+    }
+    BattlePosition *position = &battleState->positions[actor->position];
+    TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_SHIELD), position->x - 1, position->y - 14, (BlitEx)
+    {
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .state = (TE_ImgOpState){
+            .zCompareMode = Z_COMPARE_LESS,
+            .zValue = position->y + 20,
+            .zAlphaBlend = 1,
+        }
+    });
+
+    return actor->lastActionAtCounter + action->actionPointCosts > battleState->actionCounter ? BATTLEACTION_ONACTIVE_CONTINUE : BATTLEACTION_ONACTIVE_DONE;
 }
 
 BattleAction BattleAction_Parry()
@@ -400,9 +449,11 @@ BattleAction BattleAction_Parry()
     return (BattleAction){
         .name = "Parry: " TX_SPRITE(SPRITE_SHIELD, 2, 2),
         .actionPointCosts = 2,
+        .userData = Scene_malloc(sizeof(ParryData)),
         .onActivated = BattleAction_Parry_OnActivated,
         .onActivating = BattleAction_Parry_OnActivating,
         .onSelected = BattleAction_Parry_OnSelected,
+        .onActive = BattleAction_parry_OnActive,
     };
 }
 
@@ -415,7 +466,7 @@ static uint8_t BattleAction_Insult_OnSelected(RuntimeContext *ctx, TE_Img *scree
 
 static uint8_t BattleAction_Insult_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
-    return 1;
+    return BATTLEACTION_ONACTIVATED_DONE;
 }
 
 static uint8_t BattleAction_Insult_OnActivating(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)

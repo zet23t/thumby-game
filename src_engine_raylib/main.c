@@ -357,7 +357,14 @@ void* ModMusicPlayState_thread(void *arg)
 
 void ModMusicPlayState_init(ModMusicPlayState *state)
 {
-    state->music = LoadMusicStream("dev_mod_files/fairyflk.xm");
+    FilePathList list = LoadDirectoryFiles("dev_mod_files");
+    for (int i = 0; i < list.count; i++)
+    {
+        printf("Found mod file: %s\n", list.paths[i]);
+    }
+    state->music = LoadMusicStream(list.paths[0]);
+    UnloadDirectoryFiles(list);
+    
     state->isPlaying = 0;
     pthread_mutex_init(&state->mutex, NULL);
     pthread_create(&state->thread, NULL, (void *(*)(void *))ModMusicPlayState_thread, state);

@@ -16,6 +16,27 @@ BattleMenuEntry BattleMenuEntry_fromAction(BattleAction *action)
     return entry;
 }
 
+void BattleState_updateActiveActions(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState)
+{
+    for (int i=0;i<BATTLESTATE_MAX_ENTITIES;i++)
+    {
+        BattleAction *action = battleState->activeActions[i];
+        if (!action)
+        {
+            continue;
+        }
+
+        // LOG("Active action %s", action->name);
+        uint8_t actionState = action->onActive(ctx, screen, battleState, action, &battleState->entities[i]);
+
+        if (actionState == BATTLEACTION_ONACTIVE_DONE)
+        {
+            LOG("Action %s of entity %d done at %d", action->name, i, battleState->actionCounter);
+            battleState->activeActions[i] = 0;
+        }
+    }
+}
+
 void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWindow* window, BattleMenu *battleMenu)
 {
     TE_Font font = GameAssets_getFont(FONT_MEDIUM);

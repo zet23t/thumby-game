@@ -50,6 +50,7 @@ typedef struct BattleEntityState
     uint8_t hitpoints:4;
     uint8_t maxHitpoints:4;
     uint8_t position:4;
+    uint16_t lastActionAtCounter;
     float actionTimer;
     const char *name;
     BattleAction *actionNTList;
@@ -61,12 +62,16 @@ typedef struct BattlePosition
     uint8_t y;
 } BattlePosition;
 
+#define BATTLESTATE_MAX_ENTITIES 8
+
 typedef struct BattleState
 {
-    BattleEntityState entities[8];
+    BattleEntityState entities[BATTLESTATE_MAX_ENTITIES];
+    BattleAction* activeActions[BATTLESTATE_MAX_ENTITIES];
     BattleMenu menu;
     BattleMenuWindow menuWindow;
     uint8_t entityCount;
+    uint16_t actionCounter;
     BattlePosition positions[16];
     int8_t selectedAction:4;
     int8_t activatingAction:4;
@@ -79,6 +84,13 @@ typedef struct BattleState
 #define BATTLEACTION_ONACTIVATING_DONE 1
 #define BATTLEACTION_ONACTIVATING_CANCEL 2
 
+#define BATTLEACTION_ONACTIVATED_CONTINUE 0
+#define BATTLEACTION_ONACTIVATED_DONE 1
+#define BATTLEACTION_ONACTIVATED_ISACTIVE 2
+
+#define BATTLEACTION_ONACTIVE_CONTINUE 0
+#define BATTLEACTION_ONACTIVE_DONE 1
+
 #define BATTLEACTION_ONSELECTED_IGNORE 0
 #define BATTLEACTION_ONSELECTED_ACTIVATE 1
 
@@ -89,13 +101,33 @@ typedef struct BattleAction
     int8_t selectedAction;
     uint8_t statusFlags;
     void *userData;
+    float actionTimer;
     BattleMenu *menu;
+
+    //## Battle action callbacks
+
+    // Called during the action is active in selection
+    // return BATTLEACTION_ONSELECTED_ACTIVATE or BATTLEACTION_ONSELECTED_IGNORE to signal the action is ready to run
     uint8_t (*onSelected)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
+
+    // Called when the action is being selected for activation; used for showing options or preparing the action
+    // return BATTLEACTION_ONACTIVATING_DONE or BATTLEACTION_ONACTIVATING_CONTINUE or BATTLEACTION_ONACTIVATING_CANCEL
     uint8_t (*onActivating)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
+
+    // Called when the action is starting to run. Return 1 to signal the action is done
+    // - return BATTLEACTION_ONACTIVATED_CONTINUE to signal the action is still running, 
+    // - BATTLEACTION_ONACTIVATED_DONE for signalling the action is done, 
+    // - BATTLEACTION_ONACTIVATED_ISACTIVE for signalling the action is done but to be flagged as active action
     uint8_t (*onActivated)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
+    
+    // Called when the action is in the active action list of the battle state while the combat continues and other units are acting
+    // - return BATTLEACTION_ONACTIVE_CONTINUE to signal the action is still active
+    // - BATTLEACTION_ONACTIVE_DONE for signalling the action is done and to be removed as active action
+    uint8_t (*onActive)(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor);
 } BattleAction;
 
 void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWindow* window, BattleMenu *battleMenu);
 BattleMenuEntry BattleMenuEntry_fromAction(BattleAction *action);
+void BattleState_updateActiveActions(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState);
 
 #endif

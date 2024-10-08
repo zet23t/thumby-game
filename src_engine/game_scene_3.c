@@ -125,21 +125,31 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     BattleState *battleState = (BattleState*)action->customCallback.dataPointer;
     battleState->timer += ctx->deltaTime;
 
+    BattleState_updateActiveActions(ctx, screen, battleState);
+
     // Handle running action
     if (battleState->queuedEntityId >= 0)
     {
         BattleEntityState *entity = &battleState->entities[battleState->queuedEntityId];
         BattleAction *action = &entity->actionNTList[battleState->queuedActionId];
-        if (!action->onActivated || action->onActivated(ctx, screen, battleState, action, entity))
+        uint8_t result;
+        if (!action->onActivated || (result = action->onActivated(ctx, screen, battleState, action, entity)))
         {
+            if (result == BATTLEACTION_ONACTIVATED_ISACTIVE && action->onActive)
+            {
+                LOG("Action %s (%d) is active; Entity %d at %d", action->name, action->actionPointCosts, entity->id, entity->actionPoints);
+                battleState->activeActions[battleState->queuedEntityId] = action;
+            }
             battleState->activatingAction = -1;
             battleState->queuedEntityId = -1;
             battleState->queuedActionId = -1;
             entity->actionPoints += action->actionPointCosts;
+            entity->lastActionAtCounter = battleState->actionCounter;
             LOG("Action %s (%d) done; Entity %d at %d", action->name, action->actionPointCosts, entity->id, entity->actionPoints);
         }
 
         BattleMenu_drawActionBars(ctx, screen, battleState, 0, &battleState->menuWindow);
+        
         return;
     }
 
@@ -183,6 +193,8 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
                     if (entity->actionPoints > 0)
                         entity->actionPoints -= 1;
                 }
+                battleState->actionCounter += 1;
+                LOG("--> Action counter: %d", battleState->actionCounter);
             }
             battleState->timer = 0.0f;
         }
@@ -214,11 +226,15 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         else
         {
             Enemy* enemy = Enemies_getEnemy(entity->id);
-            if (enemy == 0)
+            if (enemy == 0 && entity->hitpoints > 0)
             {
                 Enemies_spawn(entity->id, entity->characterType, targetX, targetY);
             }
-            else
+            else if (enemy && entity->hitpoints <= 0)
+            {
+                enemy->health = 0.0f;
+            }
+            else if (enemy)
             {
                 BattlePosition *position = &battleState->positions[entity->position];
                 BattlePosition *targetPosition = &battleState->positions[entity->target];
