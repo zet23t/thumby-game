@@ -4,10 +4,14 @@
 #include <time.h>
 #include <string.h>
 
-#ifdef _WIN32
-#define DLL_EXPORT __declspec(dllexport)
+#ifdef __EMSCRIPTEN__
+#define DLL_EXPORT __attribute__((visibility("default")))
 #else
-#define DLL_EXPORT
+    #ifdef _WIN32
+    #define DLL_EXPORT __declspec(dllexport)
+    #else
+    #define DLL_EXPORT
+    #endif
 #endif
 
 #include <atlas.h>
@@ -292,6 +296,53 @@ void TE_Debug_drawText(int x, int y, const char *text, uint32_t color)
 }
 uint8_t activeSceneId;
 
+//# WebAssembly function helpers
+// functions for web assembly export to ease JS bridging
+#include <stdlib.h>
+DLL_EXPORT RuntimeContext* RuntimeContext_create()
+{
+    RuntimeContext *ctx = (RuntimeContext*)malloc(sizeof(RuntimeContext));
+    memset(ctx, 0, sizeof(RuntimeContext));
+    return ctx;
+}
+
+DLL_EXPORT uint32_t* RuntimeContext_getScreen(RuntimeContext *ctx) { return ctx->screenData; }
+DLL_EXPORT uint32_t RuntimeContext_getRGBLed(RuntimeContext *ctx) { return ctx->rgbLightRed | (ctx->rgbLightGreen << 8) | (ctx->rgbLightBlue << 16); }
+DLL_EXPORT float RuntimeContext_getRumble(RuntimeContext *ctx) { return ctx->rumbleIntensity; }
+DLL_EXPORT void RuntimeContext_setUTimeCallback(RuntimeContext *ctx, uint32_t (*getUTime)())
+{
+    ctx->getUTime = getUTime;
+}
+DLL_EXPORT void RuntimeContext_updateInputs(RuntimeContext *ctx, 
+    double time, double timeDelta,
+    uint8_t up, uint8_t right, uint8_t down, uint8_t left, uint8_t a, uint8_t b, uint8_t menu, uint8_t shoulderLeft, uint8_t shoulderRight)
+{
+    ctx->time = (float)time;
+    ctx->deltaTime = (float)timeDelta;
+    ctx->frameCount++;
+
+    ctx->prevInputUp = ctx->inputUp;
+    ctx->prevInputRight = ctx->inputRight;
+    ctx->prevInputDown = ctx->inputDown;
+    ctx->prevInputLeft = ctx->inputLeft;
+    ctx->prevInputA = ctx->inputA;
+    ctx->prevInputB = ctx->inputB;
+    ctx->prevInputMenu = ctx->inputMenu;
+    ctx->prevInputShoulderLeft = ctx->inputShoulderLeft;
+    ctx->prevInputShoulderRight = ctx->inputShoulderRight;
+
+    ctx->inputUp = up;
+    ctx->inputRight = right;
+    ctx->inputDown = down;
+    ctx->inputLeft = left;
+    ctx->inputA = a;
+    ctx->inputB = b;
+    ctx->inputMenu = menu;
+    ctx->inputShoulderLeft = shoulderLeft;
+    ctx->inputShoulderRight = shoulderRight;
+}
+
+//# Runtime function hooks
 DLL_EXPORT void update(RuntimeContext *ctx)
 {
     TE_FrameStats imgStats = TE_Img_resetStats();

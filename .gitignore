@@ -4,4 +4,5 @@
 *.mp4
 .vscode/*
 _src_gen/*
+_web_build/*
 _obj/*

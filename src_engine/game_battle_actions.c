@@ -61,6 +61,7 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
         {
             battleState->entities[actor->target].hitpoints = 0;
         }
+        battleState->entities[actor->id].actionPoints += 1;
         LOG("Thrust of %d hits %d, hp=%d", actor->id, actor->target, battleState->entities[actor->target].hitpoints);
     }
     return position >= 2.0f ? BATTLEACTION_ONACTIVATED_DONE : BATTLEACTION_ONACTIVATED_CONTINUE;
