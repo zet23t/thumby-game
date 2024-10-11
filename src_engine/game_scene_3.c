@@ -64,6 +64,10 @@ void BattleMenu_drawActionBars(RuntimeContext *ctx, TE_Img *screen, BattleState 
     for (int i=0;i<battleState->entityCount;i++)
     {
         BattleEntityState *entity = &battleState->entities[i];
+        if (entity->hitpoints <= 0)
+        {
+            continue;
+        }
         int16_t x = divX2 + 1 + i * 4;
         uint32_t color = colors[i];
         for (int ap=1;ap * pxPerAP < h; ap++)
@@ -119,93 +123,16 @@ void BattleMenu_drawActionBars(RuntimeContext *ctx, TE_Img *screen, BattleState 
 
 void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *action)
 {
-    // draw battle menu
-
     Player_setInputEnabled(0);
     BattleState *battleState = (BattleState*)action->customCallback.dataPointer;
     battleState->timer += ctx->deltaTime;
 
     BattleState_updateActiveActions(ctx, screen, battleState);
 
-    // Handle running action
-    if (battleState->queuedEntityId >= 0)
-    {
-        BattleEntityState *entity = &battleState->entities[battleState->queuedEntityId];
-        BattleAction *action = &entity->actionNTList[battleState->queuedActionId];
-        uint8_t result;
-        if (!action->onActivated || (result = action->onActivated(ctx, screen, battleState, action, entity)))
-        {
-            if (result == BATTLEACTION_ONACTIVATED_ISACTIVE && action->onActive)
-            {
-                LOG("Action %s (%d) is active; Entity %d at %d", action->name, action->actionPointCosts, entity->id, entity->actionPoints);
-                battleState->activeActions[battleState->queuedEntityId] = action;
-            }
-            battleState->activatingAction = -1;
-            battleState->queuedEntityId = -1;
-            battleState->queuedActionId = -1;
-            entity->actionPoints += action->actionPointCosts;
-            entity->lastActionAtCounter = battleState->actionCounter;
-            LOG("Action %s (%d) done; Entity %d at %d", action->name, action->actionPointCosts, entity->id, entity->actionPoints);
-        }
-
-        BattleMenu_drawActionBars(ctx, screen, battleState, 0, &battleState->menuWindow);
-        
-        return;
-    }
-
-    // Handle activating action; find out lowest AP
-    int8_t lowestAP = 127;
-    for (int i=0;i<battleState->entityCount;i++)
-    {
-        BattleEntityState *entity = &battleState->entities[i];
-        if (entity->actionPoints < lowestAP)
-        {
-            lowestAP = entity->actionPoints;
-        }
-    }
-
-    // decrease AP of all entities unless player has 1 AP; player actions can happen at AP 1 or AP 0. NPCs only at AP 0
-    if (battleState->entities[0].actionPoints > 0)
-    {
-        if (battleState->timer > 0.25f)
-        {
-            uint8_t scheduledAction = 0;
-            for (int i=0;i<battleState->entityCount;i++)
-            {
-                BattleEntityState *entity = &battleState->entities[i];
-                // LOG("Entity %d/%d at %d", entity->id, entity->team, entity->actionPoints);
-                if (entity->team == 1 && entity->actionPoints == 0)
-                {
-                    // AI enemy turn
-                    battleState->queuedEntityId = i;
-                    battleState->queuedActionId = 0;
-                    battleState->timer = 0.0f;
-                    scheduledAction = 1;
-                    LOG("Scheduling action of enemy %d at %d", entity->id, entity->actionPoints);
-                    break;
-                }
-            }
-            if (!scheduledAction)
-            {
-                for (int i=0;i<battleState->entityCount;i++)
-                {
-                    BattleEntityState *entity = &battleState->entities[i];
-                    if (entity->actionPoints > 0)
-                        entity->actionPoints -= 1;
-                }
-                battleState->actionCounter += 1;
-                LOG("--> Action counter: %d", battleState->actionCounter);
-            }
-            battleState->timer = 0.0f;
-        }
-        BattleMenu_drawActionBars(ctx, screen, battleState, 0, &battleState->menuWindow);
-
-        return;
-    }
-
+    // update entities with enemies
     
     BattleEntityState *playerEntity = &battleState->entities[0];
-    // draw player target selection
+
     for (int i=0;i<battleState->entityCount;i++)
     {
         BattleEntityState *entity = &battleState->entities[i];
@@ -225,7 +152,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
         }
         else
         {
-            Enemy* enemy = Enemies_getEnemy(entity->id);
+            Enemy* enemy = Enemies_getEnemy(entity->id, 1);
             if (enemy == 0 && entity->hitpoints > 0)
             {
                 Enemies_spawn(entity->id, entity->characterType, targetX, targetY);
@@ -248,6 +175,87 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             }
         }
     }
+
+    // Handle running action
+    if (battleState->queuedEntityId >= 0)
+    {
+        BattleEntityState *entity = &battleState->entities[battleState->queuedEntityId];
+        BattleAction *action = &entity->actionNTList[battleState->queuedActionId];
+        uint8_t result;
+        if (battleState->queuedActionActivated == 0)
+        {
+            result = BATTLEACTION_ONACTIVATING_DONE;
+            if (action->onActivating)
+            {
+                result = action->onActivating(ctx, screen, battleState, action, entity);
+            }
+            if (result == BATTLEACTION_ONACTIVATING_DONE)
+            {
+                battleState->queuedActionActivated = 1;
+            }
+        }
+        else if (!action->onActivated || (result = action->onActivated(ctx, screen, battleState, action, entity)))
+        {
+            if (result == BATTLEACTION_ONACTIVATED_ISACTIVE && action->onActive)
+            {
+                LOG("Action %s (%d) is active; Entity %d at %d", action->name, action->actionPointCosts, entity->id, entity->actionPoints);
+                battleState->activeActions[battleState->queuedEntityId] = action;
+            }
+            battleState->activatingAction = -1;
+            battleState->queuedEntityId = -1;
+            battleState->queuedActionId = -1;
+            entity->actionPoints += action->actionPointCosts;
+            entity->lastActionAtCounter = battleState->actionCounter;
+            LOG("Action %s (%d) done; Entity %d at %d", action->name, action->actionPointCosts, entity->id, entity->actionPoints);
+        }
+
+        BattleMenu_drawActionBars(ctx, screen, battleState, 0, &battleState->menuWindow);
+        
+        return;
+    }
+
+    // decrease AP of all entities unless player has 1 AP; player actions can happen at AP 1 or AP 0. NPCs only at AP 0
+    if (battleState->entities[0].actionPoints > 0)
+    {
+        if (battleState->timer > 0.25f)
+        {
+            uint8_t scheduledAction = 0;
+            for (int i=0;i<battleState->entityCount;i++)
+            {
+                BattleEntityState *entity = &battleState->entities[i];
+                // LOG("Entity %d/%d at %d", entity->id, entity->team, entity->actionPoints);
+                if (entity->team == 1 && entity->actionPoints == 0 && entity->hitpoints > 0)
+                {
+                    // AI enemy turn
+                    battleState->queuedEntityId = i;
+                    battleState->queuedActionId = 0;
+                    battleState->queuedActionActivated = 0;
+                    battleState->timer = 0.0f;
+                    scheduledAction = 1;
+
+                    LOG("Scheduling action of enemy %d at %d", entity->id, entity->actionPoints);
+                    break;
+                }
+            }
+            if (!scheduledAction)
+            {
+                for (int i=0;i<battleState->entityCount;i++)
+                {
+                    BattleEntityState *entity = &battleState->entities[i];
+                    if (entity->actionPoints > 0 && entity->hitpoints > 0)
+                        entity->actionPoints -= 1;
+                }
+                battleState->actionCounter += 1;
+                LOG("--> Action counter: %d", battleState->actionCounter);
+            }
+            battleState->timer = 0.0f;
+        }
+        BattleMenu_drawActionBars(ctx, screen, battleState, 0, &battleState->menuWindow);
+
+        return;
+    }
+
+    
 
     int16_t x = -1, y = -1;
     int16_t w = 130, h = 44;
@@ -284,6 +292,7 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
                 battleState->queuedActionId = battleState->selectedAction;
                 battleState->queuedEntityId = 0;
                 battleState->timer = 0.0f;
+                battleState->queuedActionActivated = 1;
             }
         }
         else
@@ -310,6 +319,8 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     for (int i=0;i<battleState->entityCount;i++)
     {
         BattleEntityState *entity = &battleState->entities[i];
+        if (entity->hitpoints <= 0)
+            continue;
         BattlePosition *position = &battleState->positions[entity->position];
         for (int j=0;j<entity->hitpoints;j++)
         {
@@ -650,10 +661,10 @@ void Scene_3_drawKOEnemy(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction
 static void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx, float vy, RuntimeContext *ctx, TE_Img *screen)
 {
     Scene3_EnemyData *data = (Scene3_EnemyData*)enemy->userCallbackData.dataPointer;
-    LOG("Callback: Enemy took damage %f, aliveCount=%d, selectedAttacker=%d, %p", damage, data->crowd->aliveCount, data->crowd->selectedAttacker, Enemies_getEnemy(data->crowd->selectedAttacker));
+    LOG("Callback: Enemy took damage %f, aliveCount=%d, selectedAttacker=%d, %p", damage, data->crowd->aliveCount, data->crowd->selectedAttacker, Enemies_getEnemy(data->crowd->selectedAttacker, 0));
     int seekIncrement = TE_randRange(1, 11);
     while (data->crowd->aliveCount > 1 && (data->crowd->selectedAttacker == enemy->id ||
-        !Enemies_getEnemy(data->crowd->selectedAttacker)))
+        !Enemies_getEnemy(data->crowd->selectedAttacker, 0)))
     {
         player.defenseActionStep[0] = 0.0f;
         data->crowd->selectedAttacker = (data->crowd->selectedAttacker + seekIncrement - 1) % 4 + 1;

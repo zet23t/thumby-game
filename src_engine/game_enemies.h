@@ -20,6 +20,6 @@ int Enemies_getPosition(uint8_t id, float *outX, float *outY);
 void Enemies_setHealth(uint8_t id, float health);
 int Enemies_isAlive(uint8_t id);
 int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy, RuntimeContext *ctx, TE_Img *screen);
-Enemy* Enemies_getEnemy(uint8_t id);
+Enemy* Enemies_getEnemy(uint8_t id, uint8_t ignoreHealth);
 
 #endif

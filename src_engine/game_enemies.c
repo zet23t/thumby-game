@@ -209,11 +209,11 @@ int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy, Runti
     return enemy->health > 0.0f;
 }
 
-Enemy* Enemies_getEnemy(uint8_t id)
+Enemy* Enemies_getEnemy(uint8_t id, uint8_t ignoreHealth)
 {
     for (int i=0;i<MAX_ENEMIES;i++)
     {
-        if (enemies[i].health > 0.0f && enemies[i].id == id)
+        if ((ignoreHealth || enemies[i].health > 0.0f) && enemies[i].id == id)
         {
             return &enemies[i];
         }

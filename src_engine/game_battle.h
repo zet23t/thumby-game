@@ -77,6 +77,7 @@ typedef struct BattleState
     int8_t activatingAction:4;
     int8_t queuedEntityId;
     uint8_t queuedActionId:4;
+    uint8_t queuedActionActivated:1;
     float timer;
 } BattleState;
 

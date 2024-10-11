@@ -52,7 +52,6 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
 
     if (position >= 1.0f && (action->statusFlags & 1) == 0)
     {
-        LOG("Thrust of %d hits %d", actor->id, actor->target);
         action->statusFlags |= 1;
         if (battleState->entities[actor->target].hitpoints > 2)
         {
@@ -62,6 +61,7 @@ static uint8_t BattleAction_Thrust_OnActivated(RuntimeContext *ctx, TE_Img *scre
         {
             battleState->entities[actor->target].hitpoints = 0;
         }
+        LOG("Thrust of %d hits %d, hp=%d", actor->id, actor->target, battleState->entities[actor->target].hitpoints);
     }
     return position >= 2.0f ? BATTLEACTION_ONACTIVATED_DONE : BATTLEACTION_ONACTIVATED_CONTINUE;
 }
@@ -237,7 +237,7 @@ static uint8_t BattleAction_ChangeTarget_OnSelected(RuntimeContext *ctx, TE_Img 
     for (int i=0;i<battleState->entityCount;i++)
     {
         BattleEntityState *entity = &battleState->entities[i];
-        if (entity->team != actor->team)
+        if (entity->team != actor->team && entity->hitpoints > 0)
         {
             BattlePosition *position = &battleState->positions[entity->position];
             TE_Img_blitSprite(screen, GameAssets_getSprite(SPRITE_FLAT_ARROW_DOWN), position->x - 1, position->y - 14, (BlitEx)
@@ -312,7 +312,7 @@ static uint8_t BattleAction_ChangeTarget_OnActivating (RuntimeContext *ctx, TE_I
     for (int i=0;i<battleState->entityCount;i++)
     {
         BattleEntityState *entity = &battleState->entities[i];
-        if (entity->team != actor->team)
+        if (entity->team != actor->team && entity->hitpoints > 0)
         {
             entries[entriesCount++] = BattleMenuEntryDef(entity->name,actor->target == i ? "0 AP" : "2 AP", i);
 
@@ -448,7 +448,7 @@ BattleAction BattleAction_Parry()
 {
     return (BattleAction){
         .name = "Parry: " TX_SPRITE(SPRITE_SHIELD, 2, 2),
-        .actionPointCosts = 2,
+        .actionPointCosts = 3,
         .userData = Scene_malloc(sizeof(ParryData)),
         .onActivated = BattleAction_Parry_OnActivated,
         .onActivating = BattleAction_Parry_OnActivating,
@@ -466,7 +466,18 @@ static uint8_t BattleAction_Insult_OnSelected(RuntimeContext *ctx, TE_Img *scree
 
 static uint8_t BattleAction_Insult_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
-    return BATTLEACTION_ONACTIVATED_DONE;
+    BattlePosition *position = &battleState->positions[actor->position];
+    BattleMenuEntry *entries = (BattleMenuEntry*)action->userData;
+    const char *text = entries[action->selectedAction].menuText;
+
+    DrawSpeechBubble(screen, 4, 4, 100, 40, position->x, position->y - 20, text);
+    if (!ctx->prevInputA && ctx->inputA)
+    {
+        BattleEntityState *target = &battleState->entities[actor->target];
+        target->actionPoints += 2;
+        return BATTLEACTION_ONACTIVATED_DONE;
+    }
+    return BATTLEACTION_ONACTIVATED_CONTINUE;
 }
 
 static uint8_t BattleAction_Insult_OnActivating(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -502,6 +513,7 @@ static uint8_t BattleAction_Insult_OnActivating(RuntimeContext *ctx, TE_Img *scr
     if (ctx->inputA && !ctx->prevInputA)
     {
         int id = action->menu->entries[action->menu->selectedAction].id;
+        LOG("Insulting id: %d", id);
         if (id == idCancel)
         {
             return BATTLEACTION_ONACTIVATING_CANCEL;

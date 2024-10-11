@@ -12,8 +12,6 @@
 
 int8_t _loadNextScene = -1;
 
-void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, int16_t arrowX, int16_t arrowY, const char *text);
-
 void DrawNextButtonAction(RuntimeContext *ctx, TE_Img *screenData)
 {
     int16_t pressY = (int16_t)(fmodf(ctx->time, 0.6f) * 2.0f) + 117;
@@ -545,7 +543,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 
         if (action.actionType == SCRIPTED_ACTION_TYPE_SET_ENEMY_CALLBACK)
         {
-            Enemy* enemy = Enemies_getEnemy(action.setEnemyCallback.id);
+            Enemy* enemy = Enemies_getEnemy(action.setEnemyCallback.id, 0);
             if (enemy) {
                 LOG("Setting enemy[%d] (%p) callback", action.setEnemyCallback.id, enemy);
                 enemy->userCallbackData = action.setEnemyCallback.callback;
