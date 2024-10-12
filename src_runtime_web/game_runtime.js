@@ -10,14 +10,14 @@ async function runGame() {
     let screenCanvasCtx = screenCanvas.getContext('2d');
 
     // Wrap the init and update functions
-    const init = Module.cwrap('init', 'void', ['void*']);
-    const update = Module.cwrap('update', 'void', ['void*']);
-    const RuntimeContext_create = Module.cwrap('RuntimeContext_create', 'void*', []);
-    const RuntimeContext_setUTimeCallback = Module.cwrap('RuntimeContext_setUTimeCallback', 'void', ['void*']);
-    const N = 'number'
-    const RuntimeContext_updateInputs = Module.cwrap('RuntimeContext_updateInputs', 'void', 
-        ['void*', N, N, N, N, N, N, N, N, N, N, N]);
-    const RuntimeContext_getScreen = Module.cwrap('RuntimeContext_getScreen', 'void*', ['void*']);
+    const N = 'number', VS = 'void*', V = 'void';
+    const init = Module.cwrap('init', V, [VS]);
+    const update = Module.cwrap('update', V, [VS]);
+    const RuntimeContext_create = Module.cwrap('RuntimeContext_create', VS, []);
+    const RuntimeContext_setUTimeCallback = Module.cwrap('RuntimeContext_setUTimeCallback', V, [VS]);
+    const RuntimeContext_updateInputs = Module.cwrap('RuntimeContext_updateInputs', V, 
+        [VS, N, N, N, N, N, N, N, N, N, N, N]);
+    const RuntimeContext_getScreen = Module.cwrap('RuntimeContext_getScreen', VS, [VS]);
 
     // Define the JavaScript function to return microseconds since the app started
     let startTime = performance.now();
