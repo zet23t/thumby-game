@@ -275,6 +275,7 @@ void Player_update(Player *player, Character *playerCharacter, RuntimeContext *c
         }
         // TE_Logf("DBG", "Player target %f %f : %f %f", targetX, targetY, player->dirX, player->dirY);
     }
+    // LOG("Player %f %f %f %f %d %d", player->x, player->y, targetX, targetY, dirX, dirY);
     Character_update(playerCharacter, ctx, img, targetX, targetY, dirX, dirY);
     player->x = playerCharacter->x * .15f + player->x * .85f;
     player->y = playerCharacter->y * .15f + player->y * .85f;

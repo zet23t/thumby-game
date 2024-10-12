@@ -652,6 +652,7 @@ static void Scene_3_subscene_2_init(uint8_t sceneId)
     ScriptedAction_addSpeechBubble(step, step, "Aaaand I am done here.", 0, 4, 4, 70, 48, -4, -8);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });
     step++;
+    ScriptedAction_addLoadScene(step, step, SCENE_PLAYED_THROUGH);
 }
 
 void Scene_3_init(uint8_t sceneId)

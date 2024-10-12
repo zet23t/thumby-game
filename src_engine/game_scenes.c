@@ -527,6 +527,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
                 {
                     playerCharacter.x = action.playerTarget.targetX;
                 }
+                // LOG("%d: Setting player target X to %d", i, action.playerTarget.targetX);
             }
             if (action.playerTarget.setY)
             {
@@ -535,6 +536,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
                 {
                     playerCharacter.y = action.playerTarget.targetY;
                 }
+                // LOG("Setting player target Y to %d", action.playerTarget.targetY);
             }
             continue;
         }
@@ -1215,12 +1217,16 @@ static void Scene_2_update(RuntimeContext *ctx, TE_Img *screenData)
 #include "game_scene_0_testing.h"
 #include "game_scene_3.h"
 
+void Scene_played_through_init(uint8_t sceneId);
+void Scene_played_through_update(RuntimeContext *ctx, TE_Img *screen);
+
 static const Scene scenes[] = {
     { .id = SCENE_0_TESTING, .initFn = Scene_0_init, .updateFn = Scene_0_update },
     { .id = SCENE_1_PULLING_THE_CART, .initFn = Scene_1_init, .updateFn = Scene_1_update },
     { .id = SCENE_2_ARRIVING_AT_HOME, .initFn = Scene_2_init, .updateFn = Scene_2_update },
     { .id = SCENE_3_CHASING_THE_LOOT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
     { .id = SCENE_4_FIRST_FIGHT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
+    { .id = SCENE_PLAYED_THROUGH, .initFn = Scene_played_through_init, .updateFn = Scene_played_through_update },
     {0}
 };
 
