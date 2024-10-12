@@ -78,7 +78,7 @@ uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img
     if (condition->type == CONDITION_TYPE_PRESS_NEXT)
     {
         DrawNextButtonAction(ctx, screenData);
-        return ctx->inputRight && !ctx->prevInputRight;
+        return ctx->inputRight && !ctx->prevInputRight && !Menu_isActive();
     }
 
     return 0;
@@ -617,7 +617,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
             });
 
             DrawNextButtonAction(ctx, screenData);
-            if (ctx->inputRight && !ctx->prevInputRight)
+            if (ctx->inputRight && !ctx->prevInputRight && !Menu_isActive())
             {
                 nextPlotIndex = action.titleScreen.nextPlotIndex;
             }
@@ -880,7 +880,7 @@ static void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData)
         DrawSpeechBubble(screenData, 10,20, 108, 30, cartX + 20, player.y - 5, text);
     }
 
-    if (!ctx->inputRight)
+    if (!ctx->inputRight && !Menu_isActive())
     {
         DrawTextBlock(screenData, 70, 105, 48, 16, "Press >");
     }

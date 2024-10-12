@@ -3,7 +3,7 @@
 
 #include "game.h"
 #include "game_assets.h"
-
+#include "game_menu.h"
 #include <inttypes.h>
 
 typedef struct BattleAction BattleAction;

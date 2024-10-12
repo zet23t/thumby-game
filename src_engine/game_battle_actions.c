@@ -103,7 +103,7 @@ static uint8_t BattleAction_Thrust_OnSelected(RuntimeContext *ctx, TE_Img *scree
         }
     });
 
-    return ctx->inputA && !ctx->prevInputA ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
+    return ctx->inputA && !ctx->prevInputA && !Menu_isActive() ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
 }
 
 BattleAction BattleAction_Thrust()
@@ -217,7 +217,7 @@ static uint8_t BattleAction_Strike_OnSelected(RuntimeContext *ctx, TE_Img *scree
         }
     });
 
-    return ctx->inputA && !ctx->prevInputA ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
+    return ctx->inputA && !ctx->prevInputA && !Menu_isActive() ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
 }
 
 BattleAction BattleAction_Strike()
@@ -254,7 +254,7 @@ static uint8_t BattleAction_ChangeTarget_OnSelected(RuntimeContext *ctx, TE_Img 
             });
         }
     }
-    return !ctx->prevInputA && ctx->inputA ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
+    return !ctx->prevInputA && ctx->inputA && !Menu_isActive() ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
 }
 
 static uint8_t BattleAction_ChangeTarget_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -361,7 +361,7 @@ static uint8_t BattleAction_ChangeTarget_OnActivating (RuntimeContext *ctx, TE_I
 
     BattleMenuWindow_update(ctx, screen, &window, action->menu);
     action->selectedAction = action->menu->selectedAction;
-    if (ctx->inputA && !ctx->prevInputA)
+    if (ctx->inputA && !ctx->prevInputA && !Menu_isActive())
     {
         int id = action->menu->entries[action->menu->selectedAction].id;
         if (id == idCancel)
@@ -372,7 +372,7 @@ static uint8_t BattleAction_ChangeTarget_OnActivating (RuntimeContext *ctx, TE_I
         actor->nextTarget = id;
         return BATTLEACTION_ONACTIVATING_DONE;
     }
-    if (ctx->inputB)
+    if (ctx->inputB && !Menu_isActive())
     {
         return BATTLEACTION_ONACTIVATING_CANCEL;
     }
@@ -399,7 +399,7 @@ typedef struct ParryData
 
 static uint8_t BattleAction_Parry_OnSelected(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
-    return ctx->inputA && !ctx->prevInputA ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
+    return ctx->inputA && !ctx->prevInputA && !Menu_isActive() ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
 }
 
 static uint8_t BattleAction_Parry_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -462,7 +462,7 @@ BattleAction BattleAction_Parry()
 
 static uint8_t BattleAction_Insult_OnSelected(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
 {
-    return ctx->inputA && !ctx->prevInputA ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
+    return ctx->inputA && !ctx->prevInputA && !Menu_isActive() ? BATTLEACTION_ONSELECTED_ACTIVATE : BATTLEACTION_ONSELECTED_IGNORE;
 }
 
 static uint8_t BattleAction_Insult_OnActivated(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState, BattleAction *action, BattleEntityState *actor)
@@ -472,7 +472,7 @@ static uint8_t BattleAction_Insult_OnActivated(RuntimeContext *ctx, TE_Img *scre
     const char *text = entries[action->selectedAction].menuText;
 
     DrawSpeechBubble(screen, 4, 4, 100, 40, position->x, position->y - 20, text);
-    if (!ctx->prevInputA && ctx->inputA)
+    if (!ctx->prevInputA && ctx->inputA && !Menu_isActive())
     {
         BattleEntityState *target = &battleState->entities[actor->target];
         target->actionPoints += 2;
@@ -511,7 +511,7 @@ static uint8_t BattleAction_Insult_OnActivating(RuntimeContext *ctx, TE_Img *scr
     action->menu->entriesCount = entriesCount;
     BattleMenuWindow_update(ctx, screen, &window, action->menu);
     action->selectedAction = action->menu->selectedAction;
-    if (ctx->inputA && !ctx->prevInputA)
+    if (ctx->inputA && !ctx->prevInputA && !Menu_isActive())
     {
         int id = action->menu->entries[action->menu->selectedAction].id;
         LOG("Insulting id: %d", id);
@@ -523,7 +523,7 @@ static uint8_t BattleAction_Insult_OnActivating(RuntimeContext *ctx, TE_Img *scr
         actor->nextTarget = id;
         return BATTLEACTION_ONACTIVATING_DONE;
     }
-    if (ctx->inputB)
+    if (ctx->inputB && !Menu_isActive())
     {
         return BATTLEACTION_ONACTIVATING_CANCEL;
     }

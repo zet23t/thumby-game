@@ -119,7 +119,7 @@ void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWind
         .zAlphaBlend = 1,
     });
 
-    if (ctx->inputUp && !ctx->prevInputUp)
+    if (ctx->inputUp && !ctx->prevInputUp && !Menu_isActive())
     {
         battleMenu->selectedAction--;
         if (battleMenu->selectedAction < 0)
@@ -127,7 +127,7 @@ void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWind
             battleMenu->selectedAction = 0;
         }
     }
-    if (ctx->inputDown && !ctx->prevInputDown)
+    if (ctx->inputDown && !ctx->prevInputDown && !Menu_isActive())
     {
         battleMenu->selectedAction++;
         if (battleMenu->selectedAction >= battleMenu->entriesCount)

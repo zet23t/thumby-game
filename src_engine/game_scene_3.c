@@ -399,8 +399,8 @@ void Scene_3_init()
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
 
-    ScriptedAction_addNPCSpawn(step, step, 1, 3, -5, 60, 60, 70);
-    ScriptedAction_addNPCSpawn(step, step, 2, 4, -20, 60, 50, 66);
+    ScriptedAction_addNPCSpawn(step, step + 50, 1, 3, -5, 60, 60, 70);
+    ScriptedAction_addNPCSpawn(step, step + 50, 2, 4, -20, 60, 50, 66);
     ScriptedAction_addSpeechBubble(step, step, "Lucky we maintain the bridge so faithfully!", 1, 8, 4, 112, 38, 0, -10);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
@@ -474,8 +474,8 @@ void Scene_3_init()
     step++;
 
     
-    ScriptedAction_addNPCSpawn(step, step, 3, 3, 100, 0, 100, 40);
-    ScriptedAction_addNPCSpawn(step, step, 4, 4, 130, 120, 100, 96);
+    ScriptedAction_addNPCSpawn(step, step + 50, 3, 3, 100, 0, 100, 40);
+    ScriptedAction_addNPCSpawn(step, step + 50, 4, 4, 130, 120, 100, 96);
     ScriptedAction_addPlayerControlsEnabled(step, step, 1);
     ScriptedAction_addSetItem(step, step+2, 0, 0, ITEM_STAFF);
     ScriptedAction_addSetItem(step, step+2, 1, 0, ITEM_STAFF);
@@ -537,7 +537,7 @@ void Scene_3_init()
     BattleState *battleState = Scene_malloc(sizeof(BattleState));
     battleState->queuedEntityId = -1;
     battleState->activatingAction = -1;
-    battleState->entityCount = 5;
+    battleState->entityCount = 2;
     for (int i=0;i<5;i++)
     {
         battleState->entities[i].id = i;
@@ -727,7 +727,7 @@ static void Scene_3_updateEnemy(struct Enemy *enemy, RuntimeContext *ctx, TE_Img
             if (playerDistance < 18.0f)
             {
                 player.defenseActionStep[0]+=ctx->deltaTime;
-                if (!ctx->inputA && ctx->prevInputA && player.defenseQuality > 0)
+                if (!ctx->inputA && ctx->prevInputA && player.defenseQuality > 0 && !Menu_isActive())
                 {
                     data->crowd->selectedAttacker = 0;
                     enemy->character.isAiming = 0;

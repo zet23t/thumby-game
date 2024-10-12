@@ -396,9 +396,7 @@ DLL_EXPORT void update(RuntimeContext *ctx)
             .tintColor = 0xff306f8a,
         });
     }
-    
     uint32_t start = ctx->getUTime();
-
     BENCH(Scene_update(ctx, &img), scene)
     BENCH(Projectiles_update(projectiles, ctx, &img), projectiles)
     BENCH(RenderObject_update(ctx, &img), renderObjects)
@@ -448,71 +446,75 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     //     .zValue = 100,
     // });
 
-    uint16_t fps = (uint16_t)roundl(1.0f / ctx->deltaTime);
-    static uint16_t recentFPS[32];
-    static uint8_t recentFPSIndex = 0;
-    recentFPS[recentFPSIndex] = fps;
-    recentFPSIndex = (recentFPSIndex + 1) % 32;
+    if (ctx->drawStats)
+    {
 
-    uint16_t avgFPS = 0;
-    for (int i=0;i<32;i++)
-    {
-        avgFPS += recentFPS[i];
-    }
-    avgFPS /= 32;
-    // if (fps > 25)
-    // {
-    //     return;
-    // }
-    char text[64];
-    const char *benchNames[] = {
-        "scene",
-        "projectiles",
-        "environment",
-        "particles",
-        "enemies",
-        "player",
-        "script",
-        "menu",
-        "renderO",
-        "total",
-    };
-    static uint8_t displayBenchIndex = 9;
-    static Avg32F avgDuration;
-    int dir = 0;
-    if (ctx->inputB && !ctx->prevInputRight && ctx->inputRight)
-    {
-        dir = 1;
-    }
-    if (ctx->inputB && !ctx->prevInputLeft && ctx->inputLeft)
-    {
-        dir = -1;
-    }
+        uint16_t fps = (uint16_t)roundl(1.0f / ctx->deltaTime);
+        static uint16_t recentFPS[32];
+        static uint8_t recentFPSIndex = 0;
+        recentFPS[recentFPSIndex] = fps;
+        recentFPSIndex = (recentFPSIndex + 1) % 32;
 
-    if (dir)
-    {
-        displayBenchIndex = (displayBenchIndex + 11 + dir) % 11;
-        if (displayBenchIndex < 10)
-            Avg32F_fill(&avgDuration, ctx->frameStats.updateTimes[displayBenchIndex] / 1000.0f);
-    }
+        uint16_t avgFPS = 0;
+        for (int i=0;i<32;i++)
+        {
+            avgFPS += recentFPS[i];
+        }
+        avgFPS /= 32;
+        // if (fps > 25)
+        // {
+        //     return;
+        // }
+        char text[64];
+        const char *benchNames[] = {
+            "scene",
+            "projectiles",
+            "environment",
+            "particles",
+            "enemies",
+            "player",
+            "script",
+            "menu",
+            "renderO",
+            "total",
+        };
+        static uint8_t displayBenchIndex = 9;
+        static Avg32F avgDuration;
+        int dir = 0;
+        if (ctx->inputB && !ctx->prevInputRight && ctx->inputRight)
+        {
+            dir = 1;
+        }
+        if (ctx->inputB && !ctx->prevInputLeft && ctx->inputLeft)
+        {
+            dir = -1;
+        }
 
-    if (displayBenchIndex == 10)
-    {
-        sprintf(text, "FPS: %d|%d|%dk|%d", avgFPS, imgStats.blitCount, imgStats.blitPixelCount>>10, imgStats.blitXCount);
-    }
-    else
-    {
-        float durationMS = ctx->frameStats.updateTimes[displayBenchIndex] / 1000.0f;
-        Avg32F_push(&avgDuration, durationMS);
-        float durationAvg = Avg32F_get(&avgDuration);
-        sprintf(text, "FPS: %d; %s %.2f", avgFPS, benchNames[displayBenchIndex], durationAvg);
-    }
+        if (dir)
+        {
+            displayBenchIndex = (displayBenchIndex + 11 + dir) % 11;
+            if (displayBenchIndex < 10)
+                Avg32F_fill(&avgDuration, ctx->frameStats.updateTimes[displayBenchIndex] / 1000.0f);
+        }
 
-    TE_Font medFont = GameAssets_getFont(FONT_MEDIUM);
-    TE_Font_drawText(&img, &medFont, 1, 115, -1, text, 0xffffffff, (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 255,
-    });
+        if (displayBenchIndex == 10)
+        {
+            sprintf(text, "FPS: %d|%d|%dk|%d", avgFPS, imgStats.blitCount, imgStats.blitPixelCount>>10, imgStats.blitXCount);
+        }
+        else
+        {
+            float durationMS = ctx->frameStats.updateTimes[displayBenchIndex] / 1000.0f;
+            Avg32F_push(&avgDuration, durationMS);
+            float durationAvg = Avg32F_get(&avgDuration);
+            sprintf(text, "FPS: %d; %s %.2f", avgFPS, benchNames[displayBenchIndex], durationAvg);
+        }
+
+        TE_Font medFont = GameAssets_getFont(FONT_MEDIUM);
+        TE_Font_drawText(&img, &medFont, 1, 115, -1, text, 0xffffffff, (TE_ImgOpState) {
+            .zCompareMode = Z_COMPARE_ALWAYS,
+            .zValue = 255,
+        });
+    }
 
     GameRuntimeContextState *state = (GameRuntimeContextState*)ctx->projectData;
     state->isInitiailized = 1;

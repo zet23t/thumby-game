@@ -19,6 +19,11 @@ typedef struct GameMenu
 
 static GameMenu gameMenu;
 
+uint8_t Menu_isActive()
+{
+    return gameMenu.isActive;
+}
+
 void Menu_update(RuntimeContext *ctx, TE_Img* img)
 {
     if (ctx->inputMenu)
@@ -135,8 +140,15 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
         .scissorHeight = clipHeight,
     });
 
+    if (ctx->inputA && !ctx->prevInputA)
+    {
+        ctx->drawStats = !ctx->drawStats;
+    }
+
     char info[128];
-    sprintf(info, "RenderObjectSprite: %d RuntimeContext: %d", (int) sizeof(RenderObjectSprite), (int) sizeof(RuntimeContext));
+    sprintf(info, "Draw stats (A): %s RenderObjectSprite: %d RuntimeContext: %d", 
+        ctx->drawStats ? "yes" : "no",
+        (int) sizeof(RenderObjectSprite), (int) sizeof(RuntimeContext));
 
     TE_Font_drawTextBox(img, &tinyfont, menuX + 4, menuY + 18, 127-(menuX + 4)*2 - 2, 64, -1, -4, 
         info, alignX, alignY, 0xffffffff, (TE_ImgOpState)

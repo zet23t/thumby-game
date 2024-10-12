@@ -3,6 +3,7 @@
 
 #include "game.h"
 
+uint8_t Menu_isActive();
 void Menu_update(RuntimeContext *ctx, TE_Img* img);
 
 #endif

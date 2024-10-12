@@ -2,6 +2,7 @@
 #define __GAME_SCENES_H__
 
 #include <inttypes.h>
+#include "game_menu.h"
 #include "engine_main.h"
 #include "TE_Image.h"
 #include "game.h"

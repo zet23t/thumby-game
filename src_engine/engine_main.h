@@ -79,7 +79,7 @@ typedef struct RuntimeContext
         };
     };
 
-    uint8_t isCharging;
+    uint8_t isCharging, drawStats;
 
     uint32_t frameCount;
     float time;
