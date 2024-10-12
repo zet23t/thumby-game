@@ -169,6 +169,9 @@ typedef struct Scene
     void (*updateFn)(RuntimeContext *ctx, TE_Img *screenData);
 } Scene;
 
+void Cart_draw(TE_Img *screenData, int16_t x, int16_t y, uint8_t loaded, RuntimeContext *ctx);
+void DrawTextBlock(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, const char *text);
+
 void* Scene_malloc(uint32_t size);
 char* Scene_strDup(const char *str, int strlength);
 uint32_t Scene_getAllocatedSize();

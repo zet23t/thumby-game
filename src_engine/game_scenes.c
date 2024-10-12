@@ -694,7 +694,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
 
 static void (*_sceneUpdateFn)(RuntimeContext *ctx, TE_Img *screenData);
 
-static void DrawTextBlock(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, const char *text)
+void DrawTextBlock(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, const char *text)
 {
     TE_Font font = GameAssets_getFont(0);
     TE_Img_fillRect(screenData, x+1, y+1, width-2, height-2, DB32Colors[21], (TE_ImgOpState){
@@ -749,7 +749,7 @@ void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, i
     });
 }
 
-static void Cart_draw(TE_Img *screenData, int16_t x, int16_t y, uint8_t loaded, RuntimeContext *ctx)
+void Cart_draw(TE_Img *screenData, int16_t x, int16_t y, uint8_t loaded, RuntimeContext *ctx)
 {
     TE_Img_blitSprite(screenData, GameAssets_getSprite(SPRITE_CART_SIDE), x, y, (BlitEx){
         .blendMode = TE_BLEND_ALPHAMASK,
@@ -796,120 +796,8 @@ static void Cart_draw(TE_Img *screenData, int16_t x, int16_t y, uint8_t loaded, 
     });
 }
 
-static void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData)
-{
-    // Update scene 1
-    int16_t cartX = player.x - 20;
-    
-    // draw path
-    const uint16_t pathQHeight = 16;
-    for (uint16_t x=0;x<128;x+=2)
-    {
-        uint16_t srcX = x % 16;
-        int16_t y = 50 + (int16_t)(sin((x) * 0.05f) * 5.0f + x * 0.1f);
-
-        TE_Img_blitEx(screenData, &atlasImg, x, y, 71 + srcX, 16, 2, pathQHeight, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 0,
-            }
-        });
-        TE_Img_blitEx(screenData, &atlasImg, x, y+pathQHeight, 71 + srcX, 16 + 24, 2, pathQHeight, (BlitEx){
-            .blendMode = TE_BLEND_ALPHAMASK,
-            .state = {
-                .zCompareMode = Z_COMPARE_LESS_EQUAL,
-                .zValue = 0,
-            }
-        });
-    }
-    // TE_Img_drawPatch9(screenData, &atlasImg, -8, 58, 140, 28, 64,16, 12, 12, (BlitEx){
-    //     .blendMode = TE_BLEND_ALPHAMASK,
-    //     .state = {
-    //         .zCompareMode = Z_COMPARE_LESS_EQUAL,
-    //         .zValue = 0,
-    //     }
-    // });
-
-    int16_t cartY = 60 + (int16_t)(sin((cartX) * 0.05f) * 5.0f + cartX * 0.1f);
-    int16_t cartYAnchor = 60 + (int16_t)(sin((cartX+6) * 0.05f) * 5.0f + (cartX + 6) * 0.1f);
-
-    player.y = 54 + (int16_t)(sin((player.x) * 0.05f) * 5.0f + player.x * 0.1f);
-    player.aimY = 1;
-    player.dirY = 1;
-    player.dy = 1;
-    playerCharacter.y = player.y;
-    playerCharacter.dirY = 1;
-
-    Cart_draw(screenData, cartX, cartY,1, ctx);
-
-    TE_Img_line(screenData, cartX+8, cartYAnchor, cartX+20, player.y + 6, DB32Colors[3], (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 83,
-    });
-    TE_Img_line(screenData, cartX+8, cartYAnchor + 1, cartX+20, player.y + 7, DB32Colors[2], (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 83,
-    });
-
-    const char *text = NULL;
-
-    if (player.x > 108)
-    {
-        text = NULL;
-    }
-    else if (player.x > 80)
-    {
-        text = "I can now get the pool I always wanted!";
-    }
-    else if (player.x > 60)
-    {
-        text = "Finally I can retire.";
-    }
-    else if (player.x > 40)
-    {
-        text = "So. Much. Loot!";
-    }
-    else if (player.x > 20)
-    {
-        text = "The crusades were awesome.";
-    }
-
-    if (text)
-    {
-        DrawSpeechBubble(screenData, 10,20, 108, 30, cartX + 20, player.y - 5, text);
-    }
-
-    if (!ctx->inputRight && !Menu_isActive())
-    {
-        DrawTextBlock(screenData, 70, 105, 48, 16, "Press >");
-    }
-
-    if (player.x < -8)
-    {
-        player.x = -8;
-        playerCharacter.x = player.x;
-    }
-    if (cartX > 130)
-    {
-        Scene_init(2);
-    }
-}
-
-static void Scene_1_init()
-{
-    // Enemies_spawn(1, 28, 42);
-    // Enemies_spawn(1, 44, 28);
-
-    player.x = -8;
-    playerCharacter.x = player.x;
-
-    Environment_addTreeGroup(24, 30, 26, 5, 25);
-    Environment_addTreeGroup(114, 30, 122, 5, 25);
-    Environment_addTreeGroup(114, 125, 1252, 5, 25);
-    Environment_addTreeGroup(24, 124, 99, 5, 20);
-    // Environment_addTreeGroup(64, 84, 199, 3, 20);
-}
+void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData);
+void Scene_1_init();
 
 #define SCENE_2_FLAG_PULLING_CART 1
 #define SCENE_2_FLAG_DINGLEWORT_OUTSIDE 2
