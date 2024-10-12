@@ -11,6 +11,7 @@
 #define SCENE_1_PULLING_THE_CART 1
 #define SCENE_2_ARRIVING_AT_HOME 2
 #define SCENE_3_CHASING_THE_LOOT 3
+#define SCENE_4_FIRST_FIGHT 4
 
 #define FADEIN_FLAG 1
 #define FADEOUT_RIGHT_TO_LEFT 0
@@ -36,6 +37,13 @@ typedef struct Condition
         struct WaitCondition {
             float duration;
         } wait;
+        struct CallbackCondition {
+            union {
+                uint8_t (*callbackEx)(RuntimeContext *ctx, TE_Img *screenData, const struct Condition *condition);
+                uint8_t (*callbackRawData)(void *data);
+            };
+            void *callbackData;
+        } callback;
     };
 } Condition;
 
@@ -43,6 +51,8 @@ typedef struct Condition
 #define CONDITION_TYPE_PRESS_NEXT 2
 #define CONDITION_TYPE_NPCS_IN_RECT 3
 #define CONDITION_TYPE_WAIT 4
+#define CONDITION_TYPE_CALLBACK 5
+#define CONDITION_TYPE_CALLBACK_DATA 6
 
 
 typedef struct ScriptedAction
@@ -165,7 +175,7 @@ typedef struct ScriptedActions
 typedef struct Scene
 {
     uint8_t id;
-    void (*initFn)();
+    void (*initFn)(uint8_t sceneId);
     void (*updateFn)(RuntimeContext *ctx, TE_Img *screenData);
 } Scene;
 

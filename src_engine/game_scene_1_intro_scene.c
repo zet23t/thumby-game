@@ -215,7 +215,7 @@ void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData)
     }
 }
 
-void Scene_1_init()
+void Scene_1_init(uint8_t sceneId)
 {
     // Enemies_spawn(1, 28, 42);
     // Enemies_spawn(1, 44, 28);

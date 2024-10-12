@@ -370,19 +370,33 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
     
 }
 
-void Scene_3_init()
+uint8_t BattleState_getAliveTeamBits(BattleState *state)
 {
-    Environment_addTreeGroup(20, 20, 18522, 4, 20);
-    Environment_addTree(88,20,124);
-    Environment_addTree(114,34,125);
-    Environment_addTree(108,14,125);
-    Environment_addTree(120,20,125);
-    Environment_addTree(94,20,125);
-    // Environment_addTreeGroup(100, 20, 1856, 5, 30);
-    Environment_addFlowerGroup(76,40, 232, 15, 20);
-    Environment_addBushGroup(75,35, 1232, 5, 10);
+    uint8_t aliveTeamBits = 0;
+    for (int i=0;i<state->entityCount;i++)
+    {
+        BattleEntityState *entity = &state->entities[i];
+        if (entity->hitpoints > 0)
+        {
+            aliveTeamBits |= 1 << entity->team;
+        }
+    }
 
+    return aliveTeamBits;
+}
 
+uint8_t BattleState_haveNPCsWon(BattleState *state)
+{
+    return BattleState_getAliveTeamBits(state) == 2;
+}
+
+uint8_t BattleState_hasPlayerWon(BattleState *state)
+{
+    return BattleState_getAliveTeamBits(state) == 1;
+}
+
+static void Scene_3_subscene_1_init(uint8_t sceneId)
+{
     player.x = 160;
     playerCharacter.x = player.x;
     player.y = 110;
@@ -390,8 +404,8 @@ void Scene_3_init()
 
     uint8_t step = 0;
 
-    ScriptedAction_addSetPlayerTarget(step, step, 90, 73, 1, 1);
-    ScriptedAction_addPlayerControlsEnabled(step, step, 0);
+    ScriptedAction_addSetPlayerTarget(step, 0xff, 90, 73, 1, 1);
+    ScriptedAction_addPlayerControlsEnabled(step, 0xff, 0);
     ScriptedAction_addSceneFadeOut(step, step, FADEIN_RIGHT_TO_LEFT, step + 1, 0.85f, 0.4f, 1.0f);
     step++;
 
@@ -476,7 +490,6 @@ void Scene_3_init()
     
     ScriptedAction_addNPCSpawn(step, step + 50, 3, 3, 100, 0, 100, 40);
     ScriptedAction_addNPCSpawn(step, step + 50, 4, 4, 130, 120, 100, 96);
-    ScriptedAction_addPlayerControlsEnabled(step, step, 1);
     ScriptedAction_addSetItem(step, step+2, 0, 0, ITEM_STAFF);
     ScriptedAction_addSetItem(step, step+2, 1, 0, ITEM_STAFF);
     ScriptedAction_addSetItem(step, step+2, 2, -ITEM_STAFF, 0);
@@ -486,6 +499,34 @@ void Scene_3_init()
     ScriptedAction_addSpeechBubble(step, step, "Fine, let's have some fun first.", 0, 4, 4, 70, 48, -4, -8);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });
     step++;
+    
+    ScriptedAction_addSpeechBubble(step, step, "Your name must be Sir Bigmouth.", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "You know what?", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Just you, and me. I'll teach you some manners.", 1, 8, 4, 112, 38, 0, -10);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addSpeechBubble(step, step, "Hahaha. That'll be too easy.", 0, 4, 4, 70, 48, -4, -8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+
+    ScriptedAction_addLoadScene(step, step, SCENE_4_FIRST_FIGHT);
+}
+
+static void Scene_3_subscene_2_init(uint8_t sceneId)
+{
+    uint8_t step = 0;
+
+    player.x = 90;
+    playerCharacter.x = player.x;
+    player.y = 73;
+    playerCharacter.y = player.y;
 
     // Scene3_EnemyCrowd *crowd = Scene_malloc(sizeof(Scene3_EnemyCrowd));
     // crowd->aliveCount = 4;
@@ -511,6 +552,12 @@ void Scene_3_init()
     //     .callback = Scene_3_enemyCallback,
     //     .dataPointer = &crowd->enemies[3],
     // });
+    
+    ScriptedAction_addNPCSpawn(step, step + 50, 1, 3, 60, 70, 60, 70);
+    ScriptedAction_addNPCSpawn(step, step + 50, 2, 4, 50, 66, 50, 66);
+    ScriptedAction_addNPCSpawn(step, step + 50, 3, 3, 100, 40, 100, 40);
+    ScriptedAction_addNPCSpawn(step, step + 50, 4, 4, 100, 96, 100, 96);
+    ScriptedAction_addPlayerControlsEnabled(step, step, 0);
     
     ScriptedAction_addJumpStep(step, step, step + 1);
     step++;
@@ -591,13 +638,45 @@ void Scene_3_init()
         .entriesCount = 5,
     };
 
-    ScriptedAction *battleAction = ScriptedAction_addCustomCallback(step, step, Scene_3_battleStart);
+    ScriptedAction *battleAction = ScriptedAction_addCustomCallback(step, step + 1, Scene_3_battleStart);
     battleAction->customCallback.dataPointer = battleState;
     // fight
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ 
+        .type = CONDITION_TYPE_CALLBACK_DATA,
+        .callback.callbackRawData = (uint8_t(*)(void*)) BattleState_hasPlayerWon,
+        .callback.callbackData = battleState
+    });
+
     step++;
     LOG("final Step: %d", step);
     ScriptedAction_addSpeechBubble(step, step, "Aaaand I am done here.", 0, 4, 4, 70, 48, -4, -8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });
+    step++;
+}
 
+void Scene_3_init(uint8_t sceneId)
+{
+    sdfMap = 0;
+    Environment_addTreeGroup(20, 20, 18522, 4, 20);
+    Environment_addTree(88,20,124);
+    Environment_addTree(114,34,125);
+    Environment_addTree(108,14,125);
+    Environment_addTree(120,20,125);
+    Environment_addTree(94,20,125);
+    // Environment_addTreeGroup(100, 20, 1856, 5, 30);
+    Environment_addFlowerGroup(76,40, 232, 15, 20);
+    Environment_addBushGroup(75,35, 1232, 5, 10);
+
+
+    switch (sceneId)
+    {
+        case SCENE_3_CHASING_THE_LOOT:
+            Scene_3_subscene_1_init(sceneId);
+            break;
+        case SCENE_4_FIRST_FIGHT:
+            Scene_3_subscene_2_init(sceneId);
+            break;
+    }
 
 }
 

@@ -75,6 +75,16 @@ uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img
         return time >= condition->wait.duration;
     }
 
+    if (condition->type == CONDITION_TYPE_CALLBACK)
+    {
+        return condition->callback.callbackEx(ctx, screenData, condition);
+    }
+
+    if (condition->type == CONDITION_TYPE_CALLBACK_DATA)
+    {
+        return condition->callback.callbackRawData(condition->callback.callbackData);
+    }
+
     if (condition->type == CONDITION_TYPE_PRESS_NEXT)
     {
         DrawNextButtonAction(ctx, screenData);
@@ -797,13 +807,13 @@ void Cart_draw(TE_Img *screenData, int16_t x, int16_t y, uint8_t loaded, Runtime
 }
 
 void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData);
-void Scene_1_init();
+void Scene_1_init(uint8_t sceneId);
 
 #define SCENE_2_FLAG_PULLING_CART 1
 #define SCENE_2_FLAG_DINGLEWORT_OUTSIDE 2
 #define SCENE_2_FLAG_DOOR_OPEN 4
 
-static void Scene_2_init()
+static void Scene_2_init(uint8_t sceneId)
 {
     Environment_addBushGroup(112, 90, 1232, 5, 10);
 
@@ -1210,6 +1220,7 @@ static const Scene scenes[] = {
     { .id = SCENE_1_PULLING_THE_CART, .initFn = Scene_1_init, .updateFn = Scene_1_update },
     { .id = SCENE_2_ARRIVING_AT_HOME, .initFn = Scene_2_init, .updateFn = Scene_2_update },
     { .id = SCENE_3_CHASING_THE_LOOT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
+    { .id = SCENE_4_FIRST_FIGHT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
     {0}
 };
 
@@ -1278,7 +1289,8 @@ void Scene_init(uint8_t sceneId)
     {
         if (scenes[i].id == sceneId)
         {
-            scenes[i].initFn();
+            LOG("Init scene %d", sceneId);
+            scenes[i].initFn(sceneId);
             _sceneUpdateFn = scenes[i].updateFn;
             return;
         }

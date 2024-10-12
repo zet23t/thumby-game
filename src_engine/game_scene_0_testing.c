@@ -19,7 +19,7 @@
 static int8_t _scene0Mode = 0;
 static int8_t _scene0ModeSelect = 0;
 
-void Scene_0_init()
+void Scene_0_init(uint8_t sceneId)
 {
     _scene0Mode = 0;
     Player_setInputEnabled(0);
