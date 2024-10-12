@@ -1096,7 +1096,7 @@ static void Scene_2_init()
     ScriptedAction_addSceneFadeOut(step, step, FADEOUT_RIGHT_TO_LEFT, step + 1, 1.5f, 0.0f, 1.0f);
     step++;
 
-    ScriptedAction_addTitleScreen(step, step, "Part 1", "Where is my loot?", 1, step + 1);
+    ScriptedAction_addTitleScreen(step, step + 1, "Part 1", "Where is my loot?", 1, step + 1);
     step++;
 
     ScriptedAction_addLoadScene(step, step, SCENE_3_CHASING_THE_LOOT);

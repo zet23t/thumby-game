@@ -222,6 +222,11 @@ void Character_update(Character *character, RuntimeContext *ctx, TE_Img *img, fl
     float actualLen = sqrtf(actualDx * actualDx + actualDy * actualDy);
 
     character->walkDistance += actualLen;
+    if (character->speed != character->speed)
+    {
+        LOG("Speed NaN fix");
+        character->speed = 0.0f;
+    }
     character->speed = character->speed * .75f + (actualLen / ctx->deltaTime * 0.25f);
     // TE_Debug_drawText(nextBaseX, nextBaseY, TE_StrFmt("%.0f", character->speed), 0xff0000ff);
 
