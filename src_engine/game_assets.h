@@ -76,6 +76,10 @@
 #define SPRITE_HOURGLASS_5 69
 #define SPRITE_HOURGLASS_6 70
 #define SPRITE_SHIELD 71
+#define SPRITE_HAND_POINTING_UP 72
+#define SPRITE_BUTTON_A 73
+#define SPRITE_BUTTON_B 74
+#define SPRITE_BUTTON_MENU 75
 
 
 #define FONT_MEDIUM 0
@@ -88,6 +92,18 @@
 #define ANIMATION_STAFF_IDLE 4
 #define ANIMATION_STAFF_ATTACK_HIT 5
 #define ANIMATION_STAFF_AIM 6
+#define ANIMATION_HAND_POINTING_UP 7
+
+#define INPUT_BUTTON_A 0
+#define INPUT_BUTTON_B 1
+#define INPUT_BUTTON_LEFT 2
+#define INPUT_BUTTON_RIGHT 3
+#define INPUT_BUTTON_UP 4
+#define INPUT_BUTTON_DOWN 5
+#define INPUT_BUTTON_SHOULDER_LEFT 6
+#define INPUT_BUTTON_SHOULDER_RIGHT 7
+#define INPUT_BUTTON_MENU 8
+
 
 #define RENDER_PREFAB_TREE 1
 
@@ -96,5 +112,6 @@ TE_Sprite GameAssets_getSprite(uint8_t index);
 TE_Font GameAssets_getFont(uint8_t index);
 int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx);
 RenderPrefab* GameAssets_getRenderPrefab(uint8_t index, uint8_t variant);
+void GameAssets_drawInputButton(TE_Img *dst, RuntimeContext *ctx, uint8_t button, int16_t x, int16_t y, BlitEx blitEx);
 
 #endif

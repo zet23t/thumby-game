@@ -735,7 +735,7 @@ void DrawTextBlock(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int1
     });
 }
 
-void DrawTextBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, const char *text)
+void DrawTextBubble(TE_Img *screenData, uint8_t fillColorIndex, int16_t x, int16_t y, int16_t width, int16_t height, const char *text)
 {
     TE_ImgOpState opStateLess = { .zCompareMode = Z_COMPARE_LESS, .zValue = 255, };
     // TE_Img_lineRect(screenData, x, y + 5, width, height - 10, DB32Colors[1], opStateLess);
@@ -764,15 +764,15 @@ void DrawTextBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int
     TE_Img_VLine(screenData, x + width - 2, y + height - 5, 2, DB32Colors[1], opStateLess);
 
     TE_ImgOpState opState = { .zCompareMode = Z_COMPARE_ALWAYS, .zValue = 255, };
-    TE_Img_HLine(screenData, x + 1 + 4, y + 1, width - 2 - 8, DB32Colors[21], opState);
-    TE_Img_HLine(screenData, x + 1 + 2, y + 2, width - 2 - 4, DB32Colors[21], opState);
-    TE_Img_HLine(screenData, x + 1 + 1, y + 3, width - 2 - 2, DB32Colors[21], opState);
-    TE_Img_HLine(screenData, x + 1 + 1, y + 4, width - 2 - 2, DB32Colors[21], opState);
-    TE_Img_fillRect(screenData, x+1, y+5, width-2, height-10, DB32Colors[21], opState);
-    TE_Img_HLine(screenData, x + 1 + 1, y + height - 5, width - 2 - 2, DB32Colors[21], opState);
-    TE_Img_HLine(screenData, x + 1 + 1, y + height - 4, width - 2 - 2, DB32Colors[21], opState);
-    TE_Img_HLine(screenData, x + 1 + 2, y + height - 3, width - 2 - 4, DB32Colors[21], opState);
-    TE_Img_HLine(screenData, x + 1 + 4, y + height - 2, width - 2 - 8, DB32Colors[21], opState);
+    TE_Img_HLine(screenData, x + 1 + 4, y + 1, width - 2 - 8, DB32Colors[fillColorIndex], opState);
+    TE_Img_HLine(screenData, x + 1 + 2, y + 2, width - 2 - 4, DB32Colors[fillColorIndex], opState);
+    TE_Img_HLine(screenData, x + 1 + 1, y + 3, width - 2 - 2, DB32Colors[fillColorIndex], opState);
+    TE_Img_HLine(screenData, x + 1 + 1, y + 4, width - 2 - 2, DB32Colors[fillColorIndex], opState);
+    TE_Img_fillRect(screenData, x+1, y+5, width-2, height-10, DB32Colors[fillColorIndex], opState);
+    TE_Img_HLine(screenData, x + 1 + 1, y + height - 5, width - 2 - 2, DB32Colors[fillColorIndex], opState);
+    TE_Img_HLine(screenData, x + 1 + 1, y + height - 4, width - 2 - 2, DB32Colors[fillColorIndex], opState);
+    TE_Img_HLine(screenData, x + 1 + 2, y + height - 3, width - 2 - 4, DB32Colors[fillColorIndex], opState);
+    TE_Img_HLine(screenData, x + 1 + 4, y + height - 2, width - 2 - 8, DB32Colors[fillColorIndex], opState);
     // printf("Drawing text: %s %p\n", text, font.atlas->data);
     TE_Font font = GameAssets_getFont(0);
     TE_Font_drawTextBox(screenData, &font, x + 4, y + 4, width - 8, height - 8, -1, -4, text, 0.5f, 0.5f, 0xffffffff, (TE_ImgOpState){
@@ -809,7 +809,7 @@ void DrawThoughtBubble(TE_Img *screenData, RuntimeContext *ctx, int16_t x, int16
                 .zCompareMode = Z_COMPARE_LESS,
                 .zValue = 255,
             });
-            TE_Img_fillCircle(screenData, sx, sy, r, DB32Colors[21], (TE_ImgOpState){
+            TE_Img_fillCircle(screenData, sx, sy, r, DB32Colors[20], (TE_ImgOpState){
                 .zCompareMode = Z_COMPARE_LESS,
                 .zValue = 255,
             });
@@ -817,7 +817,7 @@ void DrawThoughtBubble(TE_Img *screenData, RuntimeContext *ctx, int16_t x, int16
         }
     }
 
-    DrawTextBubble(screenData, x, y, width, height, text);
+    DrawTextBubble(screenData, 20, x, y, width, height, text);
 }
 
 void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, int16_t arrowX, int16_t arrowY, const char *text)
@@ -834,7 +834,7 @@ void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, i
         .zValue = 255,
     });
     
-    DrawTextBubble(screenData, x, y, width, height, text);
+    DrawTextBubble(screenData, 21, x, y, width, height, text);
 }
 
 void Cart_draw(TE_Img *screenData, int16_t x, int16_t y, uint8_t loaded, RuntimeContext *ctx)

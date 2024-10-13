@@ -3,6 +3,8 @@
 #include "TE_Font.h"
 #include "TE_math.h"
 
+#define BATTLEMENU_LAYER 200
+
 BattleMenuEntry BattleMenuEntry_fromAction(BattleAction *action)
 {
     BattleMenuEntry entry = {
@@ -37,6 +39,12 @@ void BattleState_updateActiveActions(RuntimeContext *ctx, TE_Img *screen, Battle
     }
 }
 
+int16_t BattleMenuWindow_getScrollListOffset(BattleMenuWindow *window, BattleMenu *battleMenu)
+{
+    int16_t actionScrollListOffset = max_s16(0, min_s16(battleMenu->selectedActionY + 8 - 2 * window->lineHeight, window->h - window->lineHeight * 2 - 7));
+    return actionScrollListOffset;
+}
+
 void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWindow* window, BattleMenu *battleMenu)
 {
     TE_Font font = GameAssets_getFont(FONT_MEDIUM);
@@ -47,10 +55,10 @@ void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWind
     float dy = battleMenu->selectedAction * lineHeight - battleMenu->selectedActionY;
     battleMenu->selectedActionY += ctx->deltaTime * 10.0f * dy;
 
-    int16_t actionScrollListOffset = max_s16(0, min_s16(battleMenu->selectedActionY + 8 - 2 * lineHeight, h - lineHeight * 2 - 7));
+    int16_t actionScrollListOffset = BattleMenuWindow_getScrollListOffset(window, battleMenu);
     TE_ImgOpState actionStateText = (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 201,
+        .zValue = BATTLEMENU_LAYER + 1,
         .scissorX = max_s16(0,window->x),
         .scissorY = 0,
         .scissorHeight = lineHeight
@@ -105,17 +113,17 @@ void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWind
     int16_t selectedY = y + battleMenu->selectedActionY + 2 - actionScrollListOffset;
     TE_Img_fillRect(screen, x + 1, selectedY, window->divX2 - 1, lineHeight + 1, window->selectedColor, (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 200,
+        .zValue = BATTLEMENU_LAYER,
         .zAlphaBlend = 1,
     });
     TE_Img_fillTriangle(screen, x + 1, selectedY, x + 6, selectedY + lineHeight / 2, x + 1, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 200,
+        .zValue = BATTLEMENU_LAYER,
         .zAlphaBlend = 1,
     });
     TE_Img_fillTriangle(screen, window->divX - 2, selectedY, window->divX - 7, selectedY + lineHeight / 2, window->divX - 2, selectedY + lineHeight, 0xaa0099ff, (TE_ImgOpState){
         .zCompareMode = Z_COMPARE_LESS_EQUAL,
-        .zValue = 200,
+        .zValue = BATTLEMENU_LAYER,
         .zAlphaBlend = 1,
     });
 

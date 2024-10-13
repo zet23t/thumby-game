@@ -130,5 +130,6 @@ typedef struct BattleAction
 void BattleMenuWindow_update(RuntimeContext *ctx, TE_Img *screen, BattleMenuWindow* window, BattleMenu *battleMenu);
 BattleMenuEntry BattleMenuEntry_fromAction(BattleAction *action);
 void BattleState_updateActiveActions(RuntimeContext *ctx, TE_Img *screen, BattleState *battleState);
+int16_t BattleMenuWindow_getScrollListOffset(BattleMenuWindow *window, BattleMenu *battleMenu);
 
 #endif

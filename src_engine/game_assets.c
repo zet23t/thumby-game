@@ -89,6 +89,10 @@ static const SpriteData _sprites[] = {
     {105, 193, 7, 9, 3, 4},     // SPRITE_HOURGLASS_5
     {105, 201, 7, 9, 3, 4},     // SPRITE_HOURGLASS_6
     {98, 166, 7, 9, 3, 4},     // SPRITE_SHIELD
+    {112, 200, 14, 15, 3, 1},  // SPRITE_HAND_POINTING_UP
+    {248, 128, 8, 8, 4, 4},   // SPRITE_BUTTON_A
+    {248, 136, 8, 8, 4, 4},   // SPRITE_BUTTON_B
+    {248, 144, 8, 8, 4, 4},   // SPRITE_BUTTON_MENU
 };
 
 static SpriteData _getSpriteData(uint8_t index)
@@ -178,6 +182,13 @@ static int DrawAnimation_STAFF_AIM(TE_Img *dst, uint32_t msTick, int16_t x, int1
     return 1;
 }
 
+static int DrawAnimation_HAND_POINTING_UP(TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx)
+{
+    float t = msTick * 0.001f;
+    y += absi((int16_t)(sinf(t * 5.0f) * 3.0f));
+    TE_Img_blitSprite(dst, GameAssets_getSprite(SPRITE_HAND_POINTING_UP), x, y, blitEx);
+    return 1;
+}
 
 int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx)
 {
@@ -196,8 +207,50 @@ int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_
         return DrawAnimation_STAFF_HIT(dst, msTick, x, y, maxLoopCount, 0, blitEx);
     case ANIMATION_STAFF_IDLE:
         return DrawAnimation_STAFF_IDLE(dst, msTick, x, y, maxLoopCount, blitEx);
+    case ANIMATION_HAND_POINTING_UP:
+        return DrawAnimation_HAND_POINTING_UP(dst, msTick, x, y, maxLoopCount, blitEx);
     }
     return 0;
+}
+
+void GameAssets_drawInputButton(TE_Img *dst, RuntimeContext *ctx, uint8_t button, int16_t x, int16_t y, BlitEx blitEx)
+{
+    int32_t offset = absi((int32_t)(sinf(ctx->time * 5.0f) * 2.0f));
+    TE_Img_fillCircle(dst, x, y, 6, DB32Colors[DB32_BROWN], blitEx.state);
+    TE_Img_lineCircle(dst, x, y, 6, DB32Colors[DB32_BLACK], blitEx.state);
+    TE_Img_fillCircle(dst, x, y-3 + offset, 6, DB32Colors[DB32_ORANGE], blitEx.state);
+    TE_Img_lineCircle(dst, x, y-3 + offset, 6, DB32Colors[DB32_BLACK], blitEx.state);
+
+    TE_Sprite sprite;
+    switch (button)
+    {
+    case INPUT_BUTTON_UP:
+        sprite = GameAssets_getSprite(SPRITE_FLAT_ARROW_2_0000);
+        break;
+    case INPUT_BUTTON_DOWN:
+        sprite = GameAssets_getSprite(SPRITE_FLAT_ARROW_2_1800);
+        break;
+    case INPUT_BUTTON_LEFT:
+        sprite = GameAssets_getSprite(SPRITE_FLAT_ARROW_2_0900);
+        break;
+    case INPUT_BUTTON_RIGHT:
+        sprite = GameAssets_getSprite(SPRITE_FLAT_ARROW_2_2700);
+        break;
+    case INPUT_BUTTON_A:
+        sprite = GameAssets_getSprite(SPRITE_BUTTON_A);
+        break;
+    case INPUT_BUTTON_B:
+        sprite = GameAssets_getSprite(SPRITE_BUTTON_B);
+        break;
+    case INPUT_BUTTON_MENU:
+        sprite = GameAssets_getSprite(SPRITE_BUTTON_MENU);
+        break;
+    
+    default:
+        return;
+    }
+
+    TE_Img_blitSprite(dst, sprite, x + 1, y + offset - 2, blitEx);
 }
 
 static TE_Img tinyImg;

@@ -519,6 +519,37 @@ static void Scene_3_subscene_1_init(uint8_t sceneId)
     ScriptedAction_addLoadScene(step, step, SCENE_4_FIRST_FIGHT);
 }
 
+static void Scene_3_drawPointerToStrike(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *callback)
+{
+    BattleState *battleState = (BattleState*)callback->customCallback.dataPointer;
+    int16_t x = 60, y = 5 + battleState->menuWindow.lineHeight * 1 - BattleMenuWindow_getScrollListOffset(&battleState->menuWindow, &battleState->menu);
+    GameAssets_drawAnimation(ANIMATION_HAND_POINTING_UP, screen, 0, x, y, 0xffff, 
+        (BlitEx) {
+            .blendMode = TE_BLEND_ALPHAMASK,
+            .state = {
+                .zCompareMode = Z_COMPARE_LESS_EQUAL,
+                .zValue = 220,
+            }
+        });
+    uint8_t inputGuide = INPUT_BUTTON_DOWN;
+    if (battleState->selectedAction > 1)
+    {
+        inputGuide = INPUT_BUTTON_UP;
+    }
+    else if (battleState->selectedAction == 1)
+    {
+        inputGuide = INPUT_BUTTON_A;
+    }
+
+    GameAssets_drawInputButton(screen, ctx, inputGuide, x + 2, y + 18, (BlitEx) {
+        .blendMode = TE_BLEND_ALPHAMASK,
+        .state = {
+            .zCompareMode = Z_COMPARE_LESS_EQUAL,
+            .zValue = 220,
+        }
+    });
+}
+
 static void Scene_3_subscene_2_init(uint8_t sceneId)
 {
     uint8_t step = 0;
@@ -568,8 +599,7 @@ static void Scene_3_subscene_2_init(uint8_t sceneId)
     
     ScriptedAction_addJumpStep(step, step, step + 1);
     step++;
-    ScriptedAction_addThoughtBubble(step, step, "He looks easy. Quick strike, then a thrust.", 0, 8, 96, 112, 30, 0, 8);
-
+    
     BattleAction *playerActions = Scene_malloc(sizeof(BattleAction) * 8);
     BattleMenu *changeTargetMenu = Scene_malloc(sizeof(BattleMenu));
     changeTargetMenu->selectedAction = 0;
@@ -654,6 +684,9 @@ static void Scene_3_subscene_2_init(uint8_t sceneId)
         .callback.callbackRawData = (uint8_t(*)(void*)) BattleState_hasPlayerWon,
         .callback.callbackData = battleState
     });
+
+    ScriptedAction_addCustomCallback(step, step, Scene_3_drawPointerToStrike)->customCallback.dataPointer = battleState;
+    ScriptedAction_addThoughtBubble(step, step, "He looks easy. Quick strike, then a thrust.", 0, 8, 96, 112, 30, 0, 8);
 
     step++;
     LOG("final Step: %d", step);
