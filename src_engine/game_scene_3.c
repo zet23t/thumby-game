@@ -552,15 +552,23 @@ static void Scene_3_subscene_2_init(uint8_t sceneId)
     //     .callback = Scene_3_enemyCallback,
     //     .dataPointer = &crowd->enemies[3],
     // });
+
     
     ScriptedAction_addNPCSpawn(step, step + 50, 1, 3, 60, 70, 60, 70);
     ScriptedAction_addNPCSpawn(step, step + 50, 2, 4, 50, 66, 50, 66);
     ScriptedAction_addNPCSpawn(step, step + 50, 3, 3, 100, 40, 100, 40);
     ScriptedAction_addNPCSpawn(step, step + 50, 4, 4, 100, 96, 100, 96);
+    ScriptedAction_addSetItem(step, step+2, 0, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 1, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 2, -ITEM_STAFF, 0);
+    ScriptedAction_addSetItem(step, step+2, 3, 0, -ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 4, 0, ITEM_STAFF);
+
     ScriptedAction_addPlayerControlsEnabled(step, step, 0);
     
     ScriptedAction_addJumpStep(step, step, step + 1);
     step++;
+    ScriptedAction_addThoughtBubble(step, step, "He looks easy. Quick strike, then a thrust.", 0, 8, 96, 112, 30, 0, 8);
 
     BattleAction *playerActions = Scene_malloc(sizeof(BattleAction) * 8);
     BattleMenu *changeTargetMenu = Scene_malloc(sizeof(BattleMenu));

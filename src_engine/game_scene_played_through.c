@@ -49,11 +49,11 @@ void Scene_played_through_init(uint8_t sceneId)
         "More in particular: The people hanging out in the PsyOp Discord.",
         "Specifically (in no particular order):",
         "Falco, Cypress, Haikuno, krzysztophoros, mickschen " TX_SPRITE(SPRITE_HEART, 3, 3),
-        "Also, I'd like to thank Thomas P.!",
+        "Also, I'd like to thank Thomas P. for being around and always up for a talk about the stuff I make!",
         "And of course my Family, especially my wife, for putting up with me.",
         "Then there's raysan5 to thank, the creator of raylib, which is such a nice framework to work with.",
         "And then there's a thanks to TinyCircuits, without which I wouldn't have started this project.",
-        "That's all for now - if you think I forgot you, just ping me. I'm forgetful.",
+        "That's all for now - if you think I forgot you, just ping Zet. He's so forgetful.",
         0
     };
 

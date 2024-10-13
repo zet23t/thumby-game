@@ -194,6 +194,7 @@ uint8_t Scene_getMaxStep();
 void Scene_update(RuntimeContext *ctx, TE_Img *screen);
 void ScriptedAction_init();
 ScriptedAction* ScriptedAction_addSpeechBubble(uint8_t stepStart, uint8_t stepStop, const char *text, uint8_t speaker, int16_t speechBubbleX, int16_t speechBubbleY, uint8_t speechBubbleWidth, uint8_t speechBubbleHeight, int8_t arrowXOffset, int8_t arrowYOffset);
+ScriptedAction* ScriptedAction_addThoughtBubble(uint8_t stepStart, uint8_t stepStop, const char *text, uint8_t speaker, int16_t thoughtBubbleX, int16_t thoughtBubbleY, uint8_t thoughtBubbleWidth, uint8_t thoughtBubbleHeight, int8_t arrowXOffset, int8_t arrowYOffset);
 
 void ScriptedAction_addPlayerControlsEnabled(uint8_t stepStart, uint8_t stepStop, uint8_t enabled);
 void ScriptedAction_addSetPlayerTarget(uint8_t stepStart, uint8_t stepStop, int16_t x, int16_t y, uint8_t setX, uint8_t setY);
@@ -220,6 +221,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData);
 uint8_t Scene_getCurrentSceneId();
 
 void DrawSpeechBubble(TE_Img *screenData, int16_t x, int16_t y, int16_t width, int16_t height, int16_t arrowX, int16_t arrowY, const char *text);
+void DrawThoughtBubble(TE_Img *screenData, RuntimeContext *ctx, int16_t x, int16_t y, int16_t width, int16_t height, int16_t srcX, int16_t srcY, const char *text);
 void DrawNextButtonAction(RuntimeContext *ctx, TE_Img *screenData);
 
 #endif
