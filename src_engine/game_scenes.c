@@ -58,7 +58,7 @@ uint8_t Condition_update(const Condition *condition, RuntimeContext *ctx, TE_Img
         for (int i=0;i<4;i++)
         {
             float x, y;
-            if (Enemies_getPosition(condition->npcsInRect.npcIds[i], &x, &y))
+            if (Enemies_getPosition(condition->npcsInRect.npcIds[i], &x, &y, 0))
             {
                 if (x < condition->npcsInRect.x || x > condition->npcsInRect.x + condition->npcsInRect.width
                     || y < condition->npcsInRect.y || y > condition->npcsInRect.y + condition->npcsInRect.height)
@@ -486,7 +486,7 @@ void ScriptedAction_update(RuntimeContext *ctx, TE_Img *screenData)
             int16_t characterX = player.x;
             int16_t characterY = player.y;
             float chrX, chrY;
-            if (Enemies_getPosition(action.speechBubble.speaker, &chrX, &chrY))
+            if (Enemies_getPosition(action.speechBubble.speaker, &chrX, &chrY, 1))
             {
                 characterX = (int16_t)chrX;
                 characterY = (int16_t)chrY;
@@ -1075,7 +1075,7 @@ static void Scene_2_init(uint8_t sceneId)
     ScriptedAction_addTitleScreen(step, step + 1, "Part 1", "Where is my loot?", 1, step + 1);
     step++;
 
-    ScriptedAction_addLoadScene(step, step, SCENE_3_CHASING_THE_LOOT);
+    ScriptedAction_addLoadScene(step, step, SCENE_3_1_AT_THE_BRIDGE);
 }
 
 static void DrawTower(TE_Img *screenData, int16_t x, int16_t y, uint8_t z)
@@ -1121,8 +1121,8 @@ static void Scene_2_update(RuntimeContext *ctx, TE_Img *screenData)
     if (!isPullingCart)
     {
         float x1, y1, x2, y2;
-        Enemies_getPosition(1, &x1, &y1);
-        Enemies_getPosition(2, &x2, &y2);
+        Enemies_getPosition(1, &x1, &y1, 0);
+        Enemies_getPosition(2, &x2, &y2, 0);
         float cx = (x1 + x2) * 0.5f;
         float cy = (y1 + y2) * 0.5f;
         cartX = (int16_t)cx - 4;
@@ -1300,8 +1300,9 @@ static const Scene scenes[] = {
     { .id = SCENE_0_TESTING, .initFn = Scene_0_init, .updateFn = Scene_0_update },
     { .id = SCENE_1_PULLING_THE_CART, .initFn = Scene_1_init, .updateFn = Scene_1_update },
     { .id = SCENE_2_ARRIVING_AT_HOME, .initFn = Scene_2_init, .updateFn = Scene_2_update },
-    { .id = SCENE_3_CHASING_THE_LOOT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
-    { .id = SCENE_4_FIRST_FIGHT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
+    { .id = SCENE_3_1_AT_THE_BRIDGE, .initFn = Scene_3_init, .updateFn = Scene_3_update },
+    { .id = SCENE_3_2_FIRST_FIGHT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
+    { .id = SCENE_3_3_SECOND_FIGHT, .initFn = Scene_3_init, .updateFn = Scene_3_update },
     { .id = SCENE_PLAYED_THROUGH, .initFn = Scene_played_through_init, .updateFn = Scene_played_through_update },
     {0}
 };

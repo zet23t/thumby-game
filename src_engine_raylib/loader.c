@@ -33,30 +33,17 @@ void unloadLibrary(void* lib)
     CLOSE_LIBRARY((LIBRARY_HANDLE)lib);
 }
 
-void* getUpdateFunction(void* lib)
+void* getFunction(void* lib, const char *name)
 {
-    void* update = (void*)GET_FUNCTION((LIBRARY_HANDLE)lib, "update");
-    if (!update)
+    void* fn = (void*)GET_FUNCTION((LIBRARY_HANDLE)lib, name);
+    if (!fn)
     {
-        fprintf(stderr, "Error getting function: update\n");
+        fprintf(stderr, "Error getting function: %s\n", name);
         CLOSE_LIBRARY((LIBRARY_HANDLE)lib);
         exit(1);
     }
-    return update;
+    return fn;
 }
-
-void* getInitFunction(void *lib)
-{
-    void* init = (void*)GET_FUNCTION((LIBRARY_HANDLE)lib, "init");
-    if (!init)
-    {
-        fprintf(stderr, "Error getting function: init\n");
-        CLOSE_LIBRARY((LIBRARY_HANDLE)lib);
-        exit(1);
-    }
-    return init;
-}
-
 
 // COM port serial communication functions
 

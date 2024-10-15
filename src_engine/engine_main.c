@@ -124,6 +124,94 @@ float Avg32F_get(Avg32F *avg)
     return sum / 32.0f;
 }
 
+static TE_Img img;
+
+void TE_Debug_drawPixel(int x, int y, uint32_t color)
+{
+    TE_Img_setPixel(&img, x, y, color, (TE_ImgOpState) {
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+}
+
+void TE_Debug_drawLine(int x1, int y1, int x2, int y2, uint32_t color)
+{
+    TE_Img_line(&img, x1, y1, x2, y2, color, (TE_ImgOpState) {
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+}
+
+void TE_Debug_drawLineCircle(int x, int y, int r, uint32_t color)
+{
+    TE_Img_lineCircle(&img, x, y, r, color, (TE_ImgOpState) {
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+}
+
+
+TE_Img tinyImg;
+TE_Font tinyfont;
+
+void TE_Debug_drawText(int x, int y, const char *text, uint32_t color)
+{
+    TE_Font_drawText(&img, &tinyfont, x, y, -1, text, color, (TE_ImgOpState) {
+        .zCompareMode = Z_COMPARE_ALWAYS,
+        .zValue = 255,
+    });
+}
+uint8_t activeSceneId;
+
+//# WebAssembly function helpers
+// functions for web assembly export to ease JS bridging
+#include <stdlib.h>
+DLL_EXPORT RuntimeContext* RuntimeContext_create()
+{
+    RuntimeContext *ctx = (RuntimeContext*)malloc(sizeof(RuntimeContext));
+    memset(ctx, 0, sizeof(RuntimeContext));
+    return ctx;
+}
+
+DLL_EXPORT uint32_t* RuntimeContext_getScreen(RuntimeContext *ctx) { return ctx->screenData; }
+DLL_EXPORT uint32_t RuntimeContext_getRGBLed(RuntimeContext *ctx) { return ctx->rgbLightRed | (ctx->rgbLightGreen << 8) | (ctx->rgbLightBlue << 16); }
+DLL_EXPORT float RuntimeContext_getRumble(RuntimeContext *ctx) { return ctx->rumbleIntensity; }
+DLL_EXPORT void RuntimeContext_setUTimeCallback(RuntimeContext *ctx, uint32_t (*getUTime)())
+{
+    ctx->getUTime = getUTime;
+}
+DLL_EXPORT void RuntimeContext_updateInputs(RuntimeContext *ctx, 
+    double time, double timeDelta,
+    uint8_t up, uint8_t right, uint8_t down, uint8_t left, uint8_t a, uint8_t b, uint8_t menu, uint8_t shoulderLeft, uint8_t shoulderRight)
+{
+    ctx->time = (float)time;
+    ctx->deltaTime = (float)timeDelta;
+    ctx->frameCount++;
+
+    ctx->prevInputUp = ctx->inputUp;
+    ctx->prevInputRight = ctx->inputRight;
+    ctx->prevInputDown = ctx->inputDown;
+    ctx->prevInputLeft = ctx->inputLeft;
+    ctx->prevInputA = ctx->inputA;
+    ctx->prevInputB = ctx->inputB;
+    ctx->prevInputMenu = ctx->inputMenu;
+    ctx->prevInputShoulderLeft = ctx->inputShoulderLeft;
+    ctx->prevInputShoulderRight = ctx->inputShoulderRight;
+
+    ctx->inputUp = up;
+    ctx->inputRight = right;
+    ctx->inputDown = down;
+    ctx->inputLeft = left;
+    ctx->inputA = a;
+    ctx->inputB = b;
+    ctx->inputMenu = menu;
+    ctx->inputShoulderLeft = shoulderLeft;
+    ctx->inputShoulderRight = shoulderRight;
+}
+
+//# Runtime function hooks
+
+//## init
 DLL_EXPORT void init(RuntimeContext *ctx)
 {
     ctxLog = ctx->log;
@@ -242,107 +330,74 @@ DLL_EXPORT void init(RuntimeContext *ctx)
     TE_DebugRGB(1, 1, 1);
     Scene_setStep(state->currentStep);
     TE_DebugRGB(1, 0, 1);
-    // Environment_addTree(30,50, 12343050);
-    // // Environment_addTree(35,50, 12343550);
-    // // Environment_addTree(25,30, 12342530);
-    // Environment_addTree(60,50, 12346050);
-    // Environment_addTree(90,50, 12349050);
-    // Environment_addTree(35,90, 12343590);
-    // Environment_addTree(65,110, 12346511);
-    // Environment_addTree(90,80, 12349080);
-    // Environment_addTree(95,80, 12349580);
-    // Environment_addTree(95,90, 12349590);
-    // // Environment_addTree(30,80, 12343080);
-    // // Environment_addTree(60,80, 12346080);
-    // // Environment_addTree(90,80, 12349080);
 }
 
-static TE_Img img;
+#define FREQUENCY 2040.0
+// Cycles per second (hz)
+float frequency = 240.0f;
 
-void TE_Debug_drawPixel(int x, int y, uint32_t color)
+// Audio frequency, for smoothing
+float audioFrequency = 440.0f;
+
+// Previous value, used to test if sine needs to be rewritten, and to smoothly modulate frequency
+float oldFrequency = 1.0f;
+
+// Index for audio rendering
+float sineIdx = 0.0f;
+
+// Audio input processing callback
+void AudioInputCallback(void *buffer, unsigned int frames)
 {
-    TE_Img_setPixel(&img, x, y, color, (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 255,
-    });
 }
 
-void TE_Debug_drawLine(int x1, int y1, int x2, int y2, uint32_t color)
+#include "hxcmod.h"
+#include "greensleeves_thx.h"
+#include "nitabrowski.h"
+
+modcontext _modctx;
+int _modctx_initialized = 0;
+
+//## audioUpdate
+DLL_EXPORT void audioUpdate(char *buffer, unsigned int frames, int sampleRate, int sampleSize)
 {
-    TE_Img_line(&img, x1, y1, x2, y2, color, (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 255,
-    });
+    if (!_modctx_initialized)
+    {
+        _modctx_initialized = 1;
+        if (!hxcmod_init(&_modctx)) {
+            LOG("Failed to initialize hxcmod");
+            _modctx_initialized = -1;
+        }
+        hxcmod_setcfg(&_modctx, sampleRate, 0, 0);
+        if (!hxcmod_load(&_modctx, (unsigned char*)moddata_nitabrowski, moddata_nitabrowski_size))
+        {
+            LOG("Failed to load mod data");
+            _modctx_initialized = -1;
+        }
+    }
+
+    if (_modctx_initialized < 0)
+    {
+        return;
+    }
+
+    hxcmod_fillbuffer(&_modctx, (unsigned short*)buffer, frames, NULL);
+
+    // audioFrequency = frequency + (audioFrequency - frequency)*0.95f;
+
+    // float incr = audioFrequency/(float)sampleRate;
+    // short *d = (short *)buffer;
+    // float amplitude = 0.1f;
+
+    // for (unsigned int i = 0; i < frames; i++)
+    // {
+    //     d[i] = (short)(32000.0f*sinf(2*M_PI*sineIdx) * amplitude);
+    //     sineIdx += incr;
+    //     if (sineIdx > 1.0f) sineIdx -= 1.0f;
+    // }
 }
 
-void TE_Debug_drawLineCircle(int x, int y, int r, uint32_t color)
-{
-    TE_Img_lineCircle(&img, x, y, r, color, (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 255,
-    });
-}
-
-
-TE_Img tinyImg;
-TE_Font tinyfont;
-
-void TE_Debug_drawText(int x, int y, const char *text, uint32_t color)
-{
-    TE_Font_drawText(&img, &tinyfont, x, y, -1, text, color, (TE_ImgOpState) {
-        .zCompareMode = Z_COMPARE_ALWAYS,
-        .zValue = 255,
-    });
-}
-uint8_t activeSceneId;
-
-//# WebAssembly function helpers
-// functions for web assembly export to ease JS bridging
-#include <stdlib.h>
-DLL_EXPORT RuntimeContext* RuntimeContext_create()
-{
-    RuntimeContext *ctx = (RuntimeContext*)malloc(sizeof(RuntimeContext));
-    memset(ctx, 0, sizeof(RuntimeContext));
-    return ctx;
-}
-
-DLL_EXPORT uint32_t* RuntimeContext_getScreen(RuntimeContext *ctx) { return ctx->screenData; }
-DLL_EXPORT uint32_t RuntimeContext_getRGBLed(RuntimeContext *ctx) { return ctx->rgbLightRed | (ctx->rgbLightGreen << 8) | (ctx->rgbLightBlue << 16); }
-DLL_EXPORT float RuntimeContext_getRumble(RuntimeContext *ctx) { return ctx->rumbleIntensity; }
-DLL_EXPORT void RuntimeContext_setUTimeCallback(RuntimeContext *ctx, uint32_t (*getUTime)())
-{
-    ctx->getUTime = getUTime;
-}
-DLL_EXPORT void RuntimeContext_updateInputs(RuntimeContext *ctx, 
-    double time, double timeDelta,
-    uint8_t up, uint8_t right, uint8_t down, uint8_t left, uint8_t a, uint8_t b, uint8_t menu, uint8_t shoulderLeft, uint8_t shoulderRight)
-{
-    ctx->time = (float)time;
-    ctx->deltaTime = (float)timeDelta;
-    ctx->frameCount++;
-
-    ctx->prevInputUp = ctx->inputUp;
-    ctx->prevInputRight = ctx->inputRight;
-    ctx->prevInputDown = ctx->inputDown;
-    ctx->prevInputLeft = ctx->inputLeft;
-    ctx->prevInputA = ctx->inputA;
-    ctx->prevInputB = ctx->inputB;
-    ctx->prevInputMenu = ctx->inputMenu;
-    ctx->prevInputShoulderLeft = ctx->inputShoulderLeft;
-    ctx->prevInputShoulderRight = ctx->inputShoulderRight;
-
-    ctx->inputUp = up;
-    ctx->inputRight = right;
-    ctx->inputDown = down;
-    ctx->inputLeft = left;
-    ctx->inputA = a;
-    ctx->inputB = b;
-    ctx->inputMenu = menu;
-    ctx->inputShoulderLeft = shoulderLeft;
-    ctx->inputShoulderRight = shoulderRight;
-}
-
-//# Runtime function hooks
+//## update
+// The main update function for the game engine
 DLL_EXPORT void update(RuntimeContext *ctx)
 {
     TE_FrameStats imgStats = TE_Img_resetStats();

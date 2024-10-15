@@ -47,6 +47,11 @@ int TE_Font_getStringLength(const char *text)
             text++;
             switch (*text)
             {
+                case 'w': // wavy text
+                {
+                    text+=5;
+                    continue;
+                }
                 case 'x': // move x
                 {
                     text+=2;
@@ -67,6 +72,11 @@ int TE_Font_getStringLength(const char *text)
 int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t spacing, const char *text, uint32_t color, TE_ImgOpState state)
 {
     int width = 0;
+    uint8_t isWavyOn = 0;
+    float freqX = 0.0f;
+    float freqT = 0.0f;
+    float amplitude = 0.0f;
+    float phase = 0.0f;
     while (*text)
     {
         if (*text == '\r') continue;
@@ -82,6 +92,16 @@ int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t sp
             text++;
             switch (*text)
             {
+                case 'w': // wavy text
+                {
+                    freqX = (int8_t)text[1] * 0.05f;
+                    freqT = (int8_t)text[2] * 0.05f;
+                    amplitude = (int8_t)text[3] * 0.05f;
+                    phase = (int8_t)text[4] * 0.05f;
+                    isWavyOn = text[1] || text[2] || text[3] || text[4];
+                    text+=5;
+                    continue;
+                }
                 case 'x': // move x
                 {
                     width += (int8_t)text[1];
@@ -104,7 +124,15 @@ int TE_Font_drawText(TE_Img *img, TE_Font *font, int16_t x, int16_t y, int8_t sp
                 }
             }
         }
-        width += TE_Font_drawChar(img, font, x + width, y, *text, color, state) + spacing;
+        int16_t px = x + width;
+        int16_t py = y;
+        if (isWavyOn)
+        {
+            float t = 0.0f;
+            float wobble = amplitude * sinf(freqX * px + freqT * t + phase);
+            py += wobble;
+        }
+        width += TE_Font_drawChar(img, font, px, py, *text, color, state) + spacing;
         text++;
     }
     return width;
@@ -156,8 +184,8 @@ static TE_Vector2_s16 TE_Font_drawTextBox_internal(TE_Font_drawTextBoy_args args
         int lineWidth = TE_Font_getLetterWidth(font, &text[textIndex], &charWidth);
         // printf("?%d ",lineWidth);
         int lineEndIndex = textIndex;
-        int linePos = 0;
-        for (int i=0;i<charWidth;i++) line[linePos++] = text[textIndex + i];
+        // int linePos = 0;
+        // for (int i=0;i<charWidth;i++) line[linePos++] = text[textIndex + i];
         int breakPos = lineEndIndex + charWidth;
         int breakWidth = lineWidth;
         while (text[lineEndIndex + charWidth] && lineWidth < w && text[lineEndIndex + charWidth] != '\n')
@@ -239,6 +267,11 @@ int TE_Font_getLetterWidth(TE_Font *font, const char *c, uint8_t *charWidth)
     {
         switch (c[1])
         {
+            case 'w': // wavy text
+            {
+                *charWidth = 5;
+                return 0;
+            }
             case 'x': // move x
             {
                 *charWidth = 2;

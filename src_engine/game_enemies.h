@@ -16,7 +16,7 @@ void Enemies_setTarget(uint8_t id, float x, float y);
 void Enemies_update(RuntimeContext *ctx, TE_Img *img);
 int Enemies_raycastPoint(float x, float y);
 void Enemies_setItem(uint8_t id, int8_t leftItemIndex, int8_t rightItemIndex);
-int Enemies_getPosition(uint8_t id, float *outX, float *outY);
+int Enemies_getPosition(uint8_t id, float *outX, float *outY, uint8_t ignoreHealth);
 void Enemies_setHealth(uint8_t id, float health);
 int Enemies_isAlive(uint8_t id);
 int Enemy_takeDamage(Enemy *enemy, float damage, float srcVx, float srcVy, RuntimeContext *ctx, TE_Img *screen);

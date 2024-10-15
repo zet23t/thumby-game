@@ -238,12 +238,16 @@ int Enemies_raycastPoint(float x, float y)
     return -1;
 }
 
-int Enemies_getPosition(uint8_t id, float *outX, float *outY)
+int Enemies_getPosition(uint8_t id, float *outX, float *outY, uint8_t ignoreHealth)
 {
     for (int i=0;i<MAX_ENEMIES;i++)
     {
-        if (enemies[i].health > 0.0f && enemies[i].id == id)
+        if ((enemies[i].health > 0.0f || ignoreHealth) && enemies[i].id == id)
         {
+            if (enemies[i].health == 0.0f && enemies[i].character.x == 0.0f && enemies[i].character.y == 0.0f)
+            {
+                continue;
+            }
             *outX = enemies[i].character.x;
             *outY = enemies[i].character.y;
             return 1;

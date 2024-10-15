@@ -17,8 +17,7 @@
 
 static jmp_buf panicJmpBuf;
 
-void *getUpdateFunction(void *lib);
-void *getInitFunction(void *lib);
+void *getFunction(void *lib, const char *name);
 void *loadLibrary(const char *libName);
 void unloadLibrary(void *lib);
 
@@ -28,9 +27,11 @@ int sendData(void* hComm, const char *data);
 int receiveData(void* hComm, char *buffer, int bufferSize);
 
 void *coreLib;
+typedef void (*AudioUpdate)(char *buffer, unsigned int frameCount, int sampleRate, int sampleSize);
 typedef void (*UpdateFunc)(void *);
 typedef void (*InitFunc)(void *);
 UpdateFunc update;
+AudioUpdate audioUpdate;
 static const char *_isPanicked = NULL;
 
 static char consoleBuffer[0x10000];
@@ -84,6 +85,8 @@ void *compileFile(void *args) {
 
 void buildCoreDLL(int forceRebuild, RuntimeContext *ctx)
 {
+    audioUpdate = NULL;
+    update = NULL;
     if (coreLib)
         unloadLibrary(coreLib);
     
@@ -201,11 +204,13 @@ void buildCoreDLL(int forceRebuild, RuntimeContext *ctx)
 
     // Load the DLL and get the update function
     coreLib = loadLibrary("core.dll");
-    update = getUpdateFunction(coreLib);
+    update = getFunction(coreLib, "update");
+
+    audioUpdate = getFunction(coreLib, "audioUpdate");
     
     _isPanicked = NULL;
     
-    InitFunc init = getInitFunction(coreLib);
+    InitFunc init = getFunction(coreLib, "init");
     if (init != NULL && setjmp(panicJmpBuf) == 0)
         init(ctx);
     else
@@ -563,6 +568,54 @@ void SerialRemote_exit(SerialRemote *remote)
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
+#define SAMPLE_RATE 44100
+#define SAMPLE_SIZE 16
+#define AUDIO_BUFFER_SIZE 4096
+AudioStream audioStream;
+
+
+// Cycles per second (hz)
+float frequency = 440.0f;
+
+// Audio frequency, for smoothing
+float audioFrequency = 440.0f;
+
+// Previous value, used to test if sine needs to be rewritten, and to smoothly modulate frequency
+float oldFrequency = 1.0f;
+
+// Index for audio rendering
+float sineIdx = 0.0f;
+
+// Audio input processing callback
+void AudioInputCallback(void *buffer, unsigned int frames)
+{
+    audioFrequency = frequency + (audioFrequency - frequency)*0.95f;
+
+    float incr = audioFrequency/44100.0f;
+    short *d = (short *)buffer;
+
+    for (unsigned int i = 0; i < frames; i++)
+    {
+        d[i] = (short)(32000.0f*sinf(2*PI*sineIdx));
+        sineIdx += incr;
+        if (sineIdx > 1.0f) sineIdx -= 1.0f;
+    }
+}
+
+void AudioSystemCallback(void *buffer, unsigned int frames)
+{
+    for (unsigned int i = 0; i < frames; i++)
+    {
+        ((short *)buffer)[i] = 0;
+    }
+    if (audioUpdate != NULL)
+    {
+        audioUpdate(buffer, frames, SAMPLE_RATE, 16);
+    }
+}
+
+
+
 int main(void)
 {
     // Initialization
@@ -574,9 +627,13 @@ int main(void)
     
     InitWindow(screenWidth, screenHeight, "Thumby color engine simulator");
     InitAudioDevice();
+    audioStream = LoadAudioStream(SAMPLE_RATE, SAMPLE_SIZE, 1);
+    SetAudioStreamCallback(audioStream, AudioSystemCallback);
+    PlayAudioStream(audioStream);
+
     printf("sizeof(RuntimeContext) = %d\n", sizeof(RuntimeContext));
 
-    ModMusicPlayState_init(&musicState);
+    // ModMusicPlayState_init(&musicState);
     // SerialRemote_init(&remote);
 
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
@@ -619,7 +676,7 @@ int main(void)
     // Main game loop
     while (!WindowShouldClose()) // Detect window close button or ESC key
     {
-        ModMusicPlayState_update(&musicState);
+        // ModMusicPlayState_update(&musicState);
         if (IsKeyPressed(KEY_F10))
         {
             // copy source to pico2 build dir

@@ -3,6 +3,17 @@
 
 #include <inttypes.h>
 
+#define INPUT_BUTTON_UP 1
+#define INPUT_BUTTON_DOWN 2
+#define INPUT_BUTTON_LEFT 4
+#define INPUT_BUTTON_RIGHT 8
+#define INPUT_BUTTON_A 16
+#define INPUT_BUTTON_B 32
+#define INPUT_BUTTON_SHOULDER_LEFT 64
+#define INPUT_BUTTON_SHOULDER_RIGHT 128
+#define INPUT_BUTTON_MENU 256
+
+
 #define ALIGN_VALUE4(x) (((x)+3)&~3)
 
 typedef struct TE_FrameStats

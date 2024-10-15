@@ -18,6 +18,8 @@
 
 typedef struct Scene3_EnemyCrowd Scene3_EnemyCrowd;
 
+void Scene_3_drawKOEnemy(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction *action);
+
 typedef struct Scene3_EnemyData
 {
     Scene3_EnemyCrowd *crowd;
@@ -159,6 +161,21 @@ void Scene_3_battleStart(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *ac
             }
             else if (enemy && entity->hitpoints <= 0)
             {
+                LOG("Enemy %d is defeated", entity->id);
+                if (enemy->health > 0.0f)
+                {
+                    ScriptedAction* action = ScriptedAction_addCustomCallback(0, 0xff, Scene_3_drawKOEnemy);
+                    LOG("Setting KO enemy %d callback", entity->id);
+                    action->customCallback.iValue = enemy->id;
+                    action->customCallback.x = enemy->character.x;
+                    action->customCallback.y = enemy->character.y;
+                    float vx = 15.0f;
+                    float vy = 0.0f;
+                    enemy->character.targetX = enemy->character.x + vx * 0.05f;
+                    enemy->character.targetY = enemy->character.y + vy * 0.05f;
+                    action->customCallback.flag = 0;
+                    action->actionStartTime = ctx->time;
+                }
                 enemy->health = 0.0f;
             }
             else if (enemy)
@@ -395,6 +412,16 @@ uint8_t BattleState_hasPlayerWon(BattleState *state)
     return BattleState_getAliveTeamBits(state) == 1;
 }
 
+uint8_t BattleState_isExecutingAction(BattleState *state)
+{
+    return state->queuedEntityId >= 0;
+}
+
+uint8_t BattleState_isWaiting(BattleState *state)
+{
+    return state->queuedEntityId < 0;
+}
+
 static void Scene_3_subscene_1_init(uint8_t sceneId)
 {
     player.x = 160;
@@ -497,7 +524,7 @@ static void Scene_3_subscene_1_init(uint8_t sceneId)
     ScriptedAction_addSetItem(step, step+2, 4, 0, ITEM_STAFF);
 
     ScriptedAction_addSpeechBubble(step, step, "Fine, let's have some fun first.", 0, 4, 4, 70, 48, -4, -8);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
     
     ScriptedAction_addSpeechBubble(step, step, "Your name must be Sir Bigmouth.", 1, 8, 4, 112, 38, 0, -10);
@@ -516,13 +543,18 @@ static void Scene_3_subscene_1_init(uint8_t sceneId)
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
     step++;
 
-    ScriptedAction_addLoadScene(step, step, SCENE_4_FIRST_FIGHT);
+    ScriptedAction_addLoadScene(step, step, SCENE_3_2_FIRST_FIGHT);
 }
 
 static void Scene_3_drawPointerToStrike(RuntimeContext *ctx, TE_Img *screen, ScriptedAction *callback)
 {
     BattleState *battleState = (BattleState*)callback->customCallback.dataPointer;
-    int16_t x = 60, y = 5 + battleState->menuWindow.lineHeight * 1 - BattleMenuWindow_getScrollListOffset(&battleState->menuWindow, &battleState->menu);
+    int select = 1;
+    if (battleState->entities[1].hitpoints < 3)
+    {
+        select = 0;
+    }
+    int16_t x = 60, y = 5 + battleState->menuWindow.lineHeight * select - BattleMenuWindow_getScrollListOffset(&battleState->menuWindow, &battleState->menu);
     GameAssets_drawAnimation(ANIMATION_HAND_POINTING_UP, screen, 0, x, y, 0xffff, 
         (BlitEx) {
             .blendMode = TE_BLEND_ALPHAMASK,
@@ -532,11 +564,11 @@ static void Scene_3_drawPointerToStrike(RuntimeContext *ctx, TE_Img *screen, Scr
             }
         });
     uint8_t inputGuide = INPUT_BUTTON_DOWN;
-    if (battleState->selectedAction > 1)
+    if (battleState->selectedAction > select)
     {
         inputGuide = INPUT_BUTTON_UP;
     }
-    else if (battleState->selectedAction == 1)
+    else if (battleState->selectedAction == select)
     {
         inputGuide = INPUT_BUTTON_A;
     }
@@ -585,10 +617,10 @@ static void Scene_3_subscene_2_init(uint8_t sceneId)
     // });
 
     
-    ScriptedAction_addNPCSpawn(step, step + 50, 1, 3, 60, 70, 60, 70);
-    ScriptedAction_addNPCSpawn(step, step + 50, 2, 4, 50, 66, 50, 66);
-    ScriptedAction_addNPCSpawn(step, step + 50, 3, 3, 100, 40, 100, 40);
-    ScriptedAction_addNPCSpawn(step, step + 50, 4, 4, 100, 96, 100, 96);
+    ScriptedAction_addNPCSpawn(step, step, 1, 3, 60, 70, 60, 70);
+    ScriptedAction_addNPCSpawn(step, step, 2, 4, 50, 66, 50, 66);
+    ScriptedAction_addNPCSpawn(step, step, 3, 3, 100, 40, 100, 40);
+    ScriptedAction_addNPCSpawn(step, step, 4, 4, 100, 96, 100, 96);
     ScriptedAction_addSetItem(step, step+2, 0, 0, ITEM_STAFF);
     ScriptedAction_addSetItem(step, step+2, 1, 0, ITEM_STAFF);
     ScriptedAction_addSetItem(step, step+2, 2, -ITEM_STAFF, 0);
@@ -676,24 +708,191 @@ static void Scene_3_subscene_2_init(uint8_t sceneId)
         .entriesCount = 5,
     };
 
-    ScriptedAction *battleAction = ScriptedAction_addCustomCallback(step, step + 1, Scene_3_battleStart);
+    ScriptedAction *battleAction = ScriptedAction_addCustomCallback(step, step + 3, Scene_3_battleStart);
     battleAction->customCallback.dataPointer = battleState;
     // fight
+
+    ScriptedAction_addCustomCallback(step, step, Scene_3_drawPointerToStrike)->customCallback.dataPointer = battleState;
+    ScriptedAction_addThoughtBubble(step, step, "He's slow. I'll do a quick strike before he can act.", 0, 8, 90, 112, 40, 0, 8);
+
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ 
+        .type = CONDITION_TYPE_CALLBACK_DATA,
+        .callback.callbackRawData = (uint8_t(*)(void*)) BattleState_isExecutingAction,
+        .callback.callbackData = battleState
+    });
+    step++;
+    
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ 
+        .type = CONDITION_TYPE_CALLBACK_DATA,
+        .callback.callbackRawData = (uint8_t(*)(void*)) BattleState_isWaiting,
+        .callback.callbackData = battleState
+    });
+
+    step++;
+    ScriptedAction_addCustomCallback(step, step, Scene_3_drawPointerToStrike)->customCallback.dataPointer = battleState;
+    ScriptedAction_addThoughtBubble(step, step, "Hehe, he looks shaky, a thrust with my staff and he's done.", 0, 8, 90, 112, 40, 0, 8);
     ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ 
         .type = CONDITION_TYPE_CALLBACK_DATA,
         .callback.callbackRawData = (uint8_t(*)(void*)) BattleState_hasPlayerWon,
         .callback.callbackData = battleState
     });
-
-    ScriptedAction_addCustomCallback(step, step, Scene_3_drawPointerToStrike)->customCallback.dataPointer = battleState;
-    ScriptedAction_addThoughtBubble(step, step, "He looks easy. Quick strike, then a thrust.", 0, 8, 96, 112, 30, 0, 8);
+    step++;
+    
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ 
+        .type = CONDITION_TYPE_WAIT,
+        .wait.duration = 1.0f
+    });
 
     step++;
+    ScriptedAction_addSpeechBubble(step, step, "OH MY GOD, HE KILLED LENNY!", 2, 4, 4, 70, 48, -4, -8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+    ScriptedAction_addSpeechBubble(step, step, TX_WAVY(10, 20, 25, 1) "I am not dead ... my head is just spinning... really fast", 1, 4, 4, 120, 48, -4, -8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+    ScriptedAction_addSpeechBubble(step, step, "Don't be silly, of course he's not dead ...", 0, 4, 4, 120, 48, -4, -8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+    ScriptedAction_addSpeechBubble(step, step, "... if I wanted him dead, I wouldn't have hit his head!", 0, 4, 4, 120, 48, -4, -8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+    ScriptedAction_addSpeechBubble(step, step, "Ok guys, uh, you go for him ...", 2, 4, 4, 120, 48, -4, -8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+    ScriptedAction_addSpeechBubble(step, step, "... while I guard the bridge. " TX_SPRITE(SPRITE_EMOJI_FEAR, 1, 3), 2, 4, 4, 120, 48, -4, -8);
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_PRESS_NEXT });
+    step++;
+    ScriptedAction_addLoadScene(step, step, SCENE_3_3_SECOND_FIGHT);
     LOG("final Step: %d", step);
-    ScriptedAction_addSpeechBubble(step, step, "Aaaand I am done here.", 0, 4, 4, 70, 48, -4, -8);
-    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ .type = CONDITION_TYPE_WAIT, .wait.duration = 2.5f });
+}
+
+static void Scene_3_subscene_3_init(uint8_t sceneId)
+{
+    uint8_t step = 0;
+
+    player.x = 90;
+    playerCharacter.x = player.x;
+    player.y = 73;
+    playerCharacter.y = player.y;
+
+    ScriptedAction_addNPCSpawn(step, step+10, 1, 3, 70, 58, 70, 58);
+    ScriptedAction_addNPCSpawn(step, step+10, 2, 4, 50, 66, 50, 66);
+    ScriptedAction_addNPCSpawn(step, step, 3, 3, 100, 40, 100, 40);
+    ScriptedAction_addNPCSpawn(step, step, 4, 4, 100, 96, 100, 96);
+    ScriptedAction_addSetNPCHealth(step, step+10, 1, 0.0f);
+    ScriptedAction *lennyKO = ScriptedAction_addCustomCallback(step, step+10, Scene_3_drawKOEnemy);
+    lennyKO->customCallback.iValue = 1;
+    lennyKO->customCallback.x = 70;
+    lennyKO->customCallback.y = 58;
+    lennyKO->customCallback.flag = 1;
+    lennyKO->actionStartTime = -10.0f;
+
+    ScriptedAction_addSetItem(step, step+2, 0, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 1, 0, ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 2, -ITEM_STAFF, 0);
+    ScriptedAction_addSetItem(step, step+2, 3, 0, -ITEM_STAFF);
+    ScriptedAction_addSetItem(step, step+2, 4, 0, ITEM_STAFF);
+    ScriptedAction_addSetPlayerTarget(step, step, 90, 73, 1, 1);
+
+    ScriptedAction_addPlayerControlsEnabled(step, step, 0);
+    
+    ScriptedAction_addJumpStep(step, step, step + 1);
     step++;
-    ScriptedAction_addLoadScene(step, step, SCENE_PLAYED_THROUGH);
+    
+    BattleAction *playerActions = Scene_malloc(sizeof(BattleAction) * 8);
+    BattleMenu *changeTargetMenu = Scene_malloc(sizeof(BattleMenu));
+    changeTargetMenu->selectedAction = 0;
+
+    playerActions[0] = BattleAction_Thrust();
+    playerActions[1] = BattleAction_Strike();
+    playerActions[2] = BattleAction_Parry();
+    playerActions[3] = BattleAction_Insult((const char *[]){
+        "A fine swing ... for a child!",
+        "I've seen trees move faster than you.",
+        "Aiming for the air, are we?",
+        "Did you all practice missing together?",
+        0
+    });
+    playerActions[4] = BattleAction_ChangeTarget();
+
+    BattleAction *npcActions = Scene_malloc(sizeof(BattleAction) * 8);
+    npcActions[0] = BattleAction_Thrust();
+
+    BattleState *battleState = Scene_malloc(sizeof(BattleState));
+    battleState->queuedEntityId = -1;
+    battleState->activatingAction = -1;
+    battleState->entityCount = 3;
+    for (int i=0;i<3;i++)
+    {
+        battleState->entities[i].id = i > 0 ? i + 2 : 0;
+        battleState->entities[i].team = i > 0 ? 1 : 0;
+        battleState->entities[i].actionPoints = i == 0 ? 1 : 4 + i;
+        battleState->entities[i].hitpoints = 3;
+        battleState->entities[i].maxHitpoints = 3;
+        battleState->entities[i].position = i;
+        if (i > 0)
+        {
+            battleState->entities[i].actionNTList = npcActions;
+        }
+    }
+    battleState->entities[0].hitpoints = 5;
+    battleState->entities[0].maxHitpoints = 5;
+    battleState->entities[0].target = 1;
+    battleState->entities[0].actionNTList = playerActions;
+    
+    battleState->entities[1].name = "Chuck";
+    battleState->entities[1].characterType = 3;
+    battleState->entities[2].name = "Mart";
+    battleState->entities[2].characterType = 4;
+
+    battleState->positions[0] = (BattlePosition){.x = 90, .y = 85};
+    battleState->positions[1] = (BattlePosition){.x = 110, .y = 70};
+    battleState->positions[2] = (BattlePosition){.x = 70, .y = 110};
+    battleState->positions[3] = (BattlePosition){.x = 110, .y = 110};
+
+    battleState->positions[4] = (BattlePosition){.x = 70, .y = 70};
+
+    battleState->menuWindow.x = -1;
+    battleState->menuWindow.y = -1;
+    battleState->menuWindow.w = 130;
+    battleState->menuWindow.h = 44;
+    battleState->menuWindow.divX = 80;
+    battleState->menuWindow.divX2 = 106;
+    battleState->menuWindow.lineHeight = 11;
+    battleState->menuWindow.selectedColor = 0x660099ff;
+
+    BattleMenuEntry *mainEntries = Scene_malloc(sizeof(BattleMenuEntry) * 5);
+    for (int i=0;i<5;i++)
+    {
+        mainEntries[i] = BattleMenuEntry_fromAction(&playerActions[i]);
+    }
+
+    battleState->menu = (BattleMenu){
+        .selectedAction = 0,
+        .entries = mainEntries,
+        .entriesCount = 5,
+    };
+
+    ScriptedAction *battleAction = ScriptedAction_addCustomCallback(step, step + 3, Scene_3_battleStart);
+    battleAction->customCallback.dataPointer = battleState;
+
+    step++;
+
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ 
+        .type = CONDITION_TYPE_CALLBACK_DATA,
+        .callback.callbackRawData = (uint8_t(*)(void*)) BattleState_hasPlayerWon,
+        .callback.callbackData = battleState
+    });
+    step++;
+    
+    ScriptedAction_addProceedPlotCondition(step, step, step + 1, (Condition){ 
+        .type = CONDITION_TYPE_WAIT,
+        .wait.duration = 1.0f
+    });
+    step++;
+
+    ScriptedAction_addLoadScene(step, step, SCENE_3_3_SECOND_FIGHT);
+    LOG("final Step: %d", step);
 }
 
 void Scene_3_init(uint8_t sceneId)
@@ -712,11 +911,14 @@ void Scene_3_init(uint8_t sceneId)
 
     switch (sceneId)
     {
-        case SCENE_3_CHASING_THE_LOOT:
+        case SCENE_3_1_AT_THE_BRIDGE:
             Scene_3_subscene_1_init(sceneId);
             break;
-        case SCENE_4_FIRST_FIGHT:
+        case SCENE_3_2_FIRST_FIGHT:
             Scene_3_subscene_2_init(sceneId);
+            break;
+        case SCENE_3_3_SECOND_FIGHT:
+            Scene_3_subscene_3_init(sceneId);
             break;
     }
 
@@ -724,7 +926,12 @@ void Scene_3_init(uint8_t sceneId)
 
 void Scene_3_drawKOEnemy(RuntimeContext *ctx, TE_Img *screenData, ScriptedAction *action)
 {
-    Enemy *enemy = action->customCallback.enemyPointer;
+    Enemy *enemy = Enemies_getEnemy(action->customCallback.iValue, 1);
+    if (!enemy)
+    {
+        LOG("Enemy not found %d", action->customCallback.iValue);
+        return;
+    }
     float t = ctx->time - action->actionStartTime;
     float x = action->customCallback.x;
     float y = action->customCallback.y;
@@ -806,7 +1013,7 @@ static void Scene_3_enemyTookDamage(struct Enemy *enemy, float damage, float vx,
             Scene_setStep(data->crowd->nextStepOnDefeated);
         }
         ScriptedAction* action = ScriptedAction_addCustomCallback(0, 0xff, Scene_3_drawKOEnemy);
-        action->customCallback.dataPointer = enemy;
+        action->customCallback.iValue = enemy->id;
         action->customCallback.x = enemy->character.x;
         action->customCallback.y = enemy->character.y;
         enemy->character.targetX = enemy->character.x + vx * 0.05f;

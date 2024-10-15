@@ -327,7 +327,80 @@ void pngs2c(const char *dir, const char *outDir)
     UnloadDirectoryFiles(list);
 }
 
+void packMods(const char *dir, const char *outDir)
+{
+    createDirectory(outDir);
+    FilePathList list = LoadDirectoryFiles(dir);
+    for (int i = 0; i < list.count; i++)
+    {
+        if (IsFileExtension(list.paths[i], ".mod"))
+        {
+            printf("Processing MOD: %s\n", list.paths[i]);
+            // read mod file and store as-is in c byte array
+            FILE *f = fopen(list.paths[i], "rb");
+            if (f == NULL)
+            {
+                perror("Error opening file");
+                continue;
+            }
+            char outFile[256];
+            char rawFileName[256];
+            const char *fileNameWithoutExt = GetFileNameWithoutExt(list.paths[i]);
+            strcpy(rawFileName, fileNameWithoutExt);
+            sprintf(outFile, "%s/%s.c", outDir, rawFileName);
+            FILE *out = fopen(outFile, "w");
+            if (out == NULL)
+            {
+                perror("Error opening file");
+                fclose(f);
+                continue;
+            }
+            fprintf(out, "char moddata_%s[] = {\n", rawFileName);
+            unsigned char buffer[1024];
+            size_t bytesRead;
+            int byteCount = 0;
+            while ((bytesRead = fread(buffer, 1, sizeof(buffer), f)) > 0)
+            {
+                byteCount += bytesRead;
+                for (int i = 0; i < bytesRead; i++)
+                {
+                    fprintf(out, "0x%02x,", buffer[i]);
+                    if ((i + 1) % 16 == 0)
+                    {
+                        fprintf(out, "\n");
+                    }
+                }
+            }
+            fprintf(out, "};\n");
+            fprintf(out, "int moddata_%s_size = %d;\n", rawFileName, byteCount);
+            fclose(out);
+            fclose(f);
+
+            // create header file
+            char headerFile[256];
+            sprintf(headerFile, "%s/%s.h", outDir, rawFileName);
+            FILE *header = fopen(headerFile, "w");
+            if (header == NULL)
+            {
+                perror("Error opening file");
+                continue;
+            }
+            fprintf(header, "#ifndef %s_H\n", rawFileName);
+            fprintf(header, "#define %s_H\n", rawFileName);
+            fprintf(header, "extern char moddata_%s[];\n", rawFileName);
+            fprintf(header, "extern int moddata_%s_size;\n", rawFileName);
+            fprintf(header, "#endif\n");
+            fclose(header);
+
+            printf("Processed MOD: %s\n", list.paths[i]);
+        }
+    }
+
+    UnloadDirectoryFiles(list);
+}
+
 void generateAssets()
 {
     pngs2c("assets", "_src_gen");
+    packMods("assets", "_src_gen");
 }

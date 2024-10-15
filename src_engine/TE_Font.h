@@ -28,6 +28,9 @@ TE_Vector2_s16 TE_Font_drawTextBox(TE_Img *img, TE_Font *font, int16_t x, int16_
 #define STRHX(x) STRHX_##x
 #define TX_SPRITE(spriteId, px, py) "\bs" STRHX(spriteId) STRHX(px) STRHX(py)
 #define TX_MOVECURSOR_X(dx) "\bx" STRHX(dx)
+// wavy text instruction. Vertical offset is calculated as amplitude * 0.05f * sin(freqX * x * 0.05f + freqT * t * 0.05f + phase * 0.05f)
+#define TX_WAVY(freqX,freqT,amplitude,phase) "\bw" STRHX(freqX) STRHX(freqT) STRHX(amplitude) STRHX(phase)
+#define TX_WAVY_OFF() "\bw\x00\x00\x00\x00"
 
 #define STRHX_0 "\x00"
 #define STRHX_1 "\x01"

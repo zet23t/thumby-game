@@ -10,9 +10,10 @@
 #define SCENE_0_TESTING 0
 #define SCENE_1_PULLING_THE_CART 1
 #define SCENE_2_ARRIVING_AT_HOME 2
-#define SCENE_3_CHASING_THE_LOOT 3
-#define SCENE_4_FIRST_FIGHT 4
-#define SCENE_PLAYED_THROUGH 5
+#define SCENE_3_1_AT_THE_BRIDGE 3
+#define SCENE_3_2_FIRST_FIGHT 4
+#define SCENE_3_3_SECOND_FIGHT 5
+#define SCENE_PLAYED_THROUGH 6
 
 #define FADEIN_FLAG 1
 #define FADEOUT_RIGHT_TO_LEFT 0
@@ -52,7 +53,9 @@ typedef struct Condition
 #define CONDITION_TYPE_PRESS_NEXT 2
 #define CONDITION_TYPE_NPCS_IN_RECT 3
 #define CONDITION_TYPE_WAIT 4
+// callback with ctx, screenData, and const condition as args
 #define CONDITION_TYPE_CALLBACK 5
+// will call callback with data pointer as only arg
 #define CONDITION_TYPE_CALLBACK_DATA 6
 
 
@@ -155,6 +158,8 @@ typedef struct ScriptedAction
                 void *dataPointer;
                 Character *characterPointer;
                 Enemy *enemyPointer;
+                uint32_t iValue;
+                float fValue;
             };
             uint8_t flag;
             int16_t x, y;

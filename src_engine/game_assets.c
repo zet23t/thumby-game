@@ -93,6 +93,7 @@ static const SpriteData _sprites[] = {
     {248, 128, 8, 8, 4, 4},   // SPRITE_BUTTON_A
     {248, 136, 8, 8, 4, 4},   // SPRITE_BUTTON_B
     {248, 144, 8, 8, 4, 4},   // SPRITE_BUTTON_MENU
+    {80, 244, 11, 12, 5, 5},  // SPRITE_EMOJI_FEAR
 };
 
 static SpriteData _getSpriteData(uint8_t index)
@@ -213,7 +214,7 @@ int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_
     return 0;
 }
 
-void GameAssets_drawInputButton(TE_Img *dst, RuntimeContext *ctx, uint8_t button, int16_t x, int16_t y, BlitEx blitEx)
+void GameAssets_drawInputButton(TE_Img *dst, RuntimeContext *ctx, uint16_t button, int16_t x, int16_t y, BlitEx blitEx)
 {
     int32_t offset = absi((int32_t)(sinf(ctx->time * 5.0f) * 2.0f));
     TE_Img_fillCircle(dst, x, y, 6, DB32Colors[DB32_BROWN], blitEx.state);
