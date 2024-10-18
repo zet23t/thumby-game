@@ -576,15 +576,24 @@ RenderPrefab* GameAssets_getRenderPrefab(uint8_t id, uint8_t variant)
     return prefab;
 }
 
-#include "greensleeves_thx.h"
-#include "nitabrowski.h"
+#include "mod_ballade_pour_adeline.h"
+#include "mod_1987_tune.h"
+#include "mod_2_core.h"
+#include "mod_4mat_wizardry.h"
+#include "mod_greensleeves_thx.h"
+#include "mod_nitabrowski.h"
 
 int GameAssets_getMusic(uint8_t id, const char **outData, int *outSize)
 {
     switch (id)
     {
-        case 0: *outData = moddata_greensleeves_thx; *outSize = moddata_greensleeves_thx_size; return 1;
-        case 1: *outData = moddata_nitabrowski; *outSize = moddata_nitabrowski_size; return 1;
+        case 0: *outData = moddata_ballade_pour_adeline; *outSize = moddata_ballade_pour_adeline_size; return 1;
+        case 1: *outData = moddata_1987_tune; *outSize = moddata_1987_tune_size; return 1;
+        case 2: *outData = moddata_2_core; *outSize = moddata_2_core_size; return 1;
+        case 3: *outData = moddata_4mat_wizardry; *outSize = moddata_4mat_wizardry_size; return 1;
+        case 4: *outData = moddata_greensleeves_thx; *outSize = moddata_greensleeves_thx_size; return 1;
+        case 5: *outData = moddata_nitabrowski; *outSize = moddata_nitabrowski_size; return 1;
+
     }
     return 0;
 }

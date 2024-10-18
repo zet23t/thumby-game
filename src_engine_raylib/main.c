@@ -792,6 +792,16 @@ int main(void)
         rlDisableColorBlend();
         DrawTextureEx(texture, offset, 0.0f, scale, WHITE);
         DrawTextureEx(overdrawTexture, (Vector2){offset.x + 128 * scale, offset.y}, 0.0f, scale, WHITE);
+
+        // draw audio buffer
+        DrawRectangle(0, screenHeight - 100, screenWidth, 100, BLACK);
+        uint16_t *audioBuffer = (uint16_t *)audioCtx.outBuffer;
+        for (int i = 0; i < 256; i++)
+        {
+            uint16_t sample = audioBuffer[i] >> 10;
+            DrawRectangle(i, screenHeight - 100 + sample, 1, sample, RED);
+        }
+        
         rlEnableColorBlend();
 
         EndDrawing();

@@ -347,7 +347,15 @@ void packMods(const char *dir, const char *outDir)
             char rawFileName[256];
             const char *fileNameWithoutExt = GetFileNameWithoutExt(list.paths[i]);
             strcpy(rawFileName, fileNameWithoutExt);
-            sprintf(outFile, "%s/%s.c", outDir, rawFileName);
+            // replace invalid characters in variable name
+            for (int i = 0; i < strlen(rawFileName); i++)
+            {
+                if (rawFileName[i] == '-' || rawFileName[i] == ' ')
+                {
+                    rawFileName[i] = '_';
+                }
+            }
+            sprintf(outFile, "%s/mod_%s.c", outDir, rawFileName);
             FILE *out = fopen(outFile, "w");
             if (out == NULL)
             {
@@ -378,17 +386,17 @@ void packMods(const char *dir, const char *outDir)
 
             // create header file
             char headerFile[256];
-            sprintf(headerFile, "%s/%s.h", outDir, rawFileName);
+            sprintf(headerFile, "%s/mod_%s.h", outDir, rawFileName);
             FILE *header = fopen(headerFile, "w");
             if (header == NULL)
             {
                 perror("Error opening file");
                 continue;
             }
-            fprintf(header, "#ifndef %s_H\n", rawFileName);
-            fprintf(header, "#define %s_H\n", rawFileName);
-            fprintf(header, "extern char moddata_%s[];\n", rawFileName);
-            fprintf(header, "extern int moddata_%s_size;\n", rawFileName);
+            fprintf(header, "#ifndef _%s_H\n", rawFileName);
+            fprintf(header, "#define _%s_H\n", rawFileName);
+            fprintf(header, "extern const char moddata_%s[];\n", rawFileName);
+            fprintf(header, "extern const int moddata_%s_size;\n", rawFileName);
             fprintf(header, "#endif\n");
             fclose(header);
 

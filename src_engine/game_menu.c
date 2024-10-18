@@ -162,7 +162,7 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
             ctx->outSfxInstructions[0] = (SFXInstruction)
             {
                 .type = SFXINSTRUCTION_TYPE_PLAY,
-                .id = musicId++%2,
+                .id = musicId++%5,
                 .updateMask = SFXINSTRUCTION_UPDATE_MASK_VOLUME,
                 .volume = 150
             };
@@ -170,9 +170,9 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
     }
 
     char info[128];
-    sprintf(info, "Draw stats (A): %s Play Music (B) RenderObjectSprite: %d RuntimeContext: %d", 
-        ctx->drawStats ? "yes" : "no",
-        (int) sizeof(RenderObjectSprite), (int) sizeof(RuntimeContext));
+    sprintf(info, "Draw stats (A): %s - Play Music (B) - Music by ModArchive.org: "
+        "4mat-Wizardry; 2_core; 1987-tune; greensleeves_thx; nitabrowski", 
+        ctx->drawStats ? "yes" : "no");
     
 
     TE_Font_drawTextBox(img, &tinyfont, menuX + 4, menuY + 18, 127-(menuX + 4)*2 - 2, 64, -1, -4, 
