@@ -43,10 +43,61 @@ typedef struct TE_FrameStats
 
 #define BENCH(call, name) ctx->frameStats.updateTime.name = ctx->getUTime(); call; ctx->frameStats.updateTime.name = ctx->getUTime() - ctx->frameStats.updateTime.name;
 
+#define SFXINSTRUCTION_TYPE_NONE 0
+#define SFXINSTRUCTION_TYPE_PLAY 1
+#define SFXINSTRUCTION_TYPE_PAUSE 2
+#define SFXINSTRUCTION_TYPE_RESUME 3
+#define SFXINSTRUCTION_TYPE_UPDATE 4
+
+#define SFXINSTRUCTION_UPDATE_MASK_VOLUME 1
+#define SFXINSTRUCTION_UPDATE_MASK_PITCH 2
+#define SFXINSTRUCTION_UPDATE_MASK_OFFSET 4
+#define SFXINSTRUCTION_UPDATE_MASK_FADERANGE 8
+
+#define SFX_CHANNEL_MUSIC 0
+#define SFX_CHANNEL_1 1
+#define SFX_CHANNEL_2 2
+#define SFX_CHANNEL_3 3
+#define SFX_CHANNEL_4 4
+#define SFX_CHANNELS_COUNT 5
+
+typedef struct SFXInstruction
+{
+    uint8_t type:3;
+    uint8_t updateMask:4;
+    uint8_t loop:1;
+    uint8_t id;
+    uint8_t volume;
+    uint8_t pitch;
+    uint8_t fadeRange;
+    uint16_t offset;
+} SFXInstruction;
+
+typedef struct SFXChannelStatus
+{
+    uint8_t id;
+    uint8_t currentVolume;
+    uint8_t currentPitch;
+    uint8_t currentPositionPercent;
+    uint8_t flagIsPlaying:1;
+} SFXChannelStatus;
+
+typedef struct AudioContext
+{
+    SFXInstruction inSfxInstructions[SFX_CHANNELS_COUNT];
+    SFXChannelStatus outSfxChannelStatus[SFX_CHANNELS_COUNT];
+    char *outBuffer;
+    uint32_t frames;
+    uint16_t sampleRate; 
+    uint8_t sampleSize;
+} AudioContext;
+
 typedef struct RuntimeContext
 {
     uint32_t screenData[128*128];
     TE_FrameStats frameStats;
+    SFXChannelStatus sfxChannelStatus[SFX_CHANNELS_COUNT];
+    SFXInstruction outSfxInstructions[SFX_CHANNELS_COUNT];
     union {
         uint8_t flags;
         struct {

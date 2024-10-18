@@ -96,7 +96,6 @@
 #define ANIMATION_STAFF_AIM 6
 #define ANIMATION_HAND_POINTING_UP 7
 
-
 #define RENDER_PREFAB_TREE 1
 
 TE_Img *GameAssets_getAtlasImg(void);
@@ -105,5 +104,7 @@ TE_Font GameAssets_getFont(uint8_t index);
 int GameAssets_drawAnimation(uint8_t index, TE_Img *dst, uint32_t msTick, int16_t x, int16_t y, int maxLoopCount, BlitEx blitEx);
 RenderPrefab* GameAssets_getRenderPrefab(uint8_t index, uint8_t variant);
 void GameAssets_drawInputButton(TE_Img *dst, RuntimeContext *ctx, uint16_t button, int16_t x, int16_t y, BlitEx blitEx);
+
+int GameAssets_getMusic(uint8_t id, const char **outData, int *outSize);
 
 #endif

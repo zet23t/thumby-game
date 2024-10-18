@@ -145,10 +145,35 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
         ctx->drawStats = !ctx->drawStats;
     }
 
+    if (ctx->inputB && !ctx->prevInputB)
+    {
+        if (ctx->sfxChannelStatus[0].flagIsPlaying)
+        {
+            LOG("Menu: Pausing music");
+            ctx->outSfxInstructions[0] = (SFXInstruction)
+            {
+                .type = SFXINSTRUCTION_TYPE_PAUSE
+            };
+        }
+        else
+        {
+            LOG("Menu: Playing music");
+            static int musicId = 0;
+            ctx->outSfxInstructions[0] = (SFXInstruction)
+            {
+                .type = SFXINSTRUCTION_TYPE_PLAY,
+                .id = musicId++%2,
+                .updateMask = SFXINSTRUCTION_UPDATE_MASK_VOLUME,
+                .volume = 150
+            };
+        }
+    }
+
     char info[128];
-    sprintf(info, "Draw stats (A): %s RenderObjectSprite: %d RuntimeContext: %d", 
+    sprintf(info, "Draw stats (A): %s Play Music (B) RenderObjectSprite: %d RuntimeContext: %d", 
         ctx->drawStats ? "yes" : "no",
         (int) sizeof(RenderObjectSprite), (int) sizeof(RuntimeContext));
+    
 
     TE_Font_drawTextBox(img, &tinyfont, menuX + 4, menuY + 18, 127-(menuX + 4)*2 - 2, 64, -1, -4, 
         info, alignX, alignY, 0xffffffff, (TE_ImgOpState)

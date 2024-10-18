@@ -575,3 +575,16 @@ RenderPrefab* GameAssets_getRenderPrefab(uint8_t id, uint8_t variant)
     }
     return prefab;
 }
+
+#include "greensleeves_thx.h"
+#include "nitabrowski.h"
+
+int GameAssets_getMusic(uint8_t id, const char **outData, int *outSize)
+{
+    switch (id)
+    {
+        case 0: *outData = moddata_greensleeves_thx; *outSize = moddata_greensleeves_thx_size; return 1;
+        case 1: *outData = moddata_nitabrowski; *outSize = moddata_nitabrowski_size; return 1;
+    }
+    return 0;
+}

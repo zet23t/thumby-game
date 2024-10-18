@@ -355,7 +355,7 @@ void packMods(const char *dir, const char *outDir)
                 fclose(f);
                 continue;
             }
-            fprintf(out, "char moddata_%s[] = {\n", rawFileName);
+            fprintf(out, "const char moddata_%s[] = {\n", rawFileName);
             unsigned char buffer[1024];
             size_t bytesRead;
             int byteCount = 0;
@@ -372,7 +372,7 @@ void packMods(const char *dir, const char *outDir)
                 }
             }
             fprintf(out, "};\n");
-            fprintf(out, "int moddata_%s_size = %d;\n", rawFileName, byteCount);
+            fprintf(out, "const int moddata_%s_size = %d;\n", rawFileName, byteCount);
             fclose(out);
             fclose(f);
 

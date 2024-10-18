@@ -21,6 +21,7 @@
 
 // defines for the Thumby environment
 #define HXCMOD_MONO_OUTPUT 1
+#define HXCMOD_MOD_FILE_IN_ROM 1
 // end of defines for the Thumby environment
 
 

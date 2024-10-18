@@ -27,9 +27,9 @@ int sendData(void* hComm, const char *data);
 int receiveData(void* hComm, char *buffer, int bufferSize);
 
 void *coreLib;
-typedef void (*AudioUpdate)(char *buffer, unsigned int frameCount, int sampleRate, int sampleSize);
-typedef void (*UpdateFunc)(void *);
-typedef void (*InitFunc)(void *);
+typedef void (*AudioUpdate)(AudioContext *);
+typedef void (*UpdateFunc)(RuntimeContext *);
+typedef void (*InitFunc)(RuntimeContext *);
 UpdateFunc update;
 AudioUpdate audioUpdate;
 static const char *_isPanicked = NULL;
@@ -253,7 +253,7 @@ uint32_t max_uint32(uint32_t a, uint32_t b)
     return a > b ? a : b;
 }
 
-void updateEngine(RuntimeContext *ctx, Texture2D texture, Texture2D overdrawTexture, Font myMonoFont, int isExtended, int screenWidth, int screenHeight)
+void updateEngine(RuntimeContext *ctx, AudioContext *audioCtx, Texture2D texture, Texture2D overdrawTexture, Font myMonoFont, int isExtended, int screenWidth, int screenHeight)
 {
     int step = 0;
     ctx->frameCount++;
@@ -275,7 +275,16 @@ void updateEngine(RuntimeContext *ctx, Texture2D texture, Texture2D overdrawText
 
     if (update != NULL && setjmp(panicJmpBuf) == 0)
     {
+        for (int i = 0; i < 5; i++)
+        {
+            ctx->sfxChannelStatus[i] = audioCtx->outSfxChannelStatus[i];
+        }
         update(ctx);
+        for (int i=0;i<5;i++)
+        {
+            audioCtx->inSfxInstructions[i] = ctx->outSfxInstructions[i];
+        }
+
     }
     else
     {
@@ -568,7 +577,7 @@ void SerialRemote_exit(SerialRemote *remote)
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
-#define SAMPLE_RATE 44100
+#define SAMPLE_RATE 20050
 #define SAMPLE_SIZE 16
 #define AUDIO_BUFFER_SIZE 4096
 AudioStream audioStream;
@@ -602,19 +611,38 @@ void AudioInputCallback(void *buffer, unsigned int frames)
     }
 }
 
+static int isPaused = 0;
+static int step = 0;
+static int stepAudio = 0;
+static RuntimeContext ctx = {0};
+static AudioContext audioCtx = {0};
+
 void AudioSystemCallback(void *buffer, unsigned int frames)
 {
     for (unsigned int i = 0; i < frames; i++)
     {
         ((short *)buffer)[i] = 0;
     }
-    if (audioUpdate != NULL)
+    if (audioUpdate != NULL && (!isPaused || stepAudio))
     {
-        audioUpdate(buffer, frames, SAMPLE_RATE, 16);
+        stepAudio = 0;
+        for (int i=0;i<5;i++)
+        {
+            audioCtx.inSfxInstructions[i] = ctx.outSfxInstructions[i];
+            ctx.outSfxInstructions[i] = (SFXInstruction){0};
+        }
+        audioCtx.frames = frames;
+        audioCtx.sampleRate = SAMPLE_RATE;
+        audioCtx.sampleSize = SAMPLE_SIZE;
+        audioCtx.outBuffer = buffer;
+        audioUpdate(&audioCtx);
+        for (int i=0;i<5;i++)
+        {
+            ctx.sfxChannelStatus[i] = audioCtx.outSfxChannelStatus[i];
+            audioCtx.inSfxInstructions[i] = (SFXInstruction){0};
+        }
     }
 }
-
-
 
 int main(void)
 {
@@ -638,14 +666,11 @@ int main(void)
 
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
-    RuntimeContext ctx = {0};
     ctx.log = consoleLog;
     ctx.panic = _DLLPanic;
     buildCoreDLL(1, &ctx);
 
     ctx.getUTime = getUTime;
-    int isPaused = 0;
-    int step = 0;
 
     for (int i = 0; i < 128 * 128; i++)
     {
@@ -690,6 +715,7 @@ int main(void)
         if (IsKeyPressed(KEY_LEFT_SHIFT) && isPaused)
         {
             step = 1;
+            stepAudio = 1;
         }
 
         if (IsKeyPressed(KEY_F))
@@ -759,7 +785,7 @@ int main(void)
         }
         else if ((!isPaused || step) && loadSkip-- <= 0)
         {
-            updateEngine(&ctx, texture, overdrawTexture, myMonoFont, isExtended, screenWidth, screenHeight);
+            updateEngine(&ctx, &audioCtx, texture, overdrawTexture, myMonoFont, isExtended, screenWidth, screenHeight);
             step = 0;
         }
         

@@ -332,55 +332,11 @@ DLL_EXPORT void init(RuntimeContext *ctx)
     TE_DebugRGB(1, 0, 1);
 }
 
-#define FREQUENCY 2040.0
-// Cycles per second (hz)
-float frequency = 240.0f;
-
-// Audio frequency, for smoothing
-float audioFrequency = 440.0f;
-
-// Previous value, used to test if sine needs to be rewritten, and to smoothly modulate frequency
-float oldFrequency = 1.0f;
-
-// Index for audio rendering
-float sineIdx = 0.0f;
-
-// Audio input processing callback
-void AudioInputCallback(void *buffer, unsigned int frames)
-{
-}
-
-#include "hxcmod.h"
-#include "greensleeves_thx.h"
-#include "nitabrowski.h"
-
-modcontext _modctx;
-int _modctx_initialized = 0;
-
 //## audioUpdate
-DLL_EXPORT void audioUpdate(char *buffer, unsigned int frames, int sampleRate, int sampleSize)
+#include "game_audio.h"
+DLL_EXPORT void audioUpdate(AudioContext *audioContext)
 {
-    if (!_modctx_initialized)
-    {
-        _modctx_initialized = 1;
-        if (!hxcmod_init(&_modctx)) {
-            LOG("Failed to initialize hxcmod");
-            _modctx_initialized = -1;
-        }
-        hxcmod_setcfg(&_modctx, sampleRate, 0, 0);
-        if (!hxcmod_load(&_modctx, (unsigned char*)moddata_nitabrowski, moddata_nitabrowski_size))
-        {
-            LOG("Failed to load mod data");
-            _modctx_initialized = -1;
-        }
-    }
-
-    if (_modctx_initialized < 0)
-    {
-        return;
-    }
-
-    hxcmod_fillbuffer(&_modctx, (unsigned short*)buffer, frames, NULL);
+    GameAudio_update(audioContext);
 
     // audioFrequency = frequency + (audioFrequency - frequency)*0.95f;
 
