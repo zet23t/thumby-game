@@ -26,15 +26,21 @@ void buildWebBackend(int optimize)
     collectCFiles(inputFiles, "src_engine");
     collectCFiles(inputFiles, "_src_gen");
     char command[2048] = {0};
-    const char* exportedFunctions = "_init,_update,_RuntimeContext_create,_RuntimeContext_setUTimeCallback,_RuntimeContext_getScreen,_RuntimeContext_getRGBLed,_RuntimeContext_getRumble,_RuntimeContext_updateInputs";
+    const char* exportedFunctions = 
+        "_malloc,_free,_init,_update,_RuntimeContext_create,"
+        "_RuntimeContext_setUTimeCallback,_RuntimeContext_getScreen,"
+        "_RuntimeContext_getRGBLed,_RuntimeContext_getRumble,"
+        "_RuntimeContext_updateInputs,"
+        "_AudioContext_create,_AudioContext_beforeRuntimeUpdate,"
+        "_AudioContext_afterRuntimeUpdate,_AudioContext_audioUpdate";
     sprintf(command, "emcc %s -o _web_build/game.js %s -s EXPORTED_FUNCTIONS=%s "
         "-s EXPORTED_RUNTIME_METHODS=ccall,cwrap,addFunction -s WASM=1 -s MODULARIZE=1 "
         "-s EXPORT_NAME=createModule -s ALLOW_TABLE_GROWTH=1 -I _src_gen", 
         inputFiles, optimize ? "-O3" : "", exportedFunctions);
     printf("Building web backend, command: \n%s\n", command);
     system(command);
-    const char *runtimeJSLib = "src_runtime_web/game_runtime.js";
-    const char *runtimeJSOut = "_web_build/game_runtime.js";
+    const char *runtimeJSLib = "src_runtime_web/*.js";
+    const char *runtimeJSOut = "_web_build";
     char copyCommand[512];
     sprintf(copyCommand, "cp %s %s", runtimeJSLib, runtimeJSOut);
     printf("Copying runtime JS, command: \n%s\n", copyCommand);

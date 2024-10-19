@@ -15,9 +15,13 @@ async function runGame() {
     const update = Module.cwrap('update', V, [VS]);
     const RuntimeContext_create = Module.cwrap('RuntimeContext_create', VS, []);
     const RuntimeContext_setUTimeCallback = Module.cwrap('RuntimeContext_setUTimeCallback', V, [VS]);
-    const RuntimeContext_updateInputs = Module.cwrap('RuntimeContext_updateInputs', V, 
+    const RuntimeContext_updateInputs = Module.cwrap('RuntimeContext_updateInputs', V,
         [VS, N, N, N, N, N, N, N, N, N, N, N]);
     const RuntimeContext_getScreen = Module.cwrap('RuntimeContext_getScreen', VS, [VS]);
+    const AudioContext_create = Module.cwrap('AudioContext_create', V, []);
+    const AudioContext_audioUpdate = Module.cwrap('AudioContext_audioUpdate', V, [VS, VS, VS, N]);
+    const AudioContext_beforeRuntimeUpdate = Module.cwrap('AudioContext_beforeRuntimeUpdate', V, [VS, VS]);
+    const AudioContext_afterRuntimeUpdate = Module.cwrap('AudioContext_afterRuntimeUpdate', V, [VS, VS]);
 
     // Define the JavaScript function to return microseconds since the app started
     let startTime = performance.now();
@@ -29,19 +33,21 @@ async function runGame() {
     const getMicrosecondsPtr = Module.addFunction(getMicroseconds, 'i');
 
     const ctx = RuntimeContext_create();
+    const engineAudioCtx = AudioContext_create();
 
     RuntimeContext_setUTimeCallback(ctx, getMicrosecondsPtr);
 
 
-    let arrowKeys = { left: false, up: false, right: false, down: false, menu: false, shoulderRight: false, shoulderLeft: false, a: false, b: false, p:false};
-    let keyMap = { 
+    let arrowKeys = { left: false, up: false, right: false, down: false, menu: false, shoulderRight: false, shoulderLeft: false, a: false, b: false, p: false };
+    let keyMap = {
         'ArrowLeft': 'left', 'a': 'left',
         'ArrowUp': 'up', 'w': 'up',
         'ArrowRight': 'right', 'd': 'right',
-        'ArrowDown': 'down',  's': 'down',
+        'ArrowDown': 'down', 's': 'down',
         'e': 'shoulderRight', 'q': 'shoulderLeft',
-        'i': 'a', 'j': 'b', 'p': 'p', 
-        'm': 'menu' };
+        'i': 'a', 'j': 'b', 'p': 'p',
+        'm': 'menu'
+    };
     // Add event listeners for arrow keys
     window.addEventListener('keydown', (event) => {
         let key = keyMap[event.key];
@@ -57,7 +63,44 @@ async function runGame() {
         }
     });
 
+    let audioCtx = new (window.AudioContext || window.webkitAudioContext)(
+        { sampleRate: 20050 }
+    );
+    let audioWorkletNode;
+    let sharedArrayBuffer = new SharedArrayBuffer(2048);
+    let int16Buffer = new Int16Array(sharedArrayBuffer);
+    let sharedArrayBufferIndex = 0;
+    let wasmBuffer = Module._malloc(2048);
+    console.log("wasmBuffer", wasmBuffer, Module.HEAP16);
 
+    audioCtx.audioWorklet.addModule('audio_worklet.js').then(() => {
+        audioWorkletNode = new AudioWorkletNode(audioCtx, 'game-audio-processor');
+        audioWorkletNode.port.postMessage({ sharedArrayBuffer: sharedArrayBuffer });
+        audioWorkletNode.port.onmessage = (event) => {
+            let { frameCount } = event.data;
+            // the buffer was emptied by the audio worklet from index
+            // sharedArrayBufferIndex to sharedArrayBufferIndex + frameCount
+            // let's refill that part with random data
+            let index = sharedArrayBufferIndex;
+            let startPos = index % int16Buffer.length;
+            let endPos = (startPos + frameCount);
+            
+            AudioContext_audioUpdate(engineAudioCtx, ctx, 20050, 16, wasmBuffer, frameCount);
+            for (let i = 0; i < frameCount; i++) {
+                int16Buffer[index++ % int16Buffer.length] = Module.HEAP16[wasmBuffer / 2 + i];
+            }
+            
+            // for (let i = 0; i < frameCount; i++) {
+            //     int16Buffer[index++ % int16Buffer.length] = Math.random() * 32768;
+            // }
+            sharedArrayBufferIndex = endPos;
+            // console.log("audio update", buffer, frameCount);
+            // AudioContext_audioUpdate(engineAudioCtx, ctx, buffer, frameCount);
+        };
+        audioWorkletNode.connect(audioCtx.destination);
+    });
+
+    audioCtx.resume();
 
     // Call the init function
     init(ctx);
@@ -75,10 +118,13 @@ async function runGame() {
             dt = 0.2;
         }
         simTime += dt;
-        RuntimeContext_updateInputs(ctx, currentTime, dt, 
+        RuntimeContext_updateInputs(ctx, currentTime, dt,
             arrowKeys.up, arrowKeys.right, arrowKeys.down, arrowKeys.left, arrowKeys.a, arrowKeys.b, arrowKeys.menu, arrowKeys.shoulderLeft, arrowKeys.shoulderRight);
+
+        AudioContext_beforeRuntimeUpdate(engineAudioCtx, ctx);
         update(ctx);
-        
+        AudioContext_afterRuntimeUpdate(engineAudioCtx, ctx);
+
         // Get the screen data and update the canvas
         let screenPtr = RuntimeContext_getScreen(ctx);
         let screenDataArray = new Uint8Array(Module.HEAPU8.buffer, screenPtr, 128 * 128 * 4);
@@ -97,5 +143,4 @@ async function runGame() {
     requestAnimationFrame(gameLoop);
 }
 
-// Run the game
-runGame().catch(console.error);
+// runGame().catch(console.error);

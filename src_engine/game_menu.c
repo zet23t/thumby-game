@@ -162,7 +162,7 @@ void Menu_update(RuntimeContext *ctx, TE_Img* img)
             ctx->outSfxInstructions[0] = (SFXInstruction)
             {
                 .type = SFXINSTRUCTION_TYPE_PLAY,
-                .id = musicId++%5,
+                .id = musicId++ % 6,
                 .updateMask = SFXINSTRUCTION_UPDATE_MASK_VOLUME,
                 .volume = 150
             };

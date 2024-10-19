@@ -275,12 +275,12 @@ void updateEngine(RuntimeContext *ctx, AudioContext *audioCtx, Texture2D texture
 
     if (update != NULL && setjmp(panicJmpBuf) == 0)
     {
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < SFX_CHANNELS_COUNT; i++)
         {
             ctx->sfxChannelStatus[i] = audioCtx->outSfxChannelStatus[i];
         }
         update(ctx);
-        for (int i=0;i<5;i++)
+        for (int i = 0; i < SFX_CHANNELS_COUNT; i++)
         {
             audioCtx->inSfxInstructions[i] = ctx->outSfxInstructions[i];
         }
@@ -626,7 +626,7 @@ void AudioSystemCallback(void *buffer, unsigned int frames)
     if (audioUpdate != NULL && (!isPaused || stepAudio))
     {
         stepAudio = 0;
-        for (int i=0;i<5;i++)
+        for (int i=0;i<SFX_CHANNELS_COUNT;i++)
         {
             audioCtx.inSfxInstructions[i] = ctx.outSfxInstructions[i];
             ctx.outSfxInstructions[i] = (SFXInstruction){0};
@@ -636,7 +636,7 @@ void AudioSystemCallback(void *buffer, unsigned int frames)
         audioCtx.sampleSize = SAMPLE_SIZE;
         audioCtx.outBuffer = buffer;
         audioUpdate(&audioCtx);
-        for (int i=0;i<5;i++)
+        for (int i=0;i<SFX_CHANNELS_COUNT;i++)
         {
             ctx.sfxChannelStatus[i] = audioCtx.outSfxChannelStatus[i];
             audioCtx.inSfxInstructions[i] = (SFXInstruction){0};
@@ -794,12 +794,29 @@ int main(void)
         DrawTextureEx(overdrawTexture, (Vector2){offset.x + 128 * scale, offset.y}, 0.0f, scale, WHITE);
 
         // draw audio buffer
-        DrawRectangle(0, screenHeight - 100, screenWidth, 100, BLACK);
-        uint16_t *audioBuffer = (uint16_t *)audioCtx.outBuffer;
-        for (int i = 0; i < 256; i++)
+        if (isExtended)
         {
-            uint16_t sample = audioBuffer[i] >> 10;
-            DrawRectangle(i, screenHeight - 100 + sample, 1, sample, RED);
+            DrawRectangle(0, screenHeight - 100, screenWidth, 100, BLACK);
+            int16_t *audioBuffer = (int16_t *)audioCtx.outBuffer;
+            float stepX = (float)screenWidth / audioCtx.frames;
+            float recWidth = ceilf(stepX);
+            for (int i = 0; i < audioCtx.frames; i++)
+            {
+                int16_t sample = audioBuffer[i] / 256;
+                if (sample > 50) sample = 50;
+                else if (sample < -50) sample = -50;
+                float x = floorf(i * stepX);
+                float colorLerp = fabsf(sample) / 50.0f;
+                Color c = (Color){(uint8_t)(255 * colorLerp), (uint8_t)(255 * (1.0f - colorLerp)), 0, 255};
+                if (sample < 0)
+                {
+                    DrawRectangle(x, screenHeight - 50 + sample, recWidth, -sample, c);
+                }
+                else
+                {
+                    DrawRectangle(x, screenHeight - 50, recWidth, sample, c);
+                }
+            }
         }
         
         rlEnableColorBlend();

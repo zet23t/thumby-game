@@ -2,6 +2,7 @@
 #include "game_audio.h"
 #include "game_assets.h"
 #include "hxcmod.h"
+#include <memory.h>
 
 SoundMixerConfig volatile SoundConfig = {
     .VolumeMusic = 0.0f
@@ -71,6 +72,8 @@ void GameAudio_update(AudioContext *audioContext)
             sfxChannels[0].currentPitch = sfxInstruction->updateMask & SFXINSTRUCTION_UPDATE_MASK_PITCH ? sfxInstruction->pitch : sfxChannels[0].currentPitch;
             break;
     }
+
+    memset(buffer, 0, frames * sampleSize / 8);
     if (sfxChannels[0].flagIsPlaying)
     {
         hxcmod_fillbuffer(&_modctx, (msample*)buffer, frames, 0);

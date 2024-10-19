@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <string.h>
+#include "game_audio.h"
 
 #ifdef __EMSCRIPTEN__
 #define DLL_EXPORT __attribute__((visibility("default")))
@@ -33,6 +34,8 @@
 #include "game_particlesystem.h"
 #include "game_renderobjects.h"
 #include "stdarg.h"
+
+DLL_EXPORT void audioUpdate(AudioContext *audioContext);
 
 uint32_t DB32Colors[] = {
     0xFF000000, 0xFF342022, 0xFF3C2845, 0xFF313966, 0xFF3B568F, 0xFF2671DF, 0xFF66A0D9, 0xFF9AC3EE,
@@ -166,6 +169,58 @@ uint8_t activeSceneId;
 //# WebAssembly function helpers
 // functions for web assembly export to ease JS bridging
 #include <stdlib.h>
+DLL_EXPORT AudioContext* AudioContext_create()
+{
+    AudioContext *ctx = (AudioContext*)malloc(sizeof(AudioContext));
+    memset(ctx, 0, sizeof(AudioContext));
+
+    return ctx;
+}
+
+DLL_EXPORT void AudioContext_beforeRuntimeUpdate(AudioContext *audioCtx, RuntimeContext *ctx)
+{
+    for (int i = 0; i < SFX_CHANNELS_COUNT; i++)
+    {
+        ctx->sfxChannelStatus[i] = audioCtx->outSfxChannelStatus[i];
+    }
+}
+
+DLL_EXPORT void AudioContext_afterRuntimeUpdate(AudioContext *audioCtx, RuntimeContext *ctx)
+{
+    for (int i = 0; i < SFX_CHANNELS_COUNT; i++)
+    {
+        audioCtx->inSfxInstructions[i] = ctx->outSfxInstructions[i];
+    }
+}
+
+DLL_EXPORT void AudioContext_audioUpdate(AudioContext *audioCtx, RuntimeContext *ctx, int sampleRate, int sampleSize, void *buffer, int frameCount)
+{
+    audioCtx->frames = frameCount;
+    audioCtx->sampleRate = sampleRate;
+    audioCtx->sampleSize = sampleSize;
+    audioCtx->outBuffer = (char*)buffer;
+    for (int i=0;i<5;i++)
+    {
+        audioCtx->inSfxInstructions[i] = ctx->outSfxInstructions[i];
+        ctx->outSfxInstructions[i] = (SFXInstruction){0};
+    }
+    audioUpdate(audioCtx);
+    // short *outBuffer = (short*)buffer;
+    // LOG("Audio update %p:%d %d %d", buffer, frameCount, outBuffer[0], outBuffer[1]);
+    // for (int i=0;i<8;i++)
+    // {
+    //     printf("%d ", outBuffer[i]);
+    // }
+    // printf("\n");
+    for (int i=0;i<SFX_CHANNELS_COUNT;i++)
+    {
+        ctx->sfxChannelStatus[i] = audioCtx->outSfxChannelStatus[i];
+        audioCtx->inSfxInstructions[i] = (SFXInstruction){0};
+    }
+}
+
+
+
 DLL_EXPORT RuntimeContext* RuntimeContext_create()
 {
     RuntimeContext *ctx = (RuntimeContext*)malloc(sizeof(RuntimeContext));
@@ -333,7 +388,6 @@ DLL_EXPORT void init(RuntimeContext *ctx)
 }
 
 //## audioUpdate
-#include "game_audio.h"
 DLL_EXPORT void audioUpdate(AudioContext *audioContext)
 {
     GameAudio_update(audioContext);
