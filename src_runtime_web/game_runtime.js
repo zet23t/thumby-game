@@ -118,7 +118,6 @@ function audioWorkletProcessor() {
 }
 
 const hasMouse = window.matchMedia('(pointer:fine)').matches;
-let baseSize = 0
 
 function FillCircle(ctx, x, y, radius) {
     ctx.beginPath();
@@ -139,14 +138,14 @@ function FillRoundedRect(ctx, x, y, width, height, radius) {
     ctx.fill();
 }
 
-let defaultButtonTouchHandler = (mappedKey) => (phase, activeKeys, x, y) => { 
+let defaultButtonTouchHandler = (mappedKey) => (phase, activeKeys, x, y) => {
     activeKeys[mappedKey] = phase === 'begin';
 };
 let screenPosition = { x: 0, y: 0 };
 let buttonPositions = {
     dpad: {
         x: 0.25, y: 0.5, r: 0.18,
-        onTouch: (phase, activeKeys, dx, dy) => { 
+        onTouch: (phase, activeKeys, dx, dy) => {
             if (phase === 'end') {
                 activeKeys.up = activeKeys.down = activeKeys.left = activeKeys.right = false;
                 return;
@@ -160,6 +159,7 @@ let buttonPositions = {
 
             let xdot = dx / length;
             let ydot = dy / length;
+            console.log(dx, dy, xdot, ydot);
             if (xdot > 0.3) {
                 activeKeys.right = true;
                 activeKeys.left = false;
@@ -169,11 +169,11 @@ let buttonPositions = {
                 activeKeys.right = false;
             }
 
-            if (ydot > -0.3) {
+            if (ydot > 0.3) {
                 activeKeys.down = true;
                 activeKeys.up = false;
             }
-            if (ydot < 0.3) {
+            if (ydot < -0.3) {
                 activeKeys.up = true;
                 activeKeys.down = false;
             }
@@ -227,72 +227,53 @@ function DrawHandheld(canvas, canvasCtx, baseSize) {
         canvasCtx.fillText(key, x, y)
     }
     const bs = baseSize
-    if (width > height) {
-        // landscape config
-        screenPosition.x = (width - bs) * .5;
-        screenPosition.y = (height - bs) * .5;
 
-        buttonPositions.dpad.x = bs * .25;
-        buttonPositions.dpad.y = bs * .5;
-        buttonPositions.dpad.r = bs * .18;
+    // landscape config
+    screenPosition.x = (width - bs) * .5;
+    screenPosition.y = (height - bs) * .5;
 
-        buttonPositions.menu.x = buttonPositions.dpad.x - bs * .1;
-        buttonPositions.menu.y = buttonPositions.dpad.y + bs * .3;
-        buttonPositions.menu.w = bs * .3;
-        buttonPositions.menu.h = bs * .1
+    buttonPositions.dpad.x = bs * .25;
+    buttonPositions.dpad.y = bs * .5;
+    buttonPositions.dpad.r = bs * .18;
 
-        buttonPositions.shoulderLeft.x = bs * .25;
-        buttonPositions.shoulderLeft.y = bs * .15;
-        buttonPositions.shoulderLeft.w = bs * .4;
-        buttonPositions.shoulderLeft.h = bs * .15;
+    buttonPositions.menu.x = buttonPositions.dpad.x - bs * .1;
+    buttonPositions.menu.y = buttonPositions.dpad.y + bs * .3;
+    buttonPositions.menu.w = bs * .3;
+    buttonPositions.menu.h = bs * .1
 
-        buttonPositions.shoulderRight.x = width - bs * .25;
-        buttonPositions.shoulderRight.y = bs * .15;
-        buttonPositions.shoulderRight.w = bs * .4;
-        buttonPositions.shoulderRight.h = bs * .15;
+    buttonPositions.shoulderLeft.x = bs * .05;
+    buttonPositions.shoulderLeft.y = bs * .15;
+    buttonPositions.shoulderLeft.w = bs * .4;
+    buttonPositions.shoulderLeft.h = bs * .15;
 
-        buttonPositions.buttonA.x = width - bs * .15;
-        buttonPositions.buttonA.y = bs * .5;
-        buttonPositions.buttonA.r = bs * .1;
+    buttonPositions.shoulderRight.x = width - bs * .45;
+    buttonPositions.shoulderRight.y = bs * .15;
+    buttonPositions.shoulderRight.w = bs * .4;
+    buttonPositions.shoulderRight.h = bs * .15;
 
-        buttonPositions.buttonB.x = width - bs * .35;
-        buttonPositions.buttonB.y = bs * .65;
-        buttonPositions.buttonB.r = bs * .1;
-    } else {
+    buttonPositions.buttonA.x = width - bs * .15;
+    buttonPositions.buttonA.y = bs * .5;
+    buttonPositions.buttonA.r = bs * .1;
+
+    buttonPositions.buttonB.x = width - bs * .35;
+    buttonPositions.buttonB.y = bs * .65;
+    buttonPositions.buttonB.r = bs * .1;
+    
+    if (width <= height || false) {
         // portrait config
         screenPosition.x = 0;
         screenPosition.y = bs * 0.1;
-        let yoffset = bs * 1.1
-        buttonPositions.dpad.x = bs * .25;
+
+        let yoffset = bs * 1
         buttonPositions.dpad.y = bs * .5 + yoffset;
-        buttonPositions.dpad.r = bs * .18;
-
-        buttonPositions.menu.x = buttonPositions.dpad.x - bs * .1;
         buttonPositions.menu.y = buttonPositions.dpad.y + bs * .25;
-        buttonPositions.menu.w = bs * .3;
-        buttonPositions.menu.h = bs * .1
-
-        buttonPositions.shoulderLeft.x = bs * .25;
         buttonPositions.shoulderLeft.y = bs * .15 + yoffset;
-        buttonPositions.shoulderLeft.w = bs * .4;
-        buttonPositions.shoulderLeft.h = bs * .15;
-
-        buttonPositions.shoulderRight.x = width - bs * .25;
         buttonPositions.shoulderRight.y = bs * .15 + yoffset;
-        buttonPositions.shoulderRight.w = bs * .4;
-        buttonPositions.shoulderRight.h = bs * .15;
-
-        buttonPositions.buttonA.x = width - bs * .15;
         buttonPositions.buttonA.y = bs * .5 + yoffset;
-        buttonPositions.buttonA.r = bs * .1;
-
-        buttonPositions.buttonB.x = width - bs * .35;
         buttonPositions.buttonB.y = bs * .65 + yoffset;
-        buttonPositions.buttonB.r = bs * .1;
-
     }
 
-    
+
     // dpad
     canvasCtx.fillStyle = '#000';
     let x = buttonPositions.dpad.x;
@@ -336,8 +317,8 @@ function DrawHandheld(canvas, canvasCtx, baseSize) {
     let shoulderButton = function (bx, by, label, hotkey) {
         const h = buttonPositions.shoulderLeft.h
         const w = buttonPositions.shoulderLeft.w
-        const x = bx - w * .5
-        const y = by - bs * 0.075
+        const x = bx
+        const y = by
         canvasCtx.fillStyle = '#000';
         canvasCtx.shadowColor = "rgba(0, 0, 0, 0.5)";
         FillRoundedRect(canvasCtx, x, y, w, h, h * .25)
@@ -346,8 +327,8 @@ function DrawHandheld(canvas, canvasCtx, baseSize) {
         FillRoundedRect(canvasCtx, x + offset, y + offset, w - offset * 2, h - offset * 2, h * .25 - offset * .5)
         canvasCtx.fillStyle = "#000"
         canvasCtx.font = h * .5 + "px sans-serif"
-        canvasCtx.fillText(label, bx, by)
-        drawHotKeyInfo(x + h * .5, by, hotkey)
+        canvasCtx.fillText(label, bx + w * .5, by + h * .5)
+        drawHotKeyInfo(bx + h * .5, by + h * .5, hotkey)
     }
 
     shoulderButton(buttonPositions.shoulderLeft.x, buttonPositions.shoulderLeft.y, "L", "q")
@@ -385,8 +366,10 @@ async function setupPlaceholder() {
         setTimeout(setupPlaceholder, 30);
         return;
     }
+    origBaseSize = canvas.width;
     baseSize = canvas.width;
-    if (screen.width < screen.height) {
+    UpdateHandheldScaleAndOrientation(canvas);
+    if (screen.width < screen.height || false) {
         canvas.width = baseSize;
         canvas.height = baseSize * 2;
     }
@@ -429,6 +412,38 @@ async function setupPlaceholder() {
         canvas.removeEventListener('click', onClick);
     };
     canvas.addEventListener('click', onClick);
+}
+
+
+let screenWidth, screenHeight;
+let baseSize = 0
+let origBaseSize = 0
+
+function UpdateHandheldScaleAndOrientation(canvas) {
+    if (screenWidth !== screen.width || screenHeight !== screen.height) {
+        screenWidth = screen.width;
+        screenHeight = screen.height;
+        let innerWidth = window.innerWidth;
+        let innerHeight = window.innerHeight;
+        baseSize = origBaseSize;
+        if (screen.width < screen.height || false) {
+            if (baseSize * 2 > innerHeight)
+            {
+                baseSize = Math.floor(innerHeight / 2);
+            }
+
+            canvas.width = baseSize;
+            canvas.height = baseSize * 2;
+        }
+        else {
+            if (baseSize * 2 > innerWidth)
+            {
+                baseSize = Math.floor(innerWidth / 2);
+            }
+            canvas.width = baseSize * 2;
+            canvas.height = baseSize;
+        }
+    }
 }
 
 async function runGame() {
@@ -498,9 +513,13 @@ async function runGame() {
 
     let activeTouches = {};
     canvas.addEventListener('touchstart', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
         for (let touch of event.changedTouches) {
-            let x = touch.clientX;
-            let y = touch.clientY;
+            let x = (touch.clientX - rect.left) * scaleX;
+            let y = (touch.clientY - rect.top) * scaleY;
             let beginOnItem = false;
             for (let item in buttonPositions) {
                 let button = buttonPositions[item];
@@ -524,26 +543,40 @@ async function runGame() {
                 activeTouches[touch.identifier] = { x: x, y: y, item: beginOnItem };
                 let dx = x - beginOnItem.x;
                 let dy = y - beginOnItem.y;
-                beginOnItem.onTouch('begin', arrowKeys, x, y);
+                beginOnItem.onTouch('begin', arrowKeys, dx, dy);
             }
         }
     });
 
     canvas.addEventListener('touchmove', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
         for (let touch of event.changedTouches) {
             if (activeTouches[touch.identifier]) {
+                let x = (touch.clientX - rect.left) * scaleX;
+                let y = (touch.clientY - rect.top) * scaleY;
+
                 event.preventDefault();
                 let item = activeTouches[touch.identifier].item;
-                item.onTouch('move', arrowKeys, touch.clientX - item.x, touch.clientY - item.y);
+                item.onTouch('move', arrowKeys, x - item.x, y - item.y);
             }
         }
     });
 
     canvas.addEventListener('touchend', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
         for (let touch of event.changedTouches) {
             if (activeTouches[touch.identifier]) {
+                let x = (touch.clientX - rect.left) * scaleX;
+                let y = (touch.clientY - rect.top) * scaleY;
+
                 event.preventDefault();
-                let { x, y, item } = activeTouches[touch.identifier];
+                let item = activeTouches[touch.identifier].item;
                 item.onTouch('end', arrowKeys, x - item.x, y - item.y);
                 delete activeTouches[touch.identifier];
             }
@@ -611,25 +644,12 @@ async function runGame() {
     let previousTime = performance.now() / 1000;
     let simTime = 0;
     let intPtr = Module._malloc(4);
-    let screenWidth, screenHeight;
     function gameLoop() {
         let currentTime = performance.now() / 1000;
         let dt = (currentTime - previousTime);
         previousTime = currentTime;
 
-        if (screenWidth !== screen.width || screenHeight !== screen.height) {
-            screenWidth = screen.width;
-            screenHeight = screen.height;
-            if (screen.width < screen.height) {
-                canvas.width = baseSize;
-                canvas.height = baseSize * 2;
-            }
-            else {
-                canvas.width = baseSize * 2;
-                canvas.height = baseSize;
-            }
-        }
-
+        UpdateHandheldScaleAndOrientation(canvas);
         // draw rounded rectangle
         DrawHandheld(canvas, canvasCtx, baseSize);
 

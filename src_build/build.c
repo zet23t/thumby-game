@@ -39,10 +39,12 @@ void buildWebBackend(int optimize)
         ",_RuntimeContext_setSfxChannelStatus"
         ",_RuntimeContext_clearSfxInstructions"
         ;
+    // note: -O3 minifies the imports and exports, making it impossible to manually instantiate the module
+    // -O2 is the highest optimization level that still allows manual instantiation
     sprintf(command, "emcc %s -o _web_build/game.js %s -s EXPORTED_FUNCTIONS=%s "
         "-s EXPORTED_RUNTIME_METHODS=ccall,cwrap,addFunction,getValue -s WASM=1 -s MODULARIZE=1 "
         "-s EXPORT_NAME=createModule -s ALLOW_TABLE_GROWTH=1 -I _src_gen", 
-        inputFiles, optimize ? "-O3" : "", exportedFunctions);
+        inputFiles, optimize ? "-O2" : "", exportedFunctions);
     printf("Building web backend, command: \n%s\n", command);
     system(command);
     const char *runtimeJSLib = "src_runtime_web/*.js";
