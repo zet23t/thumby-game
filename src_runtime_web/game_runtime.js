@@ -258,7 +258,7 @@ function DrawHandheld(canvas, canvasCtx, baseSize) {
     buttonPositions.buttonB.x = width - bs * .35;
     buttonPositions.buttonB.y = bs * .65;
     buttonPositions.buttonB.r = bs * .1;
-    
+
     if (width <= height || false) {
         // portrait config
         screenPosition.x = 0;
@@ -368,34 +368,26 @@ async function setupPlaceholder() {
     }
     origBaseSize = canvas.width;
     baseSize = canvas.width;
-    UpdateHandheldScaleAndOrientation(canvas);
-    if (screen.width < screen.height || false) {
-        canvas.width = baseSize;
-        canvas.height = baseSize * 2;
-    }
-    else {
-        canvas.width = baseSize * 2;
-        canvas.height = baseSize;
-    }
-
     let canvasCtx = canvas.getContext('2d');
     canvas.tabIndex = 0;
+    let draw = () => {
+        UpdateHandheldScaleAndOrientation(canvas);
+        DrawHandheld(canvas, canvasCtx, baseSize);
+        canvasCtx.fillStyle = 'black';
+        canvasCtx.fillRect(
+            screenPosition.x,
+            screenPosition.y, baseSize, baseSize);
 
+        canvasCtx.fillStyle = 'white';
+        canvasCtx.font = '24px sans-serif';
+        canvasCtx.textAlign = 'center';
+        canvasCtx.textBaseline = 'middle';
+        const startMessage = !hasMouse ? 'Tap to start' : 'Click to start';
+        canvasCtx.fillText(startMessage, canvas.width / 2, (screenPosition.y + baseSize) * .55);
+    };
+    draw();
 
-    // draw button like placeholder that says "click to start" and calls runGame
-
-    DrawHandheld(canvas, canvasCtx, baseSize);
-    canvasCtx.fillStyle = 'black';
-    canvasCtx.fillRect(
-        screenPosition.x,
-        screenPosition.y, baseSize, baseSize);
-
-    canvasCtx.fillStyle = 'white';
-    canvasCtx.font = '24px sans-serif';
-    canvasCtx.textAlign = 'center';
-    canvasCtx.textBaseline = 'middle';
-    const startMessage = !hasMouse ? 'Tap to start' : 'Click to start';
-    canvasCtx.fillText(startMessage, canvas.width / 2, (screenPosition.y + baseSize) * .55);
+    let scaleUpdater = setInterval(draw, 100);
 
     let onClick = () => {
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -410,6 +402,7 @@ async function setupPlaceholder() {
 
         runGame().catch(console.error);
         canvas.removeEventListener('click', onClick);
+        clearInterval(scaleUpdater);
     };
     canvas.addEventListener('click', onClick);
 }
@@ -420,26 +413,25 @@ let baseSize = 0
 let origBaseSize = 0
 
 function UpdateHandheldScaleAndOrientation(canvas) {
-    if (screenWidth !== screen.width || screenHeight !== screen.height) {
-        screenWidth = screen.width;
-        screenHeight = screen.height;
-        let innerWidth = window.innerWidth;
-        let innerHeight = window.innerHeight;
+    let innerWidth = window.innerWidth - 30;
+    let innerHeight = window.innerHeight - 30;
+    if (screenWidth !== innerWidth || screenHeight !== innerHeight) {
+        screenWidth = innerWidth;
+        screenHeight = innerHeight;
         baseSize = origBaseSize;
-        if (screen.width < screen.height || false) {
-            if (baseSize * 2 > innerHeight)
-            {
+        if (screenWidth < screenHeight || false) {
+            if (baseSize * 2 > innerHeight) {
                 baseSize = Math.floor(innerHeight / 2);
             }
-
+            baseSize &= ~127;
             canvas.width = baseSize;
             canvas.height = baseSize * 2;
         }
         else {
-            if (baseSize * 2 > innerWidth)
-            {
+            if (baseSize * 2 > innerWidth) {
                 baseSize = Math.floor(innerWidth / 2);
             }
+            baseSize &= ~127;
             canvas.width = baseSize * 2;
             canvas.height = baseSize;
         }
