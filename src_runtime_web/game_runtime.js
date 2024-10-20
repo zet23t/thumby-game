@@ -23,6 +23,13 @@ async function runGame() {
     const AudioContext_beforeRuntimeUpdate = Module.cwrap('AudioContext_beforeRuntimeUpdate', V, [VS, VS]);
     const AudioContext_afterRuntimeUpdate = Module.cwrap('AudioContext_afterRuntimeUpdate', V, [VS, VS]);
 
+    const AudioContext_getChannelStatus = Module.cwrap('AudioContext_getChannelStatus', VS,[VS, VS]);
+    const AudioContext_setSfxInstructions = Module.cwrap('AudioContext_setSfxInstructions', V,[VS, VS]);
+    const RuntimeContext_getSfxInstructions = Module.cwrap('RuntimeContext_getSfxInstructions', VS,[VS, VS]);
+    const RuntimeContext_setSfxChannelStatus = Module.cwrap('RuntimeContext_setSfxChannelStatus', V,[VS, VS]);
+    const RuntimeContext_clearSfxInstructions = Module.cwrap('RuntimeContext_clearSfxInstructions', V,[VS]);
+
+    
     // Define the JavaScript function to return microseconds since the app started
     let startTime = performance.now();
     function getMicroseconds() {
@@ -33,7 +40,7 @@ async function runGame() {
     const getMicrosecondsPtr = Module.addFunction(getMicroseconds, 'i');
 
     const ctx = RuntimeContext_create();
-    const engineAudioCtx = AudioContext_create();
+    const exchangeBuffer = Module._malloc(2048);
 
     RuntimeContext_setUTimeCallback(ctx, getMicrosecondsPtr);
 
@@ -67,35 +74,32 @@ async function runGame() {
         { sampleRate: 20050 }
     );
     let audioWorkletNode;
-    let sharedArrayBuffer = new SharedArrayBuffer(2048);
+    let sharedArrayBuffer = new SharedArrayBuffer(2048 * 8);
     let int16Buffer = new Int16Array(sharedArrayBuffer);
     let sharedArrayBufferIndex = 0;
-    let wasmBuffer = Module._malloc(2048);
+    let wasmBuffer = Module._malloc(2048 * 8);
     console.log("wasmBuffer", wasmBuffer, Module.HEAP16);
+
+    
+    // Load and compile the WebAssembly module
+    async function loadWasmModule(url) {
+        const response = await fetch(url);
+        const bytes = await response.arrayBuffer();
+        const wasmModule = await WebAssembly.compile(bytes);
+        return wasmModule;
+    }
+
+    const wasmModule = await loadWasmModule('game.wasm');
 
     audioCtx.audioWorklet.addModule('audio_worklet.js').then(() => {
         audioWorkletNode = new AudioWorkletNode(audioCtx, 'game-audio-processor');
-        audioWorkletNode.port.postMessage({ sharedArrayBuffer: sharedArrayBuffer });
+        audioWorkletNode.port.postMessage({ type: 'init', wasmModule: wasmModule });
         audioWorkletNode.port.onmessage = (event) => {
-            let { frameCount } = event.data;
-            // the buffer was emptied by the audio worklet from index
-            // sharedArrayBufferIndex to sharedArrayBufferIndex + frameCount
-            // let's refill that part with random data
-            let index = sharedArrayBufferIndex;
-            let startPos = index % int16Buffer.length;
-            let endPos = (startPos + frameCount);
-            
-            AudioContext_audioUpdate(engineAudioCtx, ctx, 20050, 16, wasmBuffer, frameCount);
-            for (let i = 0; i < frameCount; i++) {
-                int16Buffer[index++ % int16Buffer.length] = Module.HEAP16[wasmBuffer / 2 + i];
+            let { channelStatus } = event.data;
+            for (let i = 0; i < channelStatus.length; i++) {
+                Module.HEAPU8[exchangeBuffer + i] = channelStatus[i];
             }
-            
-            // for (let i = 0; i < frameCount; i++) {
-            //     int16Buffer[index++ % int16Buffer.length] = Math.random() * 32768;
-            // }
-            sharedArrayBufferIndex = endPos;
-            // console.log("audio update", buffer, frameCount);
-            // AudioContext_audioUpdate(engineAudioCtx, ctx, buffer, frameCount);
+            RuntimeContext_setSfxChannelStatus(ctx, exchangeBuffer);
         };
         audioWorkletNode.connect(audioCtx.destination);
     });
@@ -108,6 +112,7 @@ async function runGame() {
     // Set up the game loop
     let previousTime = performance.now() / 1000;
     let simTime = 0;
+    let intPtr = Module._malloc(4);
     function gameLoop() {
         let currentTime = performance.now() / 1000;
         let dt = (currentTime - previousTime);
@@ -121,9 +126,27 @@ async function runGame() {
         RuntimeContext_updateInputs(ctx, currentTime, dt,
             arrowKeys.up, arrowKeys.right, arrowKeys.down, arrowKeys.left, arrowKeys.a, arrowKeys.b, arrowKeys.menu, arrowKeys.shoulderLeft, arrowKeys.shoulderRight);
 
-        AudioContext_beforeRuntimeUpdate(engineAudioCtx, ctx);
+        // AudioContext_beforeRuntimeUpdate(engineAudioCtx, ctx);
         update(ctx);
-        AudioContext_afterRuntimeUpdate(engineAudioCtx, ctx);
+        let sfxPtr = RuntimeContext_getSfxInstructions(ctx, intPtr);
+        let sfxPtrSize = Module.getValue(intPtr, 'i32');
+        // Create a Uint8Array view of the data buffer
+        let sfxInstructions = new Uint8Array(Module.HEAPU8.buffer, sfxPtr, sfxPtrSize);
+        // Post the data buffer to the AudioWorkletProcessor
+        if (audioWorkletNode)
+        {
+            let array = [];
+            for (let i = 0; i < sfxInstructions.length; i++) {
+                array.push(sfxInstructions[i]);
+            }
+            audioWorkletNode.port.postMessage({
+                type: 'sfxInstructions',
+                 data: array
+            });
+            RuntimeContext_clearSfxInstructions(ctx);
+        }
+        
+        // AudioContext_afterRuntimeUpdate(engineAudioCtx, ctx);
 
         // Get the screen data and update the canvas
         let screenPtr = RuntimeContext_getScreen(ctx);

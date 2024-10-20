@@ -32,9 +32,15 @@ void buildWebBackend(int optimize)
         "_RuntimeContext_getRGBLed,_RuntimeContext_getRumble,"
         "_RuntimeContext_updateInputs,"
         "_AudioContext_create,_AudioContext_beforeRuntimeUpdate,"
-        "_AudioContext_afterRuntimeUpdate,_AudioContext_audioUpdate";
+        "_AudioContext_afterRuntimeUpdate,_AudioContext_audioUpdate"
+        ",_AudioContext_getChannelStatus"
+        ",_AudioContext_setSfxInstructions"
+        ",_RuntimeContext_getSfxInstructions"
+        ",_RuntimeContext_setSfxChannelStatus"
+        ",_RuntimeContext_clearSfxInstructions"
+        ;
     sprintf(command, "emcc %s -o _web_build/game.js %s -s EXPORTED_FUNCTIONS=%s "
-        "-s EXPORTED_RUNTIME_METHODS=ccall,cwrap,addFunction -s WASM=1 -s MODULARIZE=1 "
+        "-s EXPORTED_RUNTIME_METHODS=ccall,cwrap,addFunction,getValue -s WASM=1 -s MODULARIZE=1 "
         "-s EXPORT_NAME=createModule -s ALLOW_TABLE_GROWTH=1 -I _src_gen", 
         inputFiles, optimize ? "-O3" : "", exportedFunctions);
     printf("Building web backend, command: \n%s\n", command);
