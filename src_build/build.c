@@ -27,10 +27,10 @@ void buildWebBackend(int optimize)
     collectCFiles(inputFiles, "_src_gen");
     char command[2048] = {0};
     const char* exportedFunctions = 
-        "_malloc,_free,_init,_update,_RuntimeContext_create,"
-        "_RuntimeContext_setUTimeCallback,_RuntimeContext_getScreen,"
-        "_RuntimeContext_getRGBLed,_RuntimeContext_getRumble,"
-        "_RuntimeContext_updateInputs,"
+        "_malloc,_free,_init,_update,_RuntimeContext_create"
+        ",_RuntimeContext_setUTimeCallback,_RuntimeContext_getScreen"
+        ",_RuntimeContext_getRGBLed,_RuntimeContext_getRumble"
+        ",_RuntimeContext_updateInputs"
         ",_AudioContext_create"
         ",_AudioContext_audioUpdate"
         ",_AudioContext_getChannelStatus"

@@ -139,9 +139,76 @@ function FillRoundedRect(ctx, x, y, width, height, radius) {
     ctx.fill();
 }
 
+let defaultButtonTouchHandler = (mappedKey) => (phase, activeKeys, x, y) => { 
+    activeKeys[mappedKey] = phase === 'begin';
+};
+let screenPosition = { x: 0, y: 0 };
+let buttonPositions = {
+    dpad: {
+        x: 0.25, y: 0.5, r: 0.18,
+        onTouch: (phase, activeKeys, dx, dy) => { 
+            if (phase === 'end') {
+                activeKeys.up = activeKeys.down = activeKeys.left = activeKeys.right = false;
+                return;
+            }
+
+            let length = Math.sqrt(dx * dx + dy * dy);
+            if (length < buttonPositions.dpad.r * 0.2) {
+                activeKeys.up = activeKeys.down = activeKeys.left = activeKeys.right = false;
+                return;
+            }
+
+            let xdot = dx / length;
+            let ydot = dy / length;
+            if (xdot > 0.3) {
+                activeKeys.right = true;
+                activeKeys.left = false;
+            }
+            if (xdot < -0.3) {
+                activeKeys.left = true;
+                activeKeys.right = false;
+            }
+
+            if (ydot > -0.3) {
+                activeKeys.down = true;
+                activeKeys.up = false;
+            }
+            if (ydot < 0.3) {
+                activeKeys.up = true;
+                activeKeys.down = false;
+            }
+        }
+    },
+    menu: {
+        x: 0.25, y: 0.75, w: 0.3, h: 0.1,
+        onTouch: defaultButtonTouchHandler('menu')
+    },
+    shoulderLeft: {
+        x: 0.25, y: 0.15, w: 0.4, h: 0.15,
+        onTouch: defaultButtonTouchHandler('shoulderLeft')
+    },
+    shoulderRight: {
+        x: 0.75, y: 0.15, w: 0.4, h: 0.15,
+        onTouch: defaultButtonTouchHandler('shoulderRight')
+    },
+    buttonA: {
+        x: 0.85, y: 0.5, r: 0.1,
+        onTouch: defaultButtonTouchHandler('a')
+    },
+    buttonB: {
+        x: 0.65, y: 0.65, r: 0.1,
+        onTouch: defaultButtonTouchHandler('b')
+    }
+}
+
 function DrawHandheld(canvas, canvasCtx, baseSize) {
     canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
     canvasCtx.fillStyle = '#831';
+
+    canvasCtx.shadowBlur = 8
+    canvasCtx.shadowOffsetX = 0
+    canvasCtx.shadowOffsetY = 0
+
     FillRoundedRect(canvasCtx, 0, 0, canvas.width, canvas.height, 20);
     let width = canvas.width;
     let height = canvas.height;
@@ -161,76 +228,153 @@ function DrawHandheld(canvas, canvasCtx, baseSize) {
     }
     const bs = baseSize
     if (width > height) {
-        // draw landscape handheld
+        // landscape config
+        screenPosition.x = (width - bs) * .5;
+        screenPosition.y = (height - bs) * .5;
 
-        // dpad
-        canvasCtx.fillStyle = '#000';
-        let x = bs * .25;
-        let y = bs * .5;
-        let r = bs * .18;
-        let offset = bs * .01;
-        FillCircle(canvasCtx, x, y, r);
-        canvasCtx.fillStyle = '#555';
-        FillCircle(canvasCtx, x, y, r - offset);
-        canvasCtx.fillStyle = '#777';
+        buttonPositions.dpad.x = bs * .25;
+        buttonPositions.dpad.y = bs * .5;
+        buttonPositions.dpad.r = bs * .18;
 
-        FillRoundedRect(canvasCtx, x - r * .8, y - r * .3, r * 1.6, r * .6, r * .15);
-        FillRoundedRect(canvasCtx, x - r * .3, y - r * .8, r * .6, r * 1.6, r * .15);
-        drawHotKeyInfo(x, y - r * .5, "w")
-        drawHotKeyInfo(x, y + r * .5, "s")
-        drawHotKeyInfo(x - r * .5, y, "a")
-        drawHotKeyInfo(x + r * .5, y, "d")
+        buttonPositions.menu.x = buttonPositions.dpad.x - bs * .1;
+        buttonPositions.menu.y = buttonPositions.dpad.y + bs * .3;
+        buttonPositions.menu.w = bs * .3;
+        buttonPositions.menu.h = bs * .1
 
-        // menu button
-        canvasCtx.fillStyle = "#000";
-        FillRoundedRect(canvasCtx, x - bs * .1, y + bs * .3, bs * .3, bs * .1, bs * .03)
-        canvasCtx.fillStyle = "#a00";
-        FillRoundedRect(canvasCtx, x - bs * .1 + offset, y + bs * .3 + offset, 
-            bs * .3 - offset * 2, bs * .1 - offset * 2, bs * .03 - offset * .5)
-        canvasCtx.fillStyle = "#fff"
-        canvasCtx.font = bs * .05 + "px sans-serif"
-        canvasCtx.fillText("MENU", x - bs * .1 + bs * .15, y + bs * .3 + bs * .055)
-        drawHotKeyInfo(x - bs * .1, y + bs * .3 + bs * .1, 'm')
+        buttonPositions.shoulderLeft.x = bs * .25;
+        buttonPositions.shoulderLeft.y = bs * .15;
+        buttonPositions.shoulderLeft.w = bs * .4;
+        buttonPositions.shoulderLeft.h = bs * .15;
 
-        // shoulder button
-        let shoulderButton = function (bx, by, label, hotkey) {
-            const h = bs * .15
-            const w = bs * .4
-            const x = bx - w * .5
-            const y = by - bs * 0.075
-            canvasCtx.fillStyle = '#000';
-            FillRoundedRect(canvasCtx, x, y, w, h, h * .25)
-            canvasCtx.fillStyle = '#f80';
-            FillRoundedRect(canvasCtx, x + offset, y + offset, w - offset * 2, h - offset * 2, h * .25 - offset * .5)
-            canvasCtx.fillStyle = "#000"
-            canvasCtx.font = h * .5 + "px sans-serif"
-            canvasCtx.fillText(label, bx, by)
-            drawHotKeyInfo(x + h * .5, by, hotkey)
-        }
+        buttonPositions.shoulderRight.x = width - bs * .25;
+        buttonPositions.shoulderRight.y = bs * .15;
+        buttonPositions.shoulderRight.w = bs * .4;
+        buttonPositions.shoulderRight.h = bs * .15;
 
-        shoulderButton(bs * .25, bs * .15, "L", "q")
-        shoulderButton(width - bs * .25, bs * .15, "R", "e")
+        buttonPositions.buttonA.x = width - bs * .15;
+        buttonPositions.buttonA.y = bs * .5;
+        buttonPositions.buttonA.r = bs * .1;
 
-        // button A / B
-        let drawButton = function (bx, by, label, hotkey) {
-            canvasCtx.fillStyle = '#000';
-            FillCircle(canvasCtx, bx, by, bs * .1);
-            canvasCtx.fillStyle = '#f80';
-            FillCircle(canvasCtx, bx, by, bs * .1 - offset);
-            canvasCtx.fillStyle = '#000';
-            canvasCtx.font = (r * .5) + 'px sans-serif';
-            canvasCtx.textAlign = 'center';
-            canvasCtx.textBaseline = 'middle';
-            canvasCtx.fillText(label, bx, by + r * .015);
+        buttonPositions.buttonB.x = width - bs * .35;
+        buttonPositions.buttonB.y = bs * .65;
+        buttonPositions.buttonB.r = bs * .1;
+    } else {
+        // portrait config
+        screenPosition.x = 0;
+        screenPosition.y = bs * 0.1;
+        let yoffset = bs * 1.1
+        buttonPositions.dpad.x = bs * .25;
+        buttonPositions.dpad.y = bs * .5 + yoffset;
+        buttonPositions.dpad.r = bs * .18;
 
-            drawHotKeyInfo(bx, by + bs * .1, hotkey)
-        }
+        buttonPositions.menu.x = buttonPositions.dpad.x - bs * .1;
+        buttonPositions.menu.y = buttonPositions.dpad.y + bs * .25;
+        buttonPositions.menu.w = bs * .3;
+        buttonPositions.menu.h = bs * .1
 
-        drawButton(width - bs * .15, bs * .5, 'A', 'i')
-        drawButton(width - bs * .35, bs * .65, 'B', 'j')
+        buttonPositions.shoulderLeft.x = bs * .25;
+        buttonPositions.shoulderLeft.y = bs * .15 + yoffset;
+        buttonPositions.shoulderLeft.w = bs * .4;
+        buttonPositions.shoulderLeft.h = bs * .15;
 
+        buttonPositions.shoulderRight.x = width - bs * .25;
+        buttonPositions.shoulderRight.y = bs * .15 + yoffset;
+        buttonPositions.shoulderRight.w = bs * .4;
+        buttonPositions.shoulderRight.h = bs * .15;
+
+        buttonPositions.buttonA.x = width - bs * .15;
+        buttonPositions.buttonA.y = bs * .5 + yoffset;
+        buttonPositions.buttonA.r = bs * .1;
+
+        buttonPositions.buttonB.x = width - bs * .35;
+        buttonPositions.buttonB.y = bs * .65 + yoffset;
+        buttonPositions.buttonB.r = bs * .1;
 
     }
+
+    
+    // dpad
+    canvasCtx.fillStyle = '#000';
+    let x = buttonPositions.dpad.x;
+    let y = buttonPositions.dpad.y;
+    let r = buttonPositions.dpad.r;
+
+    let offset = bs * .01;
+    canvasCtx.shadowColor = "rgba(0, 0, 0, 0.5)";
+    FillCircle(canvasCtx, x, y, r);
+    canvasCtx.shadowColor = "transparent";
+    canvasCtx.fillStyle = '#555';
+    FillCircle(canvasCtx, x, y, r - offset);
+    canvasCtx.fillStyle = '#777';
+
+    FillRoundedRect(canvasCtx, x - r * .8, y - r * .3, r * 1.6, r * .6, r * .15);
+    FillRoundedRect(canvasCtx, x - r * .3, y - r * .8, r * .6, r * 1.6, r * .15);
+    drawHotKeyInfo(x, y - r * .5, "w")
+    drawHotKeyInfo(x, y + r * .5, "s")
+    drawHotKeyInfo(x - r * .5, y, "a")
+    drawHotKeyInfo(x + r * .5, y, "d")
+
+    // menu button
+    let mx = buttonPositions.menu.x;
+    let my = buttonPositions.menu.y;
+    let mw = buttonPositions.menu.w;
+    let mh = buttonPositions.menu.h;
+    canvasCtx.fillStyle = "#000";
+    canvasCtx.shadowColor = "rgba(0, 0, 0, 0.5)";
+    FillRoundedRect(canvasCtx, mx, my, mw, mh, bs * .03)
+    canvasCtx.shadowColor = "transparent";
+
+    canvasCtx.fillStyle = "#a00";
+    FillRoundedRect(canvasCtx, mx + offset, my + offset,
+        mw - offset * 2, mh - offset * 2, bs * .03 - offset * .5)
+    canvasCtx.fillStyle = "#fff"
+    canvasCtx.font = bs * .05 + "px sans-serif"
+    canvasCtx.fillText("MENU", mx + bs * .15, my + bs * .055)
+    drawHotKeyInfo(mx, my + mh, 'm')
+
+    // shoulder button
+    let shoulderButton = function (bx, by, label, hotkey) {
+        const h = buttonPositions.shoulderLeft.h
+        const w = buttonPositions.shoulderLeft.w
+        const x = bx - w * .5
+        const y = by - bs * 0.075
+        canvasCtx.fillStyle = '#000';
+        canvasCtx.shadowColor = "rgba(0, 0, 0, 0.5)";
+        FillRoundedRect(canvasCtx, x, y, w, h, h * .25)
+        canvasCtx.shadowColor = "transparent";
+        canvasCtx.fillStyle = '#f80';
+        FillRoundedRect(canvasCtx, x + offset, y + offset, w - offset * 2, h - offset * 2, h * .25 - offset * .5)
+        canvasCtx.fillStyle = "#000"
+        canvasCtx.font = h * .5 + "px sans-serif"
+        canvasCtx.fillText(label, bx, by)
+        drawHotKeyInfo(x + h * .5, by, hotkey)
+    }
+
+    shoulderButton(buttonPositions.shoulderLeft.x, buttonPositions.shoulderLeft.y, "L", "q")
+    shoulderButton(buttonPositions.shoulderRight.x, buttonPositions.shoulderRight.y, "R", "e")
+
+    // button A / B
+    let drawButton = function (bx, by, label, hotkey) {
+        let r = buttonPositions.buttonA.r
+        canvasCtx.fillStyle = '#000';
+        canvasCtx.shadowColor = "rgba(0, 0, 0, 0.5)";
+        FillCircle(canvasCtx, bx, by, r);
+        canvasCtx.shadowColor = "transparent";
+        canvasCtx.fillStyle = '#f80';
+        FillCircle(canvasCtx, bx, by, r - offset);
+        canvasCtx.fillStyle = '#000';
+        canvasCtx.font = (r * .75) + 'px sans-serif';
+        canvasCtx.textAlign = 'center';
+        canvasCtx.textBaseline = 'middle';
+        canvasCtx.fillText(label, bx, by + r * .015);
+
+        drawHotKeyInfo(bx, by + r, hotkey)
+    }
+
+    drawButton(buttonPositions.buttonA.x, buttonPositions.buttonA.y, 'A', 'i')
+    drawButton(buttonPositions.buttonB.x, buttonPositions.buttonB.y, 'B', 'j')
+
+
     canvasCtx.fillStyle = '#fff';
 }
 
@@ -260,15 +404,15 @@ async function setupPlaceholder() {
     DrawHandheld(canvas, canvasCtx, baseSize);
     canvasCtx.fillStyle = 'black';
     canvasCtx.fillRect(
-        (canvas.width - baseSize) * .5,
-        (canvas.height - baseSize) * .5, baseSize, baseSize);
+        screenPosition.x,
+        screenPosition.y, baseSize, baseSize);
 
     canvasCtx.fillStyle = 'white';
     canvasCtx.font = '24px sans-serif';
     canvasCtx.textAlign = 'center';
     canvasCtx.textBaseline = 'middle';
     const startMessage = !hasMouse ? 'Tap to start' : 'Click to start';
-    canvasCtx.fillText(startMessage, canvas.width / 2, canvas.height / 2);
+    canvasCtx.fillText(startMessage, canvas.width / 2, (screenPosition.y + baseSize) * .55);
 
     let onClick = () => {
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -352,6 +496,62 @@ async function runGame() {
         }
     });
 
+    let activeTouches = {};
+    canvas.addEventListener('touchstart', (event) => {
+        for (let touch of event.changedTouches) {
+            let x = touch.clientX;
+            let y = touch.clientY;
+            let beginOnItem = false;
+            for (let item in buttonPositions) {
+                let button = buttonPositions[item];
+                let bx = button.x, by = button.y, bw = button.w, bh = button.h, br = button.r;
+                if (br) {
+                    let dx = x - bx;
+                    let dy = y - by;
+                    if (dx * dx + dy * dy < br * br) {
+                        beginOnItem = button;
+                        break;
+                    }
+                }
+                if (bw) {
+                    if (x > bx && x < bx + bw && y > by && y < by + bh) {
+                        beginOnItem = button;
+                        break;
+                    }
+                }
+            }
+            if (beginOnItem) {
+                activeTouches[touch.identifier] = { x: x, y: y, item: beginOnItem };
+                let dx = x - beginOnItem.x;
+                let dy = y - beginOnItem.y;
+                beginOnItem.onTouch('begin', arrowKeys, x, y);
+            }
+        }
+    });
+
+    canvas.addEventListener('touchmove', (event) => {
+        for (let touch of event.changedTouches) {
+            if (activeTouches[touch.identifier]) {
+                event.preventDefault();
+                let item = activeTouches[touch.identifier].item;
+                item.onTouch('move', arrowKeys, touch.clientX - item.x, touch.clientY - item.y);
+            }
+        }
+    });
+
+    canvas.addEventListener('touchend', (event) => {
+        for (let touch of event.changedTouches) {
+            if (activeTouches[touch.identifier]) {
+                event.preventDefault();
+                let { x, y, item } = activeTouches[touch.identifier];
+                item.onTouch('end', arrowKeys, x - item.x, y - item.y);
+                delete activeTouches[touch.identifier];
+            }
+        }
+    });
+
+
+
     let audioCtx = new (window.AudioContext || window.webkitAudioContext)(
         { sampleRate: 20050 }
     );
@@ -433,8 +633,6 @@ async function runGame() {
         // draw rounded rectangle
         DrawHandheld(canvas, canvasCtx, baseSize);
 
-
-
         canvasCtx.fillStyle = 'white';
 
         if (!isPaused) {
@@ -479,8 +677,8 @@ async function runGame() {
             canvasCtx.imageSmoothingEnabled = false;
             screenCanvasCtx.putImageData(screenData, 0, 0);
             canvasCtx.drawImage(screenCanvas,
-                (canvas.width - baseSize) * .5,
-                (canvas.height - baseSize) * .5,
+                screenPosition.x,
+                screenPosition.y,
                 baseSize, baseSize);
         }
         else {
@@ -488,21 +686,24 @@ async function runGame() {
 
             DrawHandheld(canvas, canvasCtx, baseSize)
             canvasCtx.drawImage(screenCanvas,
-                (canvas.width - baseSize) * .5,
-                (canvas.height - baseSize) * .5,
+                screenPosition.x,
+                screenPosition.y,
                 baseSize, baseSize);
 
             canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            canvasCtx.fillRect(
+                screenPosition.x,
+                screenPosition.y,
+                baseSize, baseSize);
             canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            canvasCtx.fillRect(0, canvas.height / 2 - 25, canvas.width, 50);
+            canvasCtx.fillRect(0, screenPosition.y + baseSize * .5 - 25, canvas.width, 50);
             canvasCtx.fillStyle = 'white';
             canvasCtx.font = '24px sans-serif';
             canvasCtx.textAlign = 'center';
             canvasCtx.textBaseline = 'middle';
             const pauseMessage = !hasMouse ? 'Paused - tap to continue' : 'Paused - click to continue';
 
-            canvasCtx.fillText(pauseMessage, canvas.width / 2, canvas.height / 2);
+            canvasCtx.fillText(pauseMessage, screenPosition.x + baseSize * .5, screenPosition.y + baseSize * 0.5);
 
         }
         requestAnimationFrame(gameLoop);
@@ -511,5 +712,4 @@ async function runGame() {
     requestAnimationFrame(gameLoop);
 }
 
-// runGame().catch(console.error);
 setupPlaceholder().catch(console.error);

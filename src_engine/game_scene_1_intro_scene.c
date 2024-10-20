@@ -173,27 +173,6 @@ void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData)
         moveDist -= 30;
     }
 
-    // if (player.x > 108)
-    // {
-    //     text = NULL;
-    // }
-    // else if (player.x > 80)
-    // {
-    //     text = "I can now get the pool I always wanted!";
-    // }
-    // else if (player.x > 60)
-    // {
-    //     text = "Finally I can retire.";
-    // }
-    // else if (player.x > 40)
-    // {
-    //     text = "So. Much. Loot!";
-    // }
-    // else if (player.x > 20)
-    // {
-    //     text = "The crusades were awesome.";
-    // }
-
     if (text)
     {
         DrawSpeechBubble(screenData, 10,20, 108, 30, cartX + 20, player.y - 5, text);
