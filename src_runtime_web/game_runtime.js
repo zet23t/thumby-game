@@ -1,3 +1,123 @@
+function audioWorkletProcessor() {
+    class GameAudioProcessor extends AudioWorkletProcessor {
+        constructor() {
+            super();
+            this.instructionsQueue = [];
+            console.log("Audio Worklet constructor exec, sending ready");
+            this.port.postMessage({ type: 'ready' });
+            this.port.onmessage = async (event) => {
+                if (event.data.type === 'init') {
+                    console.log("Audio Worklet init");
+                    const bytes = event.data.wasmData;
+                    const wasmModule = await WebAssembly.compile(bytes);
+                    const wasmInstance = await WebAssembly.instantiate(wasmModule, {
+                        env: {
+                            memory: new WebAssembly.Memory({ initial: 16, maximum: 16 }),
+                            _emscripten_memcpy_js: (dest, src, num) => {
+                                const destView = new Uint8Array(this.wasmInstance.exports.memory.buffer, dest, num);
+                                const srcView = new Uint8Array(this.wasmInstance.exports.memory.buffer, src, num);
+                                destView.set(srcView);
+                            },
+                            emscripten_resize_heap: (size) => {
+                                console.error('emscripten_resize_heap is not supported in this context');
+                                return false;
+                            },
+                            abort: () => console.error('abort')
+                        },
+                        wasi_snapshot_preview1: {
+                            fd_write: (fd, iovs, iovs_len, nwritten) => {
+                                const memory = this.wasmInstance.exports.memory;
+                                const HEAPU8 = new Uint8Array(memory.buffer);
+                                const HEAP32 = new Int32Array(memory.buffer);
+                                let written = 0;
+                                let str = '';
+                                for (let i = 0; i < iovs_len; i++) {
+                                    const ptr = HEAP32[(iovs >> 2) + i * 2];
+                                    const len = HEAP32[(iovs >> 2) + i * 2 + 1];
+                                    for (let j = 0; j < len; j++) {
+                                        str += String.fromCharCode(HEAPU8[ptr + j]);
+                                    }
+                                    written += len;
+                                }
+                                console.log(str);
+                                HEAP32[nwritten >> 2] = written;
+                                return 0; // WASI_ESUCCESS
+                            }
+                        }
+                    });
+                    this.wasmInstance = wasmInstance;
+                    const AudioContext_audioUpdate = this.wasmInstance.exports.AudioContext_audioUpdate;
+                    const AudioContext_create = this.wasmInstance.exports.AudioContext_create;
+                    const audioCtx = AudioContext_create();
+                    this.AudioContext_setSfxInstructions = this.wasmInstance.exports.AudioContext_setSfxInstructions;
+                    this.AudioContext_getChannelStatus = this.wasmInstance.exports.AudioContext_getChannelStatus;
+                    this.audioCtx = audioCtx;
+                    this.AudioContext_audioUpdate = AudioContext_audioUpdate;
+                    this.wasmBuffer = this.wasmInstance.exports.malloc(2048);
+                    this.sfxInstructionBuffer = this.wasmInstance.exports.malloc(128);
+                }
+    
+    
+                if (event.data.type === 'sfxInstructions')
+                {
+                    const sfxInstructions = event.data.data
+                    this.instructionsQueue.push(sfxInstructions);
+                }
+            };
+        }
+    
+        process(inputs, outputs, parameters) {
+            if (!this.wasmInstance) {
+                return true;
+            }
+            let output = outputs[0];
+            let buffer = output[0];
+            let frameCount = buffer.length;
+            let wasmBuffer = this.wasmBuffer;
+            let audioCtx = this.audioCtx;
+            let AudioContext_audioUpdate = this.AudioContext_audioUpdate;
+            let AudioContext_setSfxInstructions = this.AudioContext_setSfxInstructions;
+            let AudioContext_getChannelStatus = this.AudioContext_getChannelStatus;
+    
+            const memoryBuffer = this.wasmInstance.exports.memory.buffer;
+            const HEAPU8 = new Uint8Array(memoryBuffer);
+            const HEAP32 = new Int32Array(memoryBuffer);
+    
+            if (this.instructionsQueue.length > 0) {
+                const sfxInstructions = this.instructionsQueue.shift();
+                const sfxInstructionBuffer = this.sfxInstructionBuffer;
+                for (let i = 0; i < sfxInstructions.length; i++) {
+                    HEAPU8[sfxInstructionBuffer + i] = sfxInstructions[i];
+                }
+            }
+    
+            AudioContext_setSfxInstructions(audioCtx, this.sfxInstructionBuffer);
+            AudioContext_audioUpdate(audioCtx, 20050, 16, wasmBuffer, frameCount);
+            let channelStatusPtr = AudioContext_getChannelStatus(audioCtx, this.sfxInstructionBuffer)
+            let channelStatus = new Uint8Array(memoryBuffer, channelStatusPtr, 16);
+            let channelStatusArray = [];
+            let channelStatusSize = HEAP32[this.sfxInstructionBuffer >> 2];
+            for (let i = 0; i < channelStatusSize; i++) {
+                channelStatusArray.push(channelStatus[i]);
+            }
+            this.port.postMessage({ channelStatus: channelStatusArray });
+            for (let i = 0; i < 128; i++) {
+                HEAPU8[this.sfxInstructionBuffer + i] = 0;
+            }
+    
+            const int16View = new Int16Array(memoryBuffer, wasmBuffer, frameCount);
+            for (let i = 0; i < frameCount; i++) {
+                buffer[i] = int16View[i] / 32768;
+            }
+    
+    
+            return true;
+        }
+    }
+    
+    registerProcessor('game-audio-processor', GameAudioProcessor);
+}
+
 async function runGame() {
     // Create the WASM module and wait for it to initialize
     const Module = await createModule();
@@ -18,13 +138,6 @@ async function runGame() {
     const RuntimeContext_updateInputs = Module.cwrap('RuntimeContext_updateInputs', V,
         [VS, N, N, N, N, N, N, N, N, N, N, N]);
     const RuntimeContext_getScreen = Module.cwrap('RuntimeContext_getScreen', VS, [VS]);
-    const AudioContext_create = Module.cwrap('AudioContext_create', V, []);
-    const AudioContext_audioUpdate = Module.cwrap('AudioContext_audioUpdate', V, [VS, VS, VS, N]);
-    const AudioContext_beforeRuntimeUpdate = Module.cwrap('AudioContext_beforeRuntimeUpdate', V, [VS, VS]);
-    const AudioContext_afterRuntimeUpdate = Module.cwrap('AudioContext_afterRuntimeUpdate', V, [VS, VS]);
-
-    const AudioContext_getChannelStatus = Module.cwrap('AudioContext_getChannelStatus', VS,[VS, VS]);
-    const AudioContext_setSfxInstructions = Module.cwrap('AudioContext_setSfxInstructions', V,[VS, VS]);
     const RuntimeContext_getSfxInstructions = Module.cwrap('RuntimeContext_getSfxInstructions', VS,[VS, VS]);
     const RuntimeContext_setSfxChannelStatus = Module.cwrap('RuntimeContext_setSfxChannelStatus', V,[VS, VS]);
     const RuntimeContext_clearSfxInstructions = Module.cwrap('RuntimeContext_clearSfxInstructions', V,[VS]);
@@ -74,12 +187,8 @@ async function runGame() {
         { sampleRate: 20050 }
     );
     let audioWorkletNode;
-    let sharedArrayBuffer = new SharedArrayBuffer(2048 * 8);
-    let int16Buffer = new Int16Array(sharedArrayBuffer);
-    let sharedArrayBufferIndex = 0;
     let wasmBuffer = Module._malloc(2048 * 8);
     console.log("wasmBuffer", wasmBuffer, Module.HEAP16);
-
     
     // Load and the WebAssembly module for the audio worklet
     async function loadWasmData(url) {
@@ -90,7 +199,10 @@ async function runGame() {
 
     const wasmData = await loadWasmData('game.wasm');
 
-    audioCtx.audioWorklet.addModule('audio_worklet.js').then(() => {
+    const blob = new Blob([audioWorkletProcessor.toString(), 'audioWorkletProcessor()'], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+
+    audioCtx.audioWorklet.addModule(url).then(() => {
         console.log('audio worklet loaded, setting up pipeline');
         audioWorkletNode = new AudioWorkletNode(audioCtx, 'game-audio-processor');
         audioWorkletNode.port.onmessage = (event) => {
@@ -131,15 +243,15 @@ async function runGame() {
         RuntimeContext_updateInputs(ctx, currentTime, dt,
             arrowKeys.up, arrowKeys.right, arrowKeys.down, arrowKeys.left, arrowKeys.a, arrowKeys.b, arrowKeys.menu, arrowKeys.shoulderLeft, arrowKeys.shoulderRight);
 
-        // AudioContext_beforeRuntimeUpdate(engineAudioCtx, ctx);
         update(ctx);
         let sfxPtr = RuntimeContext_getSfxInstructions(ctx, intPtr);
         let sfxPtrSize = Module.getValue(intPtr, 'i32');
         // Create a Uint8Array view of the data buffer
         let sfxInstructions = new Uint8Array(Module.HEAPU8.buffer, sfxPtr, sfxPtrSize);
-        // Post the data buffer to the AudioWorkletProcessor
         if (audioWorkletNode)
         {
+            // Post the data buffer to the AudioWorkletProcessor using dumb array
+            // because sending Uint8Array directly is super slow
             let array = [];
             for (let i = 0; i < sfxInstructions.length; i++) {
                 array.push(sfxInstructions[i]);

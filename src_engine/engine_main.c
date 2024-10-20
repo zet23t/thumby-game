@@ -177,22 +177,6 @@ DLL_EXPORT AudioContext* AudioContext_create()
     return ctx;
 }
 
-DLL_EXPORT void AudioContext_beforeRuntimeUpdate(AudioContext *audioCtx, RuntimeContext *ctx)
-{
-    for (int i = 0; i < SFX_CHANNELS_COUNT; i++)
-    {
-        ctx->sfxChannelStatus[i] = audioCtx->outSfxChannelStatus[i];
-    }
-}
-
-DLL_EXPORT void AudioContext_afterRuntimeUpdate(AudioContext *audioCtx, RuntimeContext *ctx)
-{
-    for (int i = 0; i < SFX_CHANNELS_COUNT; i++)
-    {
-        audioCtx->inSfxInstructions[i] = ctx->outSfxInstructions[i];
-    }
-}
-
 DLL_EXPORT void* AudioContext_getChannelStatus(AudioContext *audioCtx, int *size)
 {
     *size = sizeof(SFXChannelStatus) * SFX_CHANNELS_COUNT;
@@ -226,25 +210,7 @@ DLL_EXPORT void AudioContext_audioUpdate(AudioContext *audioCtx, int sampleRate,
     audioCtx->sampleRate = sampleRate;
     audioCtx->sampleSize = sampleSize;
     audioCtx->outBuffer = (char*)buffer;
-    // LOG("Audio update %p:%d %d %d", buffer, frameCount, sampleRate, sampleSize);
-    // for (int i=0;i<5;i++)
-    // {
-    //     audioCtx->inSfxInstructions[i] = ctx->outSfxInstructions[i];
-    //     ctx->outSfxInstructions[i] = (SFXInstruction){0};
-    // }
     audioUpdate(audioCtx);
-    // short *outBuffer = (short*)buffer;
-    // LOG("Audio update %p:%d %d %d", buffer, frameCount, outBuffer[0], outBuffer[1]);
-    // for (int i=0;i<8;i++)
-    // {
-    //     printf("%d ", outBuffer[i]);
-    // }
-    // printf("\n");
-    // for (int i=0;i<SFX_CHANNELS_COUNT;i++)
-    // {
-    //     ctx->sfxChannelStatus[i] = audioCtx->outSfxChannelStatus[i];
-    //     audioCtx->inSfxInstructions[i] = (SFXInstruction){0};
-    // }
 }
 
 
