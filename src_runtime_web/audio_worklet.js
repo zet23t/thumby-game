@@ -1,10 +1,14 @@
 class GameAudioProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
+        this.instructionsQueue = [];
+        console.log("Audio Worklet constructor exec, sending ready");
+        this.port.postMessage({ type: 'ready' });
         this.port.onmessage = async (event) => {
             if (event.data.type === 'init') {
-                this.instructionsQueue = [];
-                const wasmModule = event.data.wasmModule;
+                console.log("Audio Worklet init");
+                const bytes = event.data.wasmData;
+                const wasmModule = await WebAssembly.compile(bytes);
                 const wasmInstance = await WebAssembly.instantiate(wasmModule, {
                     env: {
                         memory: new WebAssembly.Memory({ initial: 16, maximum: 16 }),
@@ -57,7 +61,6 @@ class GameAudioProcessor extends AudioWorkletProcessor {
             {
                 const sfxInstructions = event.data.data
                 this.instructionsQueue.push(sfxInstructions);
-                // console.log("sfxInstructions", sfxInstructions)
             }
         };
     }
@@ -102,7 +105,6 @@ class GameAudioProcessor extends AudioWorkletProcessor {
         }
 
         const int16View = new Int16Array(memoryBuffer, wasmBuffer, frameCount);
-
         for (let i = 0; i < frameCount; i++) {
             buffer[i] = int16View[i] / 32768;
         }

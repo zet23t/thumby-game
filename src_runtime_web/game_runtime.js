@@ -81,20 +81,25 @@ async function runGame() {
     console.log("wasmBuffer", wasmBuffer, Module.HEAP16);
 
     
-    // Load and compile the WebAssembly module
-    async function loadWasmModule(url) {
+    // Load and the WebAssembly module for the audio worklet
+    async function loadWasmData(url) {
         const response = await fetch(url);
         const bytes = await response.arrayBuffer();
-        const wasmModule = await WebAssembly.compile(bytes);
-        return wasmModule;
+        return bytes
     }
 
-    const wasmModule = await loadWasmModule('game.wasm');
+    const wasmData = await loadWasmData('game.wasm');
 
     audioCtx.audioWorklet.addModule('audio_worklet.js').then(() => {
+        console.log('audio worklet loaded, setting up pipeline');
         audioWorkletNode = new AudioWorkletNode(audioCtx, 'game-audio-processor');
-        audioWorkletNode.port.postMessage({ type: 'init', wasmModule: wasmModule });
         audioWorkletNode.port.onmessage = (event) => {
+            if (event.data.type === 'ready')
+            {
+                console.log("Audio Worklet signaled ready, sending init");
+                audioWorkletNode.port.postMessage({ type: 'init', wasmData: wasmData });
+                return;
+            }
             let { channelStatus } = event.data;
             for (let i = 0; i < channelStatus.length; i++) {
                 Module.HEAPU8[exchangeBuffer + i] = channelStatus[i];
