@@ -895,7 +895,7 @@ static void Scene_3_subscene_3_init(uint8_t sceneId)
     LOG("final Step: %d", step);
 }
 
-void Scene_3_init(uint8_t sceneId)
+void Scene_3_init(RuntimeContext *ctx, uint8_t sceneId)
 {
     sdfMap = 0;
     Environment_addTreeGroup(20, 20, 18522, 4, 20);

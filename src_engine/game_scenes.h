@@ -181,7 +181,7 @@ typedef struct ScriptedActions
 typedef struct Scene
 {
     uint8_t id;
-    void (*initFn)(uint8_t sceneId);
+    void (*initFn)(RuntimeContext *ctx, uint8_t sceneId);
     void (*updateFn)(RuntimeContext *ctx, TE_Img *screenData);
 } Scene;
 
@@ -192,7 +192,7 @@ void* Scene_malloc(uint32_t size);
 char* Scene_strDup(const char *str, int strlength);
 uint32_t Scene_getAllocatedSize();
 
-void Scene_init(uint8_t sceneId);
+void Scene_init(RuntimeContext *ctx, uint8_t sceneId);
 void Scene_setStep(uint8_t step);
 uint8_t Scene_getStep();
 uint8_t Scene_getMaxStep();

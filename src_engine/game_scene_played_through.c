@@ -16,7 +16,7 @@
 #include <math.h>
 #include <stdio.h>
 
-void Scene_played_through_init(uint8_t sceneId)
+void Scene_played_through_init(RuntimeContext *ctx, uint8_t sceneId)
 {
     player.x = 10;
     player.y = 60;

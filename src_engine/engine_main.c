@@ -375,7 +375,7 @@ DLL_EXPORT void init(RuntimeContext *ctx)
     TE_DebugRGB(0, 1, 0);
 
     GameRuntimeContextState *state = (GameRuntimeContextState*)ctx->projectData;
-    Scene_init(state->isInitiailized ? state->currentScene : 1);
+    Scene_init(ctx, state->isInitiailized ? state->currentScene : 1);
     TE_DebugRGB(1, 1, 1);
     Scene_setStep(state->currentStep);
     TE_DebugRGB(1, 0, 1);
@@ -409,11 +409,11 @@ DLL_EXPORT void update(RuntimeContext *ctx)
     ctx->frameStats = (TE_FrameStats) {0};
     if (ctx->inputShoulderLeft && !ctx->prevInputShoulderLeft)
     {
-        Scene_init((Scene_getCurrentSceneId() - 1)%8);
+        Scene_init(ctx, (Scene_getCurrentSceneId() - 1)%8);
     }
     if (ctx->inputShoulderRight && !ctx->prevInputShoulderRight)
     {
-        Scene_init((Scene_getCurrentSceneId() + 1)%8);
+        Scene_init(ctx, (Scene_getCurrentSceneId() + 1)%8);
     }
     img = (TE_Img) {
         .p2width = 7,

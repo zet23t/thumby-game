@@ -190,14 +190,21 @@ void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData)
     }
     if (cartX > 130)
     {
-        Scene_init(2);
+        Scene_init(ctx, 2);
     }
 }
 
-void Scene_1_init(uint8_t sceneId)
+void Scene_1_init(RuntimeContext *ctx, uint8_t sceneId)
 {
     // Enemies_spawn(1, 28, 42);
     // Enemies_spawn(1, 44, 28);
+    ctx->outSfxInstructions[0] = (SFXInstruction)
+    {
+        .type = SFXINSTRUCTION_TYPE_PLAY,
+        .id = 2,
+        .updateMask = SFXINSTRUCTION_UPDATE_MASK_VOLUME,
+        .volume = 150
+    };
 
     _moveDistanceXLeft = 0;
     _moveDistanceXRight = 0;

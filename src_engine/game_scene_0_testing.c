@@ -19,8 +19,12 @@
 static int8_t _scene0Mode = 0;
 static int8_t _scene0ModeSelect = 0;
 
-void Scene_0_init(uint8_t sceneId)
+void Scene_0_init(RuntimeContext *ctx, uint8_t sceneId)
 {
+    ctx->outSfxInstructions[0] = (SFXInstruction)
+    {
+        .type = SFXINSTRUCTION_TYPE_PAUSE
+    };
     _scene0Mode = 0;
     Player_setInputEnabled(0);
     Player_setWeapon(0);

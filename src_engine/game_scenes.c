@@ -885,14 +885,18 @@ void Cart_draw(TE_Img *screenData, int16_t x, int16_t y, uint8_t loaded, Runtime
 }
 
 void Scene_1_update(RuntimeContext *ctx, TE_Img *screenData);
-void Scene_1_init(uint8_t sceneId);
+void Scene_1_init(RuntimeContext *ctx, uint8_t sceneId);
 
 #define SCENE_2_FLAG_PULLING_CART 1
 #define SCENE_2_FLAG_DINGLEWORT_OUTSIDE 2
 #define SCENE_2_FLAG_DOOR_OPEN 4
 
-static void Scene_2_init(uint8_t sceneId)
+static void Scene_2_init(RuntimeContext *ctx, uint8_t sceneId)
 {
+    ctx->outSfxInstructions[0] = (SFXInstruction)
+    {
+        .type = SFXINSTRUCTION_TYPE_PAUSE
+    };
     Environment_addBushGroup(112, 90, 1232, 5, 10);
 
     Environment_addTreeGroup(24, 120, 122, 5, 25);
@@ -1293,7 +1297,7 @@ static void Scene_2_update(RuntimeContext *ctx, TE_Img *screenData)
 #include "game_scene_0_testing.h"
 #include "game_scene_3.h"
 
-void Scene_played_through_init(uint8_t sceneId);
+void Scene_played_through_init(RuntimeContext *ctx, uint8_t sceneId);
 void Scene_played_through_update(RuntimeContext *ctx, TE_Img *screen);
 
 static const Scene scenes[] = {
@@ -1350,7 +1354,7 @@ uint32_t Scene_getAllocatedSize()
     return _sceneAllocatorOffset;
 }
 
-void Scene_init(uint8_t sceneId)
+void Scene_init(RuntimeContext *ctx, uint8_t sceneId)
 {
     _sceneAllocatorOffset = 0;
     memset(_sceneAllocatorData, 0, sizeof(_sceneAllocatorData));
@@ -1373,7 +1377,7 @@ void Scene_init(uint8_t sceneId)
         if (scenes[i].id == sceneId)
         {
             LOG("Init scene %d", sceneId);
-            scenes[i].initFn(sceneId);
+            scenes[i].initFn(ctx, sceneId);
             _sceneUpdateFn = scenes[i].updateFn;
             return;
         }
@@ -1386,7 +1390,7 @@ void Scene_update(RuntimeContext *ctx, TE_Img *screen)
 {
     if (_loadNextScene >= 0)
     {
-        Scene_init(_loadNextScene);
+        Scene_init(ctx, _loadNextScene);
         _loadNextScene = -1;
     }
     _sceneUpdateFn(ctx, screen);
